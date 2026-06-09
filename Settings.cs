@@ -59,6 +59,12 @@ namespace GaokaoCountdown
         public bool ShowProgressBar { get; set; } = true;
         public bool ShowProgressText { get; set; } = true;
 
+        // ── 时间精度（各部分开关）──────────────────────────
+        public bool ShowDays    { get; set; } = true;
+        public bool ShowHours   { get; set; } = true;
+        public bool ShowMinutes { get; set; } = true;
+        public bool ShowSeconds { get; set; } = true;
+
         // 整体透明度 0.1 ~ 1.0
         public double OverallOpacity { get; set; } = 1.0;
 

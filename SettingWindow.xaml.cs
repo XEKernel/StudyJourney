@@ -200,6 +200,10 @@ namespace GaokaoCountdown
             ShowEnglishCheck.IsChecked      = _mainWindow.ShowEnglishLine;
             ShowProgressBarCheck.IsChecked  = _mainWindow.ShowProgressBar;
             ShowProgressTextCheck.IsChecked = _mainWindow.ShowProgressText;
+            ShowDaysCheck.IsChecked         = _mainWindow.ShowDays;
+            ShowHoursCheck.IsChecked        = _mainWindow.ShowHours;
+            ShowMinutesCheck.IsChecked      = _mainWindow.ShowMinutes;
+            ShowSecondsCheck.IsChecked      = _mainWindow.ShowSeconds;
             DecimalSlider.Value = _mainWindow.ProgressDecimalDigits;
             DecimalText.Text    = _mainWindow.ProgressDecimalDigits.ToString();
 
@@ -283,6 +287,10 @@ namespace GaokaoCountdown
             _mainWindow.ShowEnglishLine       = ShowEnglishCheck.IsChecked == true;
             _mainWindow.ShowProgressBar       = ShowProgressBarCheck.IsChecked == true;
             _mainWindow.ShowProgressText      = ShowProgressTextCheck.IsChecked == true;
+            _mainWindow.ShowDays              = ShowDaysCheck.IsChecked == true;
+            _mainWindow.ShowHours             = ShowHoursCheck.IsChecked == true;
+            _mainWindow.ShowMinutes           = ShowMinutesCheck.IsChecked == true;
+            _mainWindow.ShowSeconds           = ShowSecondsCheck.IsChecked == true;
             _mainWindow.ProgressDecimalDigits = (int)DecimalSlider.Value;
 
             // ── 动画 ──────────────────────────────────────────
@@ -332,6 +340,19 @@ namespace GaokaoCountdown
 
         private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
 
+        private void GitHubLink_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "https://github.com/SYSTEM-MEMZ-XEK/GaokaoCountdown",
+                    UseShellExecute = true
+                });
+            }
+            catch { /* 忽略浏览器打开失败 */ }
+        }
+
         private void ResetButton_Click(object sender, RoutedEventArgs e)
         {
             var result = WpfMessageBox.Show(
@@ -362,6 +383,10 @@ namespace GaokaoCountdown
             _mainWindow.ShowEnglishLine     = defaults.ShowEnglishLine;
             _mainWindow.ShowProgressBar     = defaults.ShowProgressBar;
             _mainWindow.ShowProgressText    = defaults.ShowProgressText;
+            _mainWindow.ShowDays            = defaults.ShowDays;
+            _mainWindow.ShowHours           = defaults.ShowHours;
+            _mainWindow.ShowMinutes         = defaults.ShowMinutes;
+            _mainWindow.ShowSeconds         = defaults.ShowSeconds;
             _mainWindow.PositionPreset      = defaults.PositionPreset;
             _mainWindow.CustomPositionX     = defaults.CustomPositionX;
             _mainWindow.CustomPositionY     = defaults.CustomPositionY;

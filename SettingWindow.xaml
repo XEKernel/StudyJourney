@@ -518,6 +518,19 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- 新增：时间精度卡片 -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="时间精度 · 显示哪些单位" Style="{StaticResource SectionTitle}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="隐藏某一单位后，该数字与标签均不显示；至少保留一项以防页面空白。"
+                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                    <CheckBox Name="ShowDaysCheck"    Content="&#x1F4C5;  天（Days）"/>
+                                    <CheckBox Name="ShowHoursCheck"   Content="&#x23F0;  小时（Hours）"/>
+                                    <CheckBox Name="ShowMinutesCheck" Content="&#x23F1;  分钟（Minutes）"/>
+                                    <CheckBox Name="ShowSecondsCheck" Content="&#x231B;  秒（Seconds）"/>
+                                </StackPanel>
+                            </Border>
+
                             <Border Style="{StaticResource CardPanel}">
                                 <StackPanel>
                                     <TextBlock Text="进度百分比精度" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
@@ -652,6 +665,83 @@
                                     BorderBrush="#15FFFFFF" BorderThickness="1">
                                 <TextBlock Foreground="#88CCCCDD" FontSize="11" TextWrapping="Wrap"
                                            Text="提示：窗口动画为本次生效，下次打开时重新读取保存的设置。"/>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ═══════ TAB 7：关于 ═══════ -->
+                <TabItem Header="&#x2139; 关于">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="6,8,6,12">
+
+                            <!-- 应用信息卡片 -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="高考倒计时" FontSize="20" FontWeight="Bold"
+                                               Foreground="#FFFFFFFF" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Gaokao Countdown"
+                                               FontSize="13" Foreground="#88CCCCDD" Margin="0,0,0,12"/>
+
+                                    <TextBlock Text="&#x1F9D1;&#x200D;&#x1F4BB;  作者"
+                                               FontSize="13" Foreground="#AAE0E0F0" Margin="0,4,0,2"/>
+                                    <TextBlock Text="XEKernel"
+                                               FontSize="16" FontWeight="SemiBold"
+                                               Foreground="#FFFFFFFF" Margin="0,0,0,10"/>
+
+                                    <TextBlock Text="&#x1F310;  GitHub 仓库"
+                                               FontSize="13" Foreground="#AAE0E0F0" Margin="0,4,0,2"/>
+                                    <TextBlock FontSize="13" Foreground="#FF6688CC"
+                                               Cursor="Hand" TextDecorations="Underline"
+                                               MouseLeftButtonDown="GitHubLink_MouseLeftButtonDown"
+                                               ToolTip="在浏览器中打开 GitHub 仓库">
+                                        <Run Text="SYSTEM-MEMZ-XEK / GaokaoCountdown"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 技术栈卡片 -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="技术栈" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <TextBlock FontSize="12" Foreground="#CCE0E0F0" Margin="0,2,0,2">
+                                        <Run Text="框架：.NET 8  ·  WPF"/>
+                                    </TextBlock>
+                                    <TextBlock FontSize="12" Foreground="#CCE0E0F0" Margin="0,2,0,2">
+                                        <Run Text="语言：C# 12"/>
+                                    </TextBlock>
+                                    <TextBlock FontSize="12" Foreground="#CCE0E0F0" Margin="0,2,0,2">
+                                        <Run Text="平台：Windows x64"/>
+                                    </TextBlock>
+                                    <TextBlock FontSize="12" Foreground="#CCE0E0F0" Margin="0,2,0,2">
+                                        <Run Text="架构：MainWindow + SettingWindow + Settings JSON 持久化"/>
+                                    </TextBlock>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 描述卡片 -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="&#x1F4A1;  简介" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <TextBlock FontSize="12" Foreground="#AACCDDEE" TextWrapping="Wrap"
+                                               LineHeight="20">
+                                        <Run Text="一款精致的桌面倒计时工具，专为高考考生设计。"/>
+                                        <LineBreak/>
+                                        <LineBreak/>
+                                        <Run Text="功能亮点："/>
+                                        <LineBreak/>
+                                        <Run Text="• 精确到秒的倒计时，支持自定义字体与配色"/>
+                                        <LineBreak/>
+                                        <Run Text="• 中英双语显示，天/时/分/秒各部分可独立开关"/>
+                                        <LineBreak/>
+                                        <Run Text="• 进度条直观展示高中生活完成度"/>
+                                        <LineBreak/>
+                                        <Run Text="• 数字脉冲动画，流畅不卡顿"/>
+                                        <LineBreak/>
+                                        <Run Text="• 无边框透明窗口，多位置预设，始终置顶"/>
+                                    </TextBlock>
+                                </StackPanel>
                             </Border>
 
                         </StackPanel>

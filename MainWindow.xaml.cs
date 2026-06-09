@@ -65,6 +65,10 @@ namespace GaokaoCountdown
         public bool   ShowEnglishLine  { get => settings.ShowEnglishLine;  set => settings.ShowEnglishLine  = value; }
         public bool   ShowProgressBar  { get => settings.ShowProgressBar;  set => settings.ShowProgressBar  = value; }
         public bool   ShowProgressText { get => settings.ShowProgressText; set => settings.ShowProgressText = value; }
+        public bool   ShowDays         { get => settings.ShowDays;         set => settings.ShowDays         = value; }
+        public bool   ShowHours        { get => settings.ShowHours;        set => settings.ShowHours        = value; }
+        public bool   ShowMinutes      { get => settings.ShowMinutes;      set => settings.ShowMinutes      = value; }
+        public bool   ShowSeconds      { get => settings.ShowSeconds;      set => settings.ShowSeconds      = value; }
         public double OverallOpacity   { get => settings.OverallOpacity;   set => settings.OverallOpacity   = value; }
 
         public int    PositionPreset   { get => settings.PositionPreset;   set => settings.PositionPreset   = value; }
@@ -206,15 +210,15 @@ namespace GaokaoCountdown
             // ── 脉冲动画：仅当值变化时触发 ─────────────────────
             if (EnableAnimations)
             {
-                if (days != _lastDays)    PulseNumber(DaysTb,    true);
-                if (hours != _lastHours)  PulseNumber(HoursTb,   true);
-                if (minutes != _lastMinutes) PulseNumber(MinutesTb, true);
-                PulseNumber(SecondsTb, false);
+                if (days != _lastDays && ShowDays)       PulseNumber(DaysTb,    true);
+                if (hours != _lastHours && ShowHours)    PulseNumber(HoursTb,   true);
+                if (minutes != _lastMinutes && ShowMinutes) PulseNumber(MinutesTb, true);
+                if (ShowSeconds) PulseNumber(SecondsTb, false);
 
-                if (days != _lastDays)    PulseNumber(DaysEnTb,    false);
-                if (hours != _lastHours)  PulseNumber(HoursEnTb,   false);
-                if (minutes != _lastMinutes) PulseNumber(MinutesEnTb, false);
-                PulseNumber(SecondsEnTb, false);
+                if (days != _lastDays && ShowDays)       PulseNumber(DaysEnTb,    false);
+                if (hours != _lastHours && ShowHours)    PulseNumber(HoursEnTb,   false);
+                if (minutes != _lastMinutes && ShowMinutes) PulseNumber(MinutesEnTb, false);
+                if (ShowSeconds) PulseNumber(SecondsEnTb, false);
             }
 
             _lastDays    = days;
@@ -394,6 +398,32 @@ namespace GaokaoCountdown
             ProgressBar.Visibility = ShowProgressBar  ? Visibility.Visible : Visibility.Collapsed;
             ProgressText.Visibility    = ShowProgressText ? Visibility.Visible : Visibility.Collapsed;
             ProgressTextEn.Visibility = (ShowProgressText && ShowEnglishLine) ? Visibility.Visible : Visibility.Collapsed;
+
+            // ── 时间部分（天/时/分/秒）可见性 ──────────────────
+            // 中文行：数字 + 标签 同步
+            var daysVis    = ShowDays    ? Visibility.Visible : Visibility.Collapsed;
+            var hoursVis   = ShowHours   ? Visibility.Visible : Visibility.Collapsed;
+            var minutesVis = ShowMinutes ? Visibility.Visible : Visibility.Collapsed;
+            var secondsVis = ShowSeconds ? Visibility.Visible : Visibility.Collapsed;
+
+            DaysTb.Visibility         = daysVis;
+            ChineseDaysTb.Visibility  = daysVis;
+            HoursTb.Visibility        = hoursVis;
+            ChineseHoursTb.Visibility = hoursVis;
+            MinutesTb.Visibility         = minutesVis;
+            ChineseMinutesTb.Visibility  = minutesVis;
+            SecondsTb.Visibility         = secondsVis;
+            ChineseSecondsTb.Visibility  = secondsVis;
+
+            // 英文行：数字 + 标签 同步（英文标签中数字已包含在 TextBlock 前，单独控制）
+            DaysEnTb.Visibility       = daysVis;
+            EnglishDaysTb.Visibility  = daysVis;
+            HoursEnTb.Visibility      = hoursVis;
+            EnglishHoursTb.Visibility = hoursVis;
+            MinutesEnTb.Visibility       = minutesVis;
+            EnglishMinutesTb.Visibility  = minutesVis;
+            SecondsEnTb.Visibility       = secondsVis;
+            EnglishSecondsTb.Visibility  = secondsVis;
 
             // ── 透明度 ──────────────────────────────────────────
             this.Opacity = Math.Clamp(OverallOpacity, 0.1, 1.0);
