@@ -16,6 +16,8 @@ namespace GaokaoCountdown
         // 运行时动画状态
         private bool _enableSettingsAnimations = true;
         private bool _isInitializing = true;   // 抑制初始加载时的 Tab 动画
+        private Style? _animatedRadioStyle;
+        private Style? _animatedCheckStyle;
 
         public SettingWindow(MainWindow window)
         {
@@ -34,6 +36,16 @@ namespace GaokaoCountdown
 
             PopulateFontFamilies();
             LoadSettings();
+
+            // 缓存动画版控件样式
+            _animatedRadioStyle = (Style)FindResource("AnimatedRadioStyle");
+            _animatedCheckStyle = (Style)FindResource("AnimatedCheckStyle");
+
+            // 根据设置应用 / 移除控件动画
+            if (_enableSettingsAnimations)
+                ApplyControlAnimations();
+            else
+                RemoveControlAnimations();
 
             // 注册颜色输入框实时预览事件
             NumberColorBox.TextChanged      += NumberColorBox_TextChanged;
@@ -425,6 +437,10 @@ namespace GaokaoCountdown
         private void EnableSettingsAnimationsCheck_Changed(object sender, RoutedEventArgs e)
         {
             _enableSettingsAnimations = EnableSettingsAnimationsCheck.IsChecked == true;
+            if (_enableSettingsAnimations)
+                ApplyControlAnimations();
+            else
+                RemoveControlAnimations();
         }
 
         private void AutoStartCheck_Changed(object sender, RoutedEventArgs e)
@@ -437,6 +453,24 @@ namespace GaokaoCountdown
         private void HideWhenMaximizedCheck_Changed(object sender, RoutedEventArgs e)
         {
             _mainWindow.HideWhenMaximized = HideWhenMaximizedCheck.IsChecked == true;
+        }
+
+        // ══════════════════════════════════════════════════════
+        //  控件动画开关（RadioButton / CheckBox）
+        // ══════════════════════════════════════════════════════
+
+        private void ApplyControlAnimations()
+        {
+            if (_animatedRadioStyle != null)
+                Resources[typeof(RadioButton)] = _animatedRadioStyle;
+            if (_animatedCheckStyle != null)
+                Resources[typeof(CheckBox)] = _animatedCheckStyle;
+        }
+
+        private void RemoveControlAnimations()
+        {
+            Resources.Remove(typeof(RadioButton));
+            Resources.Remove(typeof(CheckBox));
         }
 
         // ══════════════════════════════════════════════════════

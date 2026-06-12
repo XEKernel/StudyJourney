@@ -257,6 +257,229 @@
             <Setter Property="Stroke" Value="#30FFFFFF"/>
             <Setter Property="StrokeThickness" Value="1"/>
         </Style>
+
+        <!-- ═══════════════════════════════════════════════════
+             动画版控件样式（由「动画」设置 Tab 控制开关）
+             ═══════════════════════════════════════════════════ -->
+
+        <!-- RadioButton 动画版：内点弹入弹出 -->
+        <Style x:Key="AnimatedRadioStyle" TargetType="RadioButton" BasedOn="{x:Null}">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,3,12,3"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="#CCE0E0F0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="RadioOuter"
+                                    Grid.Column="0"
+                                    Width="18" Height="18"
+                                    CornerRadius="9"
+                                    Background="#22FFFFFF"
+                                    BorderBrush="#44FFFFFF"
+                                    BorderThickness="1.5"
+                                    Margin="0,0,8,0"
+                                    SnapsToDevicePixels="True">
+                                <Ellipse x:Name="RadioDot"
+                                         Width="8" Height="8"
+                                         Fill="#FF6688CC"
+                                         Opacity="0"
+                                         HorizontalAlignment="Center"
+                                         VerticalAlignment="Center"/>
+                            </Border>
+                            <ContentPresenter Grid.Column="1"
+                                              Content="{TemplateBinding Content}"
+                                              VerticalAlignment="Center"
+                                              Margin="2,0,0,0"
+                                              RecognizesAccessKey="True"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="RadioDot" Property="Opacity" Value="1"/>
+                                <Setter TargetName="RadioOuter" Property="BorderBrush" Value="#FF6688CC"/>
+                                <Setter TargetName="RadioOuter" Property="Background" Value="#186688CC"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="RadioOuter" Property="Background" Value="#33FFFFFF"/>
+                                <Setter TargetName="RadioOuter" Property="BorderBrush" Value="#66FFFFFF"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="RadioOuter" Property="Background" Value="#226688CC"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+
+                            <!-- ═══ 选中动画 ═══ -->
+                            <EventTrigger RoutedEvent="RadioButton.Checked">
+                                <BeginStoryboard>
+                                    <Storyboard FillBehavior="Stop">
+                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetName="RadioDot"
+                                                                       Storyboard.TargetProperty="Width">
+                                            <EasingDoubleKeyFrame KeyTime="0:0:0"    Value="0"/>
+                                            <EasingDoubleKeyFrame KeyTime="0:0:0.22" Value="10.5">
+                                                <EasingDoubleKeyFrame.EasingFunction>
+                                                    <BackEase EasingMode="EaseOut" Amplitude="0.35"/>
+                                                </EasingDoubleKeyFrame.EasingFunction>
+                                            </EasingDoubleKeyFrame>
+                                            <EasingDoubleKeyFrame KeyTime="0:0:0.38" Value="8"/>
+                                        </DoubleAnimationUsingKeyFrames>
+                                        <DoubleAnimationUsingKeyFrames Storyboard.TargetName="RadioDot"
+                                                                       Storyboard.TargetProperty="Height">
+                                            <EasingDoubleKeyFrame KeyTime="0:0:0"    Value="0"/>
+                                            <EasingDoubleKeyFrame KeyTime="0:0:0.22" Value="10.5">
+                                                <EasingDoubleKeyFrame.EasingFunction>
+                                                    <BackEase EasingMode="EaseOut" Amplitude="0.35"/>
+                                                </EasingDoubleKeyFrame.EasingFunction>
+                                            </EasingDoubleKeyFrame>
+                                            <EasingDoubleKeyFrame KeyTime="0:0:0.38" Value="8"/>
+                                        </DoubleAnimationUsingKeyFrames>
+                                        <DoubleAnimation Storyboard.TargetName="RadioDot"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         From="0" To="1" Duration="0:0:0.18"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+
+                            <!-- ═══ 取消选中动画 ═══ -->
+                            <EventTrigger RoutedEvent="RadioButton.Unchecked">
+                                <BeginStoryboard>
+                                    <Storyboard FillBehavior="Stop">
+                                        <DoubleAnimation Storyboard.TargetName="RadioDot"
+                                                         Storyboard.TargetProperty="Width"
+                                                         To="0" Duration="0:0:0.15"/>
+                                        <DoubleAnimation Storyboard.TargetName="RadioDot"
+                                                         Storyboard.TargetProperty="Height"
+                                                         To="0" Duration="0:0:0.15"/>
+                                        <DoubleAnimation Storyboard.TargetName="RadioDot"
+                                                         Storyboard.TargetProperty="Opacity"
+                                                         To="0" Duration="0:0:0.12"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- CheckBox 动画版：滑动开关带平滑动效 -->
+        <Style x:Key="AnimatedCheckStyle" TargetType="CheckBox" BasedOn="{x:Null}">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="0,5,0,7"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#CCE0E0F0"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Background="Transparent">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border x:Name="SwitchTrack"
+                                    Grid.Column="0"
+                                    Width="40" Height="22"
+                                    CornerRadius="11"
+                                    Background="#22FFFFFF"
+                                    BorderBrush="#30FFFFFF"
+                                    BorderThickness="1"
+                                    Margin="0,0,8,0"/>
+                            <Border x:Name="SwitchThumb"
+                                    Grid.Column="0"
+                                    Width="18" Height="18"
+                                    CornerRadius="9"
+                                    Background="#FFFFFFFF"
+                                    HorizontalAlignment="Left"
+                                    Margin="2,0,0,0">
+                                <Border.Effect>
+                                    <DropShadowEffect ShadowDepth="0.5" BlurRadius="3" Opacity="0.3"/>
+                                </Border.Effect>
+                            </Border>
+                            <ContentPresenter Grid.Column="1"
+                                              Content="{TemplateBinding Content}"
+                                              VerticalAlignment="Center"
+                                              Margin="2,0,0,0"
+                                              RecognizesAccessKey="True"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="SwitchTrack" Property="Background" Value="#446688CC"/>
+                                <Setter TargetName="SwitchTrack" Property="BorderBrush" Value="#FF6688CC"/>
+                                <Setter TargetName="SwitchThumb" Property="Margin" Value="20,0,0,0"/>
+                                <Setter TargetName="SwitchThumb" Property="Background" Value="#FFFFFFFF"/>
+                            </Trigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked" Value="False"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="SwitchTrack" Property="Background" Value="#33FFFFFF"/>
+                            </MultiTrigger>
+                            <MultiTrigger>
+                                <MultiTrigger.Conditions>
+                                    <Condition Property="IsMouseOver" Value="True"/>
+                                    <Condition Property="IsChecked" Value="True"/>
+                                </MultiTrigger.Conditions>
+                                <Setter TargetName="SwitchTrack" Property="Background" Value="#556688CC"/>
+                            </MultiTrigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+
+                            <!-- ═══ 选中：滑块右滑 ═══ -->
+                            <EventTrigger RoutedEvent="CheckBox.Checked">
+                                <BeginStoryboard>
+                                    <Storyboard FillBehavior="Stop">
+                                        <ThicknessAnimationUsingKeyFrames Storyboard.TargetName="SwitchThumb"
+                                                                          Storyboard.TargetProperty="Margin">
+                                            <EasingThicknessKeyFrame KeyTime="0:0:0" Value="2,0,0,0"/>
+                                            <EasingThicknessKeyFrame KeyTime="0:0:0.25" Value="20,0,0,0">
+                                                <EasingThicknessKeyFrame.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </EasingThicknessKeyFrame.EasingFunction>
+                                            </EasingThicknessKeyFrame>
+                                        </ThicknessAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+
+                            <!-- ═══ 取消选中：滑块左滑 ═══ -->
+                            <EventTrigger RoutedEvent="CheckBox.Unchecked">
+                                <BeginStoryboard>
+                                    <Storyboard FillBehavior="Stop">
+                                        <ThicknessAnimationUsingKeyFrames Storyboard.TargetName="SwitchThumb"
+                                                                          Storyboard.TargetProperty="Margin">
+                                            <EasingThicknessKeyFrame KeyTime="0:0:0" Value="20,0,0,0"/>
+                                            <EasingThicknessKeyFrame KeyTime="0:0:0.2" Value="2,0,0,0">
+                                                <EasingThicknessKeyFrame.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </EasingThicknessKeyFrame.EasingFunction>
+                                            </EasingThicknessKeyFrame>
+                                        </ThicknessAnimationUsingKeyFrames>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <!-- ══════════════════════════════════════════════════════
