@@ -99,11 +99,7 @@
         </WrapPanel>
 
         <!-- 进度条（带发光效果） -->
-        <ProgressBar Grid.Row="2" Name="ProgressBar"
-                     Height="10"
-                     Margin="0,0,0,8"
-                     Background="#33000000"
-                     Foreground="#FFFFFF">
+        <ProgressBar Grid.Row="2" Name="ProgressBar">
             <ProgressBar.Effect>
                 <DropShadowEffect x:Name="ProgressBarGlow" Color="#FFFFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.6"/>
             </ProgressBar.Effect>
