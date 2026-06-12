@@ -638,7 +638,7 @@ namespace GaokaoCountdown
 
         // ══════════════════════════════════════════════════════
         //  入场动画：数字 0→实际值滚动 + 进度条 0→当前值
-        //  持续 1250ms，QuarticEaseOut 缓动（先快后慢）
+        //  持续 1250ms，PowerEaseOut(Power=8) 强力先快后慢
         // ══════════════════════════════════════════════════════
         private void PlayIntroAnimation()
         {
@@ -656,12 +656,12 @@ namespace GaokaoCountdown
             double daysPassed = (now - startDate).TotalDays;
             _introProgress = Math.Min(100, Math.Max(0, daysPassed / totalDays * 100.0));
 
-            // ── 进度条动画：0 → 当前值，1.25s EaseOut ──────────
+            // ── 进度条动画：0 → 当前值，1.25s 强力缓出 ──────────
             ProgressBar.Value = 0;
             var pbAnim = new DoubleAnimation(0, _introProgress,
                 new Duration(TimeSpan.FromMilliseconds(IntroDurationMs)))
             {
-                EasingFunction = new QuarticEase { EasingMode = EasingMode.EaseOut }
+                EasingFunction = new PowerEase { Power = 8, EasingMode = EasingMode.EaseOut }
             };
             ProgressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, pbAnim);
 
@@ -680,8 +680,8 @@ namespace GaokaoCountdown
             double elapsed = (DateTime.Now - _introStart).TotalMilliseconds;
             double t = Math.Min(1.0, elapsed / IntroDurationMs);
 
-            // QuarticEaseOut: 1 - (1-t)^4，先快后慢
-            double eased = 1.0 - Math.Pow(1.0 - t, 4);
+            // PowerEaseOut (Power=8): 1 - (1-t)^8，先快后慢更明显
+            double eased = 1.0 - Math.Pow(1.0 - t, 8);
 
             int days    = (int)Math.Round(eased * _introDays);
             int hours   = (int)Math.Round(eased * _introHours);
