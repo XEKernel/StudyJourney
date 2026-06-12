@@ -70,6 +70,9 @@ namespace GaokaoCountdown
         private bool _hiddenByMaximize = false;
         private DispatcherTimer? _maximizeCheckTimer;
 
+        // ── 设置窗口单例引用 ─────────────────────────────────
+        private SettingWindow? _settingWindow;
+
         // ── 设置代理属性 ─────────────────────────────────────
         public string ChinesePrefix      { get => settings.ChinesePrefix;      set => settings.ChinesePrefix      = value; }
         public string ChineseDaysText    { get => settings.ChineseDaysText;    set => settings.ChineseDaysText    = value; }
@@ -232,9 +235,19 @@ namespace GaokaoCountdown
 
         private void OpenSettings()
         {
-            var sw = new SettingWindow(this);
-            sw.Owner = this;
-            sw.ShowDialog();
+            // 若设置窗口已打开，则激活而不重复创建
+            if (_settingWindow != null && _settingWindow.IsLoaded)
+            {
+                _settingWindow.Activate();
+                if (_settingWindow.WindowState == WindowState.Minimized)
+                    _settingWindow.WindowState = WindowState.Normal;
+                return;
+            }
+
+            _settingWindow = new SettingWindow(this);
+            _settingWindow.Owner = this;
+            _settingWindow.Closed += (s, e) => _settingWindow = null;
+            _settingWindow.Show();  // 非模态，允许与主窗口同时操作
         }
 
         private void ExitApplication()
