@@ -94,7 +94,7 @@
 
 
     <!-- ──────────────────────────────────────────────
-         RadioButton — 暗色主题自定义单选圆圈
+         RadioButton — 暗色主题自定义单选圆圈（带弹入弹出动画）
          ────────────────────────────────────────────── -->
     <Style TargetType="RadioButton">
         <Setter Property="Cursor" Value="Hand"/>
@@ -121,7 +121,7 @@
                                 BorderThickness="1.5"
                                 Margin="0,0,8,0"
                                 SnapsToDevicePixels="True">
-                            <!-- 内点 -->
+                            <!-- 内点（带弹入弹出动画） -->
                             <Ellipse x:Name="RadioDot"
                                      Width="8" Height="8"
                                      Fill="#FF6688CC"
@@ -138,11 +138,14 @@
                     </Grid>
 
                     <ControlTemplate.Triggers>
+                        <!-- 稳态：选中时 -->
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="RadioDot" Property="Opacity" Value="1"/>
                             <Setter TargetName="RadioOuter" Property="BorderBrush" Value="#FF6688CC"/>
                             <Setter TargetName="RadioOuter" Property="Background" Value="#186688CC"/>
                         </Trigger>
+
+                        <!-- hover 未选中 -->
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
                                 <Condition Property="IsMouseOver" Value="True"/>
@@ -151,6 +154,8 @@
                             <Setter TargetName="RadioOuter" Property="Background" Value="#33FFFFFF"/>
                             <Setter TargetName="RadioOuter" Property="BorderBrush" Value="#66FFFFFF"/>
                         </MultiTrigger>
+
+                        <!-- hover 已选中 -->
                         <MultiTrigger>
                             <MultiTrigger.Conditions>
                                 <Condition Property="IsMouseOver" Value="True"/>
@@ -158,9 +163,84 @@
                             </MultiTrigger.Conditions>
                             <Setter TargetName="RadioOuter" Property="Background" Value="#226688CC"/>
                         </MultiTrigger>
+
+                        <!-- 禁用 -->
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.4"/>
                         </Trigger>
+
+                        <!-- ═══ 选中动画：内点弹入 ═══ -->
+                        <EventTrigger RoutedEvent="RadioButton.Checked">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <!-- 宽度：0 → 10.5 → 8（弹性过冲） -->
+                                    <DoubleAnimationUsingKeyFrames Storyboard.TargetName="RadioDot"
+                                                                   Storyboard.TargetProperty="Width">
+                                        <EasingDoubleKeyFrame KeyTime="0:0:0"     Value="0"/>
+                                        <EasingDoubleKeyFrame KeyTime="0:0:0.22"  Value="10.5">
+                                            <EasingDoubleKeyFrame.EasingFunction>
+                                                <BackEase EasingMode="EaseOut" Amplitude="0.35"/>
+                                            </EasingDoubleKeyFrame.EasingFunction>
+                                        </EasingDoubleKeyFrame>
+                                        <EasingDoubleKeyFrame KeyTime="0:0:0.38"  Value="8">
+                                            <EasingDoubleKeyFrame.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </EasingDoubleKeyFrame.EasingFunction>
+                                        </EasingDoubleKeyFrame>
+                                    </DoubleAnimationUsingKeyFrames>
+                                    <!-- 高度：同步 -->
+                                    <DoubleAnimationUsingKeyFrames Storyboard.TargetName="RadioDot"
+                                                                   Storyboard.TargetProperty="Height">
+                                        <EasingDoubleKeyFrame KeyTime="0:0:0"     Value="0"/>
+                                        <EasingDoubleKeyFrame KeyTime="0:0:0.22"  Value="10.5">
+                                            <EasingDoubleKeyFrame.EasingFunction>
+                                                <BackEase EasingMode="EaseOut" Amplitude="0.35"/>
+                                            </EasingDoubleKeyFrame.EasingFunction>
+                                        </EasingDoubleKeyFrame>
+                                        <EasingDoubleKeyFrame KeyTime="0:0:0.38"  Value="8">
+                                            <EasingDoubleKeyFrame.EasingFunction>
+                                                <CubicEase EasingMode="EaseOut"/>
+                                            </EasingDoubleKeyFrame.EasingFunction>
+                                        </EasingDoubleKeyFrame>
+                                    </DoubleAnimationUsingKeyFrames>
+                                    <!-- 不透明度：渐入 -->
+                                    <DoubleAnimation Storyboard.TargetName="RadioDot"
+                                                     Storyboard.TargetProperty="Opacity"
+                                                     From="0" To="1" Duration="0:0:0.18"/>
+                                    <!-- 外圈边框颜色过渡 -->
+                                    <ColorAnimation Storyboard.TargetName="RadioOuter"
+                                                    Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)"
+                                                    From="#44FFFFFF" To="#FF6688CC" Duration="0:0:0.3"/>
+                                    <!-- 外圈背景颜色过渡 -->
+                                    <ColorAnimation Storyboard.TargetName="RadioOuter"
+                                                    Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                    From="#22FFFFFF" To="#186688CC" Duration="0:0:0.3"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
+
+                        <!-- ═══ 取消选中动画：内点缩出 ═══ -->
+                        <EventTrigger RoutedEvent="RadioButton.Unchecked">
+                            <BeginStoryboard>
+                                <Storyboard>
+                                    <DoubleAnimation Storyboard.TargetName="RadioDot"
+                                                     Storyboard.TargetProperty="Width"
+                                                     To="0" Duration="0:0:0.16"/>
+                                    <DoubleAnimation Storyboard.TargetName="RadioDot"
+                                                     Storyboard.TargetProperty="Height"
+                                                     To="0" Duration="0:0:0.16"/>
+                                    <DoubleAnimation Storyboard.TargetName="RadioDot"
+                                                     Storyboard.TargetProperty="Opacity"
+                                                     To="0" Duration="0:0:0.13"/>
+                                    <ColorAnimation Storyboard.TargetName="RadioOuter"
+                                                    Storyboard.TargetProperty="(Border.BorderBrush).(SolidColorBrush.Color)"
+                                                    From="#FF6688CC" To="#44FFFFFF" Duration="0:0:0.2"/>
+                                    <ColorAnimation Storyboard.TargetName="RadioOuter"
+                                                    Storyboard.TargetProperty="(Border.Background).(SolidColorBrush.Color)"
+                                                    From="#186688CC" To="#22FFFFFF" Duration="0:0:0.2"/>
+                                </Storyboard>
+                            </BeginStoryboard>
+                        </EventTrigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
