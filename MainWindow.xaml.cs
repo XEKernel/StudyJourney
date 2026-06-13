@@ -266,6 +266,10 @@ namespace GaokaoCountdown
         private void SetupTrayIcon()
         {
             notifyIcon = new TaskbarIcon();
+            var iconPath = System.IO.Path.Combine(
+                AppDomain.CurrentDomain.BaseDirectory, "icon.ico");
+            notifyIcon.IconSource = new System.Windows.Media.Imaging.BitmapImage(
+                new Uri(iconPath));
             notifyIcon.ToolTipText = "高考倒计时";
             var contextMenu = new ContextMenu();
             var showHideItem = new MenuItem { Header = "显示 / 隐藏" };
