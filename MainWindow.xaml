@@ -10,13 +10,14 @@
         Background="Transparent"
         Topmost="False"
         ShowInTaskbar="False"
-        Height="150"
+        Height="175"
         Width="850"
         Loaded="Window_Loaded"
         Closing="Window_Closing">
 
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -121,5 +122,19 @@
                    FontSize="13"
                    Foreground="#D3D3D3"
                    HorizontalAlignment="Center"/>
+
+        <!-- 每日一言 -->
+        <TextBlock Grid.Row="5" x:Name="DailyQuoteTb"
+                   FontSize="12"
+                   Foreground="#AAAAAA"
+                   FontStyle="Italic"
+                   HorizontalAlignment="Center"
+                   Margin="0,4,0,4"
+                   TextTrimming="CharacterEllipsis"
+                   MaxWidth="800"
+                   Visibility="Collapsed"
+                   Cursor="Hand"
+                   MouseLeftButtonDown="DailyQuoteTb_MouseLeftButtonDown"
+                   ToolTip="点击刷新每日一言"/>
     </Grid>
 </Window>

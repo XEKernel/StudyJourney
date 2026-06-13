@@ -6,6 +6,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
+using System.Windows.Threading;
 using Forms = System.Windows.Forms;
 using WpfMessageBox = System.Windows.MessageBox;
 
@@ -18,6 +19,7 @@ namespace GaokaoCountdown
         // 运行时动画状态
         private bool _enableSettingsAnimations = true;
         private bool _isInitializing = true;   // 抑制初始加载时的 Tab 动画
+        private bool _isInitialized = false;   // 防重复初始化
         private ScrollViewer[]? _tabContents;  // 索引 → 内容面板
 
         public SettingWindow(MainWindow window)
@@ -25,6 +27,7 @@ namespace GaokaoCountdown
             InitializeComponent();
             _mainWindow = window;
             ContentRendered += SettingWindow_ContentRendered;
+            Closed += SettingWindow_Closed;
         }
 
         // ══════════════════════════════════════════════════════
@@ -35,46 +38,102 @@ namespace GaokaoCountdown
         {
             ContentRendered -= SettingWindow_ContentRendered;
 
-            // 建立 Tab 索引 → 内容面板映射
-            _tabContents = new[]
+            // 将初始化延迟到窗口完全加载后执行，避免动画/布局竞态导致卡死
+            Dispatcher.BeginInvoke(new Action(() =>
             {
-                ContentAppearance,
-                ContentPosition,
-                ContentDisplay,
-                ContentText,
-                ContentDate,
-                ContentAnimation,
-                ContentAbout
-            };
+                if (_isInitialized) return;
+                _isInitialized = true;
 
-            PopulateFontFamilies();
-            LoadSettings();
+                try
+                {
+                    // 建立 Tab 索引 → 内容面板映射
+                    _tabContents = new[]
+                    {
+                        ContentAppearance,
+                        ContentPosition,
+                        ContentDisplay,
+                        ContentText,
+                        ContentDate,
+                        ContentAnimation,
+                        ContentApi,
+                        ContentAbout
+                    };
 
-            // 根据设置应用 / 移除控件动画
-            if (_enableSettingsAnimations)
-                ApplyControlAnimations();
-            else
+                    PopulateFontFamilies();
+                    LoadSettings();
+
+                    // 根据设置应用 / 移除控件动画
+                    if (_enableSettingsAnimations)
+                        ApplyControlAnimations();
+                    else
+                        RemoveControlAnimations();
+
+                    // 注册颜色输入框实时预览事件
+                    NumberColorBox.TextChanged      += NumberColorBox_TextChanged;
+                    TextColorBox.TextChanged        += TextColorBox_TextChanged;
+                    ProgressBarColorBox.TextChanged += ProgressBarColorBox_TextChanged;
+                    QuoteForegroundBox.TextChanged += QuoteForegroundBox_TextChanged;
+                    WeatherCityColorBox.TextChanged += WeatherCityColorBox_TextChanged;
+                    WeatherInfoColorBox.TextChanged += WeatherInfoColorBox_TextChanged;
+                    WeatherTempColorBox.TextChanged += WeatherTempColorBox_TextChanged;
+                    WeatherTimeColorBox.TextChanged += WeatherTimeColorBox_TextChanged;
+                    WeatherIconColorBox.TextChanged += WeatherIconColorBox_TextChanged;
+
+                    // 窗口入场动画
+                    if (_enableSettingsAnimations)
+                    {
+                        AnimateWindowEntrance();
+                    }
+
+                    // 允许后续 Tab 切换动画
+                    _isInitializing = false;
+
+                    // 手动给第一个已选中的 Tab 做入场（默认从右侧滑入）
+                    if (_enableSettingsAnimations && MainTabControl.SelectedIndex >= 0)
+                    {
+                        double w = ContentHost.ActualWidth > 0 ? ContentHost.ActualWidth : 400;
+                        SlideIn(_tabContents[MainTabControl.SelectedIndex], 1, w);
+                    }
+                }
+                catch
+                {
+                    // 初始化异常静默处理，确保窗口至少可用
+                    _isInitializing = false;
+                    if (_enableSettingsAnimations)
+                        RemoveControlAnimations();
+                }
+            }), DispatcherPriority.Loaded);
+        }
+
+        // ══════════════════════════════════════════════════════
+        //  窗口关闭清理
+        // ══════════════════════════════════════════════════════
+        private void SettingWindow_Closed(object? sender, EventArgs e)
+        {
+            Closed -= SettingWindow_Closed;
+
+            // 停止所有可能的动画
+            try
+            {
+                _outgoingPanel = null;
+                if (_tabContents != null)
+                {
+                    foreach (var sv in _tabContents)
+                    {
+                        if (sv == null) continue;
+                        sv.BeginAnimation(UIElement.OpacityProperty, null);
+                        if (sv.RenderTransform is TranslateTransform tt)
+                            tt.BeginAnimation(TranslateTransform.XProperty, null);
+                    }
+                }
+                MainGrid.BeginAnimation(UIElement.OpacityProperty, null);
+
+                // 移除控件动画样式（恢复默认 WPF 样式）
                 RemoveControlAnimations();
-
-            // 注册颜色输入框实时预览事件
-            NumberColorBox.TextChanged      += NumberColorBox_TextChanged;
-            TextColorBox.TextChanged        += TextColorBox_TextChanged;
-            ProgressBarColorBox.TextChanged += ProgressBarColorBox_TextChanged;
-
-            // 窗口入场动画
-            if (_enableSettingsAnimations)
-            {
-                AnimateWindowEntrance();
             }
-
-            // 允许后续 Tab 切换动画
-            _isInitializing = false;
-
-            // 手动给第一个已选中的 Tab 做入场（默认从右侧滑入）
-            if (_enableSettingsAnimations && MainTabControl.SelectedIndex >= 0)
+            catch
             {
-                double w = ContentHost.ActualWidth > 0 ? ContentHost.ActualWidth : 400;
-                SlideIn(_tabContents[MainTabControl.SelectedIndex], 1, w);
+                // 清理失败静默处理
             }
         }
 
@@ -167,7 +226,7 @@ namespace GaokaoCountdown
             if (sv.RenderTransform is TranslateTransform tt2) tt2.X = 0;
         }
 
-        private static readonly Duration SlideTime = new Duration(TimeSpan.FromSeconds(1.5));
+        private static readonly Duration SlideTime = new Duration(TimeSpan.FromSeconds(0.8));
         private static readonly IEasingFunction SlideEase =
             new PowerEase { Power = 3, EasingMode = EasingMode.EaseOut };
 
@@ -313,6 +372,51 @@ namespace GaokaoCountdown
             var settingsAnim = _mainWindow.EnableAnimations;
             _enableSettingsAnimations = settingsAnim;
             EnableSettingsAnimationsCheck.IsChecked = settingsAnim;
+
+            // ── 每日一言 ──────────────────────────────────────
+            ShowDailyQuoteCheck.IsChecked      = _mainWindow.ShowDailyQuote;
+            QuoteFontSizeSlider.Value          = _mainWindow.QuoteFontSize;
+            QuoteFontSizeText.Text             = _mainWindow.QuoteFontSize.ToString("F0");
+            QuoteForegroundBox.Text            = _mainWindow.QuoteForegroundHex;
+            QuoteItalicCheck.IsChecked         = _mainWindow.QuoteItalic;
+            QuoteApiUrlBox.Text                = _mainWindow.QuoteApiUrl;
+            QuoteTextFieldNameBox.Text          = _mainWindow.QuoteTextFieldName;
+            QuoteRefreshIntervalSlider.Value   = _mainWindow.QuoteAutoRefreshInterval;
+            QuoteRefreshIntervalText.Text      = _mainWindow.QuoteAutoRefreshInterval == 0
+                ? "关" : $"{_mainWindow.QuoteAutoRefreshInterval}s";
+
+            // ── 天气 ──────────────────────────────────────────
+            ShowWeatherCheck.IsChecked          = _mainWindow.ShowWeather;
+            WeatherCityBox.Text                 = _mainWindow.WeatherCity;
+            WeatherAdcodeBox.Text               = _mainWindow.WeatherAdcode;
+            if (_mainWindow.WeatherWindowMode == 1)
+                WeatherModeWindow.IsChecked = true;
+            else
+                WeatherModeText.IsChecked   = true;
+            WeatherXBox.Text                    = _mainWindow.WeatherCustomX.ToString("F0");
+            WeatherYBox.Text                    = _mainWindow.WeatherCustomY.ToString("F0");
+            WeatherWidthSlider.Value            = _mainWindow.WeatherWindowWidth;
+            WeatherWidthText.Text               = $"{_mainWindow.WeatherWindowWidth:F0}px";
+            WeatherHeightSlider.Value           = _mainWindow.WeatherWindowHeight;
+            WeatherHeightText.Text              = $"{_mainWindow.WeatherWindowHeight:F0}px";
+            WeatherFontSizeSlider.Value         = _mainWindow.WeatherFontSize;
+            WeatherFontSizeText.Text            = _mainWindow.WeatherFontSize.ToString("F0");
+            WeatherRefreshIntervalSlider.Value  = _mainWindow.WeatherRefreshInterval;
+            WeatherRefreshIntervalText.Text     = _mainWindow.WeatherRefreshInterval == 0
+                ? "关" : $"{_mainWindow.WeatherRefreshInterval}min";
+            WeatherAlwaysOnTopCheck.IsChecked   = _mainWindow.WeatherAlwaysOnTop;
+
+            // 天气文字颜色
+            WeatherCityColorBox.Text      = _mainWindow.WeatherCityColor;
+            WeatherInfoColorBox.Text      = _mainWindow.WeatherInfoColor;
+            WeatherTempColorBox.Text      = _mainWindow.WeatherTempColor;
+            WeatherTimeColorBox.Text      = _mainWindow.WeatherTimeColor;
+            WeatherIconColorBox.Text      = _mainWindow.WeatherIconColor;
+            RefreshColorPreview(WeatherCityColorBox,      WeatherCityColorPreview);
+            RefreshColorPreview(WeatherInfoColorBox,      WeatherInfoColorPreview);
+            RefreshColorPreview(WeatherTempColorBox,      WeatherTempColorPreview);
+            RefreshColorPreview(WeatherTimeColorBox,      WeatherTimeColorPreview);
+            RefreshColorPreview(WeatherIconColorBox,      WeatherIconColorPreview);
         }
 
         // ══════════════════════════════════════════════════════
@@ -397,6 +501,81 @@ namespace GaokaoCountdown
             // ── 动画 ──────────────────────────────────────────
             _mainWindow.EnableAnimations = EnableAnimationsCheck.IsChecked == true;
             _enableSettingsAnimations    = EnableSettingsAnimationsCheck.IsChecked == true;
+
+            // ── 每日一言 ──────────────────────────────────────
+            _mainWindow.ShowDailyQuote          = ShowDailyQuoteCheck.IsChecked == true;
+            _mainWindow.QuoteFontSize           = QuoteFontSizeSlider.Value;
+            _mainWindow.QuoteForegroundHex       = QuoteForegroundBox.Text.Trim();
+            _mainWindow.QuoteItalic             = QuoteItalicCheck.IsChecked == true;
+            _mainWindow.QuoteApiUrl             = QuoteApiUrlBox.Text.Trim();
+            _mainWindow.QuoteTextFieldName      = QuoteTextFieldNameBox.Text.Trim();
+            _mainWindow.QuoteAutoRefreshInterval = (int)QuoteRefreshIntervalSlider.Value;
+
+            // 应用样式到主窗口
+            _mainWindow.ApplyQuoteStyle();
+            // 更新自动切换定时器
+            _mainWindow.StartQuoteRefreshTimer();
+            // 如果开关打开，立即加载一条
+            if (_mainWindow.ShowDailyQuote)
+                _ = _mainWindow.RefreshQuoteAsync();
+
+            // ── 天气 ──────────────────────────────────────────
+            _mainWindow.ShowWeather          = ShowWeatherCheck.IsChecked == true;
+            _mainWindow.WeatherCity          = WeatherCityBox.Text.Trim();
+            _mainWindow.WeatherAdcode        = WeatherAdcodeBox.Text.Trim();
+            _mainWindow.WeatherWindowMode    = WeatherModeWindow.IsChecked == true ? 1 : 0;
+
+            if (double.TryParse(WeatherXBox.Text, out double wx))     _mainWindow.WeatherCustomX      = wx;
+            if (double.TryParse(WeatherYBox.Text, out double wy))     _mainWindow.WeatherCustomY      = wy;
+            _mainWindow.WeatherWindowWidth  = WeatherWidthSlider.Value;
+            _mainWindow.WeatherWindowHeight = WeatherHeightSlider.Value;
+            _mainWindow.WeatherFontSize     = WeatherFontSizeSlider.Value;
+
+            _mainWindow.WeatherRefreshInterval = (int)WeatherRefreshIntervalSlider.Value;
+            _mainWindow.WeatherAlwaysOnTop     = WeatherAlwaysOnTopCheck.IsChecked == true;
+
+            // 天气文字颜色
+            if (!TryParseColor(WeatherCityColorBox.Text, out Color wcc))
+            {
+                WpfMessageBox.Show("城市名颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                                   "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (!TryParseColor(WeatherInfoColorBox.Text, out Color wic))
+            {
+                WpfMessageBox.Show("天气信息颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                                   "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (!TryParseColor(WeatherTempColorBox.Text, out Color wtc))
+            {
+                WpfMessageBox.Show("温度颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                                   "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (!TryParseColor(WeatherTimeColorBox.Text, out Color wtc2))
+            {
+                WpfMessageBox.Show("更新时间颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                                   "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            if (!TryParseColor(WeatherIconColorBox.Text, out Color wico))
+            {
+                WpfMessageBox.Show("天气图标颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                                   "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            _mainWindow.WeatherCityColor  = WeatherCityColorBox.Text.Trim();
+            _mainWindow.WeatherInfoColor  = WeatherInfoColorBox.Text.Trim();
+            _mainWindow.WeatherTempColor  = WeatherTempColorBox.Text.Trim();
+            _mainWindow.WeatherTimeColor  = WeatherTimeColorBox.Text.Trim();
+            _mainWindow.WeatherIconColor  = WeatherIconColorBox.Text.Trim();
+
+            // 刷新天气窗口状态
+            if (_mainWindow.ShowWeather)
+                _mainWindow.ShowWeatherWindow();
+            else
+                _mainWindow.CloseWeatherWindow();
 
             // ── 日期 ──────────────────────────────────────────
             if (!DateTime.TryParse(GaokaoDateBox.Text, out _))
@@ -500,10 +679,36 @@ namespace GaokaoCountdown
             _mainWindow.ProgressDecimalDigits = defaults.ProgressDecimalDigits;
             _mainWindow.EnableAnimations    = defaults.EnableAnimations;
             _enableSettingsAnimations       = true;
+            _mainWindow.ShowDailyQuote            = defaults.ShowDailyQuote;
+            _mainWindow.QuoteFontSize             = defaults.QuoteFontSize;
+            _mainWindow.QuoteForegroundHex        = defaults.QuoteForegroundHex;
+            _mainWindow.QuoteItalic               = defaults.QuoteItalic;
+            _mainWindow.QuoteApiUrl               = defaults.QuoteApiUrl;
+            _mainWindow.QuoteTextFieldName        = defaults.QuoteTextFieldName;
+            _mainWindow.QuoteAutoRefreshInterval   = defaults.QuoteAutoRefreshInterval;
+            _mainWindow.ShowWeather              = defaults.ShowWeather;
+            _mainWindow.WeatherCity              = defaults.WeatherCity;
+            _mainWindow.WeatherAdcode            = defaults.WeatherAdcode;
+            _mainWindow.WeatherWindowMode        = defaults.WeatherWindowMode;
+            _mainWindow.WeatherCustomX           = defaults.WeatherCustomX;
+            _mainWindow.WeatherCustomY           = defaults.WeatherCustomY;
+            _mainWindow.WeatherWindowWidth       = defaults.WeatherWindowWidth;
+            _mainWindow.WeatherWindowHeight      = defaults.WeatherWindowHeight;
+            _mainWindow.WeatherFontSize          = defaults.WeatherFontSize;
+            _mainWindow.WeatherRefreshInterval   = defaults.WeatherRefreshInterval;
+            _mainWindow.WeatherAlwaysOnTop       = defaults.WeatherAlwaysOnTop;
+            _mainWindow.WeatherCityColor        = defaults.WeatherCityColor;
+            _mainWindow.WeatherInfoColor        = defaults.WeatherInfoColor;
+            _mainWindow.WeatherTempColor        = defaults.WeatherTempColor;
+            _mainWindow.WeatherTimeColor        = defaults.WeatherTimeColor;
+            _mainWindow.WeatherIconColor        = defaults.WeatherIconColor;
             _mainWindow.RefreshDateFields();
             _mainWindow.ApplyWindowLayer();
             _mainWindow.UpdateCountdownDisplay();
             _mainWindow.SaveSettings();
+
+            // 重置天气窗口
+            _mainWindow.CloseWeatherWindow();
 
             LoadSettings();
         }
@@ -868,6 +1073,50 @@ namespace GaokaoCountdown
                 DecimalText.Text = ((int)DecimalSlider.Value).ToString();
         }
 
+        private void QuoteFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (QuoteFontSizeText != null)
+                QuoteFontSizeText.Text = ((int)QuoteFontSizeSlider.Value).ToString();
+        }
+
+        private void QuoteRefreshIntervalSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (QuoteRefreshIntervalText != null)
+            {
+                int val = (int)QuoteRefreshIntervalSlider.Value;
+                QuoteRefreshIntervalText.Text = val == 0 ? "关" : $"{val}s";
+            }
+        }
+
+        private void WeatherRefreshIntervalSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (WeatherRefreshIntervalText != null)
+            {
+                int val = (int)WeatherRefreshIntervalSlider.Value;
+                WeatherRefreshIntervalText.Text = val == 0 ? "关" : $"{val}min";
+            }
+        }
+
+        private void WeatherMode_Changed(object sender, RoutedEventArgs e) { }
+
+        private void WeatherWidthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (WeatherWidthText != null)
+                WeatherWidthText.Text = $"{(int)WeatherWidthSlider.Value}px";
+        }
+
+        private void WeatherHeightSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (WeatherHeightText != null)
+                WeatherHeightText.Text = $"{(int)WeatherHeightSlider.Value}px";
+        }
+
+        private void WeatherFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (WeatherFontSizeText != null)
+                WeatherFontSizeText.Text = $"{(int)WeatherFontSizeSlider.Value}";
+        }
+
         private void FontFamilyComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
 
         private void PosCustom_Checked(object sender, RoutedEventArgs e)
@@ -898,6 +1147,24 @@ namespace GaokaoCountdown
         private void ProgressBarColorBox_TextChanged(object sender, TextChangedEventArgs e)
             => RefreshColorPreview(ProgressBarColorBox, ProgressBarColorPreview);
 
+        private void QuoteForegroundBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(QuoteForegroundBox, QuoteForegroundPreview);
+
+        private void WeatherCityColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(WeatherCityColorBox, WeatherCityColorPreview);
+
+        private void WeatherInfoColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(WeatherInfoColorBox, WeatherInfoColorPreview);
+
+        private void WeatherTempColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(WeatherTempColorBox, WeatherTempColorPreview);
+
+        private void WeatherTimeColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(WeatherTimeColorBox, WeatherTimeColorPreview);
+
+        private void WeatherIconColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(WeatherIconColorBox, WeatherIconColorPreview);
+
         // ── 颜色选择对话框 ────────────────────────────────────
         private void SelectNumberColor_Click(object sender, RoutedEventArgs e)
         {
@@ -923,6 +1190,60 @@ namespace GaokaoCountdown
             {
                 ProgressBarColorBox.Text = ColorToHex(picked);
                 RefreshColorPreview(ProgressBarColorBox, ProgressBarColorPreview);
+            }
+        }
+
+        private void SelectQuoteForeground_Click(object sender, RoutedEventArgs e)
+        {
+            if (PickColor(QuoteForegroundBox.Text, out Color picked))
+            {
+                QuoteForegroundBox.Text = ColorToHex(picked);
+                RefreshColorPreview(QuoteForegroundBox, QuoteForegroundPreview);
+            }
+        }
+
+        private void SelectWeatherCityColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (PickColor(WeatherCityColorBox.Text, out Color picked))
+            {
+                WeatherCityColorBox.Text = ColorToHex(picked);
+                RefreshColorPreview(WeatherCityColorBox, WeatherCityColorPreview);
+            }
+        }
+
+        private void SelectWeatherInfoColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (PickColor(WeatherInfoColorBox.Text, out Color picked))
+            {
+                WeatherInfoColorBox.Text = ColorToHex(picked);
+                RefreshColorPreview(WeatherInfoColorBox, WeatherInfoColorPreview);
+            }
+        }
+
+        private void SelectWeatherTempColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (PickColor(WeatherTempColorBox.Text, out Color picked))
+            {
+                WeatherTempColorBox.Text = ColorToHex(picked);
+                RefreshColorPreview(WeatherTempColorBox, WeatherTempColorPreview);
+            }
+        }
+
+        private void SelectWeatherTimeColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (PickColor(WeatherTimeColorBox.Text, out Color picked))
+            {
+                WeatherTimeColorBox.Text = ColorToHex(picked);
+                RefreshColorPreview(WeatherTimeColorBox, WeatherTimeColorPreview);
+            }
+        }
+
+        private void SelectWeatherIconColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (PickColor(WeatherIconColorBox.Text, out Color picked))
+            {
+                WeatherIconColorBox.Text = ColorToHex(picked);
+                RefreshColorPreview(WeatherIconColorBox, WeatherIconColorPreview);
             }
         }
 

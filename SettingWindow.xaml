@@ -2,10 +2,10 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="设置"
-        Height="600"
-        Width="480"
-        MinHeight="560"
-        MinWidth="440"
+        Height="650"
+        Width="580"
+        MinHeight="600"
+        MinWidth="540"
         WindowStartupLocation="CenterScreen"
         WindowStyle="None"
         AllowsTransparency="True"
@@ -622,6 +622,7 @@
                     <TabItem Header="&#x270F; 文本" />
                     <TabItem Header="&#x1F4C5; 日期" />
                     <TabItem Header="&#x2728; 动画" />
+                    <TabItem Header="&#x1F50C; API" />
                     <TabItem Header="&#x2139; 关于" />
                 </TabControl>
 
@@ -941,7 +942,386 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- ═══ TAB 6：关于 ═══ -->
+                    <!-- ═══ TAB 6：API 功能（每日一言 + 天气） ═══ -->
+                    <ScrollViewer x:Name="ContentApi" VerticalScrollBarVisibility="Auto"
+                                  Visibility="Collapsed">
+                        <StackPanel Margin="6,8,6,12">
+
+                            <!-- ───────── 每日一言 ───────── -->
+                            <TextBlock Text="💬 每日一言" Foreground="#FF8899FF"
+                                       FontSize="15" FontWeight="SemiBold"
+                                       Margin="6,0,0,12"/>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="每日一言开关" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <CheckBox Name="ShowDailyQuoteCheck"
+                                              Content="在倒计时窗口底部显示每日一言"/>
+                                    <TextBlock Text="每日随机展示一条名言/诗词，点击可手动刷新"
+                                               FontSize="11" Foreground="#66CCCCDD"
+                                               Margin="20,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="显示样式" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
+                                    <Grid Margin="0,2,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="80"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="字体大小" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="QuoteFontSizeSlider"
+                                                Minimum="8" Maximum="24" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="QuoteFontSizeSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="QuoteFontSizeText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,4,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="文字颜色" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="QuoteForegroundBox"
+                                                 Height="28" MaxLength="9"
+                                                 Foreground="#CCCCCCDD"
+                                                 Background="#15FFFFFF"
+                                                 BorderBrush="#20FFFFFF"
+                                                 SelectionBrush="#336688CC"/>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="6,0,0,0">
+                                            <Rectangle Name="QuoteForegroundPreview"
+                                                       Style="{StaticResource ColorPreview}"/>
+                                            <Button Content="选择…" Click="SelectQuoteForeground_Click"
+                                                    Width="56" FontSize="12" Margin="6,0,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <CheckBox Name="QuoteItalicCheck" Content="斜体"
+                                              Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="数据来源" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
+                                    <Grid Margin="0,2,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="API 地址" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="QuoteApiUrlBox"
+                                                 Height="28"
+                                                 Foreground="#CCCCCCDD"
+                                                 Background="#15FFFFFF"
+                                                 BorderBrush="#20FFFFFF"
+                                                 SelectionBrush="#336688CC"/>
+                                    </Grid>
+                                    <TextBlock Text="返回格式应为 {&quot;text&quot;: &quot;...&quot;}（与 uapis.cn 兼容）"
+                                               FontSize="11" Foreground="#55CCCCDD"
+                                               Margin="70,0,0,0" TextWrapping="Wrap"/>
+
+                                    <Grid Margin="0,10,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="文本字段" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="QuoteTextFieldNameBox"
+                                                 Height="28"
+                                                 ToolTip="API 返回 JSON 中哪个字段是文本内容，默认 text"
+                                                 Foreground="#CCCCCCDD"
+                                                 Background="#15FFFFFF"
+                                                 BorderBrush="#20FFFFFF"
+                                                 SelectionBrush="#336688CC"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,10,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="80"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="自动切换" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="QuoteRefreshIntervalSlider"
+                                                Minimum="0" Maximum="120" TickFrequency="5"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="QuoteRefreshIntervalSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="QuoteRefreshIntervalText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <TextBlock Text="0 = 不自动切换；设置后每隔 N 秒自动刷新一条新的一言"
+                                               FontSize="11" Foreground="#55CCCCDD"
+                                               Margin="70,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ───────── 分隔线 ───────── -->
+                            <Separator Margin="0,14,0,14" Background="#20FFFFFF" Height="1"/>
+
+                            <!-- ───────── 天气 ───────── -->
+                            <TextBlock Text="☁ 天气" Foreground="#FF88CCFF"
+                                       FontSize="15" FontWeight="SemiBold"
+                                       Margin="6,0,0,12"/>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="天气开关" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <CheckBox Name="ShowWeatherCheck"
+                                              Content="显示天气悬浮窗口"/>
+                                    <TextBlock Text="天气数据来自 uapis.cn，自动定位到指定城市"
+                                               FontSize="11" Foreground="#66CCCCDD"
+                                               Margin="20,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="城市设置" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
+                                    <Grid Margin="0,2,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="城市名称" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="WeatherCityBox"
+                                                 Height="28"
+                                                 ToolTip="输入城市名，如：北京、上海、广州"
+                                                 Foreground="#CCCCCCDD"
+                                                 Background="#15FFFFFF"
+                                                 BorderBrush="#20FFFFFF"
+                                                 SelectionBrush="#336688CC"/>
+                                    </Grid>
+                                    <Grid Margin="0,6,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="行政区划代码" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="WeatherAdcodeBox"
+                                                 Height="28"
+                                                 ToolTip="可选，用于精确到区县，留空则自动匹配"
+                                                 Foreground="#CCCCCCDD"
+                                                 Background="#15FFFFFF"
+                                                 BorderBrush="#20FFFFFF"
+                                                 SelectionBrush="#336688CC"/>
+                                    </Grid>
+                                    <TextBlock Text="城市名必填；adcode 可选（6 位数字，如 110105=朝阳区）"
+                                               FontSize="11" Foreground="#55CCCCDD"
+                                               Margin="70,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="显示模式" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <RadioButton Name="WeatherModeText" GroupName="WeatherModeGroup"
+                                                 Checked="WeatherMode_Changed">文字模式（半透明悬浮）</RadioButton>
+                                    <RadioButton Name="WeatherModeWindow" GroupName="WeatherModeGroup"
+                                                 Checked="WeatherMode_Changed">窗口模式（带边框卡片）</RadioButton>
+                                    <TextBlock Text="文字模式类似倒计时主窗口；窗口模式带圆角卡片背景"
+                                               FontSize="11" Foreground="#66CCCCDD"
+                                               Margin="20,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="窗口位置与大小" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
+                                    <Grid Margin="0,2,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="X 坐标" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="WeatherXBox"
+                                                 Height="28" ToolTip="-1 表示自动定位到右上角"
+                                                 Foreground="#CCCCCCDD"
+                                                 Background="#15FFFFFF"
+                                                 BorderBrush="#20FFFFFF"
+                                                 SelectionBrush="#336688CC"/>
+                                        <TextBlock Grid.Column="2" Text="Y 坐标" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                        <TextBox Grid.Column="3" x:Name="WeatherYBox"
+                                                 Height="28" ToolTip="-1 表示自动定位到右上角"
+                                                 Foreground="#CCCCCCDD"
+                                                 Background="#15FFFFFF"
+                                                 BorderBrush="#20FFFFFF"
+                                                 SelectionBrush="#336688CC"/>
+                                    </Grid>
+
+                                    <!-- 宽度 Slider -->
+                                    <Grid Margin="0,6,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="50"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="宽度" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="WeatherWidthSlider"
+                                                Minimum="120" Maximum="800" TickFrequency="10"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="WeatherWidthSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="WeatherWidthText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <!-- 高度 Slider -->
+                                    <Grid Margin="0,2,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="50"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="高度" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="WeatherHeightSlider"
+                                                Minimum="36" Maximum="400" TickFrequency="5"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="WeatherHeightSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="WeatherHeightText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <TextBlock Text="坐标 -1 时自动定位到屏幕右上角；宽高拖动滑块调节"
+                                               FontSize="11" Foreground="#55CCCCDD"
+                                               Margin="70,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="文本字体大小" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="50"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="字号" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="WeatherFontSizeSlider"
+                                                Minimum="10" Maximum="36" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="WeatherFontSizeSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="WeatherFontSizeText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <TextBlock Text="调节天气窗口中所有文字的大小"
+                                               FontSize="11" Foreground="#66CCCCDD"
+                                               Margin="70,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="文字颜色" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
+
+                                    <TextBlock Text="城市名颜色" Margin="0,4,0,2"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBox Name="WeatherCityColorBox" Width="110"/>
+                                        <Rectangle Name="WeatherCityColorPreview" Style="{StaticResource ColorPreview}"/>
+                                        <Button Content="选择…" Click="SelectWeatherCityColor_Click"
+                                                Width="56" Margin="8,0,0,0" FontSize="12"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="天气信息颜色（天气描述、风、湿度）" Margin="0,8,0,2"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBox Name="WeatherInfoColorBox" Width="110"/>
+                                        <Rectangle Name="WeatherInfoColorPreview" Style="{StaticResource ColorPreview}"/>
+                                        <Button Content="选择…" Click="SelectWeatherInfoColor_Click"
+                                                Width="56" Margin="8,0,0,0" FontSize="12"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="温度颜色" Margin="0,8,0,2"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBox Name="WeatherTempColorBox" Width="110"/>
+                                        <Rectangle Name="WeatherTempColorPreview" Style="{StaticResource ColorPreview}"/>
+                                        <Button Content="选择…" Click="SelectWeatherTempColor_Click"
+                                                Width="56" Margin="8,0,0,0" FontSize="12"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="更新时间颜色" Margin="0,8,0,2"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBox Name="WeatherTimeColorBox" Width="110"/>
+                                        <Rectangle Name="WeatherTimeColorPreview" Style="{StaticResource ColorPreview}"/>
+                                        <Button Content="选择…" Click="SelectWeatherTimeColor_Click"
+                                                Width="56" Margin="8,0,0,0" FontSize="12"/>
+                                    </StackPanel>
+
+                                    <TextBlock Text="天气图标颜色" Margin="0,8,0,2"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBox Name="WeatherIconColorBox" Width="110"/>
+                                        <Rectangle Name="WeatherIconColorPreview" Style="{StaticResource ColorPreview}"/>
+                                        <Button Content="选择…" Click="SelectWeatherIconColor_Click"
+                                                Width="56" Margin="8,0,0,0" FontSize="12"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="其他选项" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
+                                    <Grid Margin="0,2,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="70"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="80"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="刷新间隔" Foreground="#88CCCCDD"
+                                                   FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="WeatherRefreshIntervalSlider"
+                                                Minimum="0" Maximum="120" TickFrequency="5"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="WeatherRefreshIntervalSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="WeatherRefreshIntervalText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <TextBlock Text="0 = 不自动刷新；单位：分钟"
+                                               FontSize="11" Foreground="#55CCCCDD"
+                                               Margin="70,0,0,0" TextWrapping="Wrap"/>
+
+                                    <CheckBox Name="WeatherAlwaysOnTopCheck"
+                                              Content="始终置顶"
+                                              Margin="0,12,0,0"/>
+                                    <TextBlock Text="选中后天气窗口覆盖在其他窗口上方"
+                                               FontSize="11" Foreground="#66CCCCDD"
+                                               Margin="20,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="#10FFFFFF" CornerRadius="6" Padding="10" Margin="0,4,0,0"
+                                    BorderBrush="#15FFFFFF" BorderThickness="1">
+                                <TextBlock Foreground="#88CCCCDD" FontSize="11" TextWrapping="Wrap"
+                                           Text="提示：修改后点击「应用」生效。每日一言自动切换静默进行；双击天气窗口可手动刷新。"/>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- ═══ TAB 7：关于 ═══ -->
                     <ScrollViewer x:Name="ContentAbout" VerticalScrollBarVisibility="Auto"
                                   Visibility="Collapsed">
                         <StackPanel Margin="6,8,6,12">

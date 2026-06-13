@@ -90,6 +90,34 @@ namespace GaokaoCountdown
         // 是否启用主窗口数字脉冲 & 进度条平滑动画
         public bool EnableAnimations { get; set; } = true;
 
+        // ── 每日一言 ──────────────────────────────────────────
+        public bool   ShowDailyQuote            { get; set; } = true;
+        public double QuoteFontSize             { get; set; } = 12;
+        public string QuoteForegroundHex        { get; set; } = "#AAAAAA";
+        public bool   QuoteItalic               { get; set; } = true;
+        public string QuoteApiUrl               { get; set; } = "https://uapis.cn/api/v1/saying";
+        public int    QuoteAutoRefreshInterval   { get; set; } = 0;  // 秒，0=不自动切换
+        public string QuoteTextFieldName         { get; set; } = "text";  // API 返回 JSON 中携带文本的字段名
+
+        // ── 天气 ──────────────────────────────────────────
+        public bool   ShowWeather            { get; set; } = false;
+        public string WeatherCity            { get; set; } = "北京";
+        public string WeatherAdcode          { get; set; } = "";
+        public int    WeatherWindowMode      { get; set; } = 0;   // 0=文字模式, 1=窗口模式
+        public double WeatherCustomX         { get; set; } = -1;
+        public double WeatherCustomY         { get; set; } = -1;
+        public double WeatherWindowWidth     { get; set; } = 300;
+        public double WeatherWindowHeight    { get; set; } = 80;
+        public int    WeatherRefreshInterval { get; set; } = 0;   // 分钟，0=不自动刷新
+        public double WeatherFontSize        { get; set; } = 14;   // 文本字号
+        public bool   WeatherAlwaysOnTop     { get; set; } = false;
+        // 天气文字颜色
+        public string WeatherCityColor        { get; set; } = "#FFFFFFFF";  // 城市名
+        public string WeatherInfoColor        { get; set; } = "#FFCCCCDD";  // 天气描述+风+湿度
+        public string WeatherTempColor        { get; set; } = "#FFFF8844";  // 温度
+        public string WeatherTimeColor        { get; set; } = "#66AAAAAA";  // 更新时间
+        public string WeatherIconColor        { get; set; } = "#FFFFAA00";  // 天气图标
+
         // ── 系统 ─────────────────────────────────────────────
         // 是否开机自启动（写注册表 HKCU\Run）
         public bool AutoStart { get; set; } = false;

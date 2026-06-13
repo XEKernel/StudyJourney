@@ -1,5 +1,7 @@
 using System;
+using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -61,7 +63,7 @@ namespace GaokaoCountdown
         // 基准尺寸
         private const int BaseFontSize     = 40;
         private const int BaseWindowWidth  = 850;
-        private const int BaseWindowHeight = 150;
+        private const int BaseWindowHeight = 175;
 
         // ── 上次 tick 的值（用于判断是否需要脉冲动画） ──
         private int _lastDays, _lastHours, _lastMinutes, _lastSeconds;
@@ -72,6 +74,17 @@ namespace GaokaoCountdown
 
         // ── 设置窗口单例引用 ─────────────────────────────────
         private SettingWindow? _settingWindow;
+        private bool _isOpeningSettings;  // 重入防护
+
+        // ── 每日一言 ─────────────────────────────────────────
+        private static readonly HttpClient _httpClient = new HttpClient
+        {
+            Timeout = TimeSpan.FromSeconds(5)
+        };
+        private DispatcherTimer? _quoteRefreshTimer;
+
+        // ── 天气窗口 ─────────────────────────────────────────
+        private WeatherWindow? _weatherWindow;
 
         // ── 设置代理属性 ─────────────────────────────────────
         public string ChinesePrefix      { get => settings.ChinesePrefix;      set => settings.ChinesePrefix      = value; }
@@ -111,6 +124,30 @@ namespace GaokaoCountdown
         public string StartDateStr     { get => settings.StartDateStr;     set => settings.StartDateStr     = value; }
         public int    ProgressDecimalDigits { get => settings.ProgressDecimalDigits; set => settings.ProgressDecimalDigits = value; }
         public bool   EnableAnimations { get => settings.EnableAnimations; set => settings.EnableAnimations = value; }
+        public bool   ShowDailyQuote            { get => settings.ShowDailyQuote;            set => settings.ShowDailyQuote            = value; }
+        public double QuoteFontSize             { get => settings.QuoteFontSize;             set => settings.QuoteFontSize             = value; }
+        public string QuoteForegroundHex        { get => settings.QuoteForegroundHex;        set => settings.QuoteForegroundHex        = value; }
+        public bool   QuoteItalic               { get => settings.QuoteItalic;               set => settings.QuoteItalic               = value; }
+        public string QuoteApiUrl               { get => settings.QuoteApiUrl;               set => settings.QuoteApiUrl               = value; }
+        public int    QuoteAutoRefreshInterval   { get => settings.QuoteAutoRefreshInterval;   set => settings.QuoteAutoRefreshInterval   = value; }
+        public string QuoteTextFieldName         { get => settings.QuoteTextFieldName;         set => settings.QuoteTextFieldName         = value; }
+
+        public bool   ShowWeather            { get => settings.ShowWeather;            set => settings.ShowWeather            = value; }
+        public string WeatherCity            { get => settings.WeatherCity;            set => settings.WeatherCity            = value; }
+        public string WeatherAdcode          { get => settings.WeatherAdcode;          set => settings.WeatherAdcode          = value; }
+        public int    WeatherWindowMode      { get => settings.WeatherWindowMode;      set => settings.WeatherWindowMode      = value; }
+        public double WeatherCustomX         { get => settings.WeatherCustomX;         set => settings.WeatherCustomX         = value; }
+        public double WeatherCustomY         { get => settings.WeatherCustomY;         set => settings.WeatherCustomY         = value; }
+        public double WeatherWindowWidth     { get => settings.WeatherWindowWidth;     set => settings.WeatherWindowWidth     = value; }
+        public double WeatherWindowHeight    { get => settings.WeatherWindowHeight;    set => settings.WeatherWindowHeight    = value; }
+        public int    WeatherRefreshInterval { get => settings.WeatherRefreshInterval; set => settings.WeatherRefreshInterval = value; }
+        public double WeatherFontSize        { get => settings.WeatherFontSize;        set => settings.WeatherFontSize        = value; }
+        public bool   WeatherAlwaysOnTop     { get => settings.WeatherAlwaysOnTop;     set => settings.WeatherAlwaysOnTop     = value; }
+        public string WeatherCityColor        { get => settings.WeatherCityColor;        set => settings.WeatherCityColor        = value; }
+        public string WeatherInfoColor        { get => settings.WeatherInfoColor;        set => settings.WeatherInfoColor        = value; }
+        public string WeatherTempColor        { get => settings.WeatherTempColor;        set => settings.WeatherTempColor        = value; }
+        public string WeatherTimeColor        { get => settings.WeatherTimeColor;        set => settings.WeatherTimeColor        = value; }
+        public string WeatherIconColor        { get => settings.WeatherIconColor;        set => settings.WeatherIconColor        = value; }
         public bool   AutoStart
         {
             get => settings.AutoStart;
@@ -214,11 +251,14 @@ namespace GaokaoCountdown
             var contextMenu = new ContextMenu();
             var showHideItem = new MenuItem { Header = "显示 / 隐藏" };
             showHideItem.Click += (s, e) => ToggleVisibility();
+            var weatherItem = new MenuItem { Header = "天气" };
+            weatherItem.Click += (s, e) => ToggleWeatherWindow();
             var settingsItem = new MenuItem { Header = "设置" };
             settingsItem.Click += (s, e) => OpenSettings();
             var exitItem = new MenuItem { Header = "退出" };
             exitItem.Click += (s, e) => ExitApplication();
             contextMenu.Items.Add(showHideItem);
+            contextMenu.Items.Add(weatherItem);
             contextMenu.Items.Add(settingsItem);
             contextMenu.Items.Add(new Separator());
             contextMenu.Items.Add(exitItem);
@@ -234,19 +274,52 @@ namespace GaokaoCountdown
 
         private void OpenSettings()
         {
-            // 若设置窗口已打开，则激活而不重复创建
-            if (_settingWindow != null && _settingWindow.IsLoaded)
-            {
-                _settingWindow.Activate();
-                if (_settingWindow.WindowState == WindowState.Minimized)
-                    _settingWindow.WindowState = WindowState.Normal;
-                return;
-            }
+            // 重入防护：若正在打开过程中，忽略重复点击
+            if (_isOpeningSettings) return;
+            _isOpeningSettings = true;
 
-            _settingWindow = new SettingWindow(this);
-            _settingWindow.Owner = this;
-            _settingWindow.Closed += (s, e) => _settingWindow = null;
-            _settingWindow.Show();  // 非模态，允许与主窗口同时操作
+            try
+            {
+                // 若设置窗口已打开（或正在创建中），则激活而不重复创建
+                // 注意：不能使用 IsLoaded 判断 — Show() 后到实际加载完成之间 IsLoaded=false，
+                //       此时快速连续点击会突破守卫创建多个实例导致崩溃。
+                if (_settingWindow != null)
+                {
+                    try
+                    {
+                        _settingWindow.Activate();
+                        if (_settingWindow.WindowState == WindowState.Minimized)
+                            _settingWindow.WindowState = WindowState.Normal;
+                    }
+                    catch
+                    {
+                        // 窗口可能正在关闭中，重置引用后重新创建
+                        _settingWindow = null;
+                    }
+                    if (_settingWindow != null) return;
+                }
+
+                _settingWindow = new SettingWindow(this);
+                _settingWindow.Owner = this;
+                _settingWindow.Closed += (s, e) =>
+                {
+                    _settingWindow = null;
+                    _isOpeningSettings = false;
+                };
+                _settingWindow.Closing += (s, e) =>
+                {
+                    // 窗口开始关闭时立即从主窗口引用中移除，
+                    // 防止在关闭动画期间被重新激活（Activate 在关闭中会抛异常）
+                    _settingWindow = null;
+                };
+                _settingWindow.Show();  // 非模态，允许与主窗口同时操作
+            }
+            finally
+            {
+                // 若异常导致窗口未创建，解除锁
+                if (_settingWindow == null)
+                    _isOpeningSettings = false;
+            }
         }
 
         private void ExitApplication()
@@ -634,6 +707,15 @@ namespace GaokaoCountdown
             ApplyWindowLayer();
             if (EnableAnimations)
                 PlayIntroAnimation();
+            // 异步加载每日一言（fire-and-forget）
+            if (ShowDailyQuote)
+            {
+                _ = LoadDailyQuoteAsync();
+                StartQuoteRefreshTimer();
+            }
+            // 天气窗口
+            if (ShowWeather)
+                ShowWeatherWindow();
         }
 
         // ══════════════════════════════════════════════════════
@@ -725,6 +807,160 @@ namespace GaokaoCountdown
         {
             e.Cancel = true;
             Hide();
+        }
+
+        // ══════════════════════════════════════════════════════
+        //  每日一言 API
+        // ══════════════════════════════════════════════════════
+
+        /// <summary>从 SettingWindow 调用的公开刷新方法</summary>
+        public async Task RefreshQuoteAsync()
+        {
+            await LoadDailyQuoteAsync();
+        }
+
+        /// <summary>调用 API 加载一言，并应用当前样式设置、淡入动画</summary>
+        private async Task LoadDailyQuoteAsync()
+        {
+            try
+            {
+                string url = string.IsNullOrWhiteSpace(QuoteApiUrl)
+                    ? "https://uapis.cn/api/v1/saying" : QuoteApiUrl;
+                var json = await _httpClient.GetStringAsync(url);
+
+                // 使用动态字段名解析 JSON（支持自定义 API）
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                string fieldName = string.IsNullOrWhiteSpace(QuoteTextFieldName)
+                    ? "text" : QuoteTextFieldName.Trim();
+                string? quoteText = root.TryGetProperty(fieldName, out var prop) && prop.ValueKind == JsonValueKind.String
+                    ? prop.GetString() : null;
+                if (string.IsNullOrWhiteSpace(quoteText)) return;
+
+                string text = $"「{quoteText.Trim()}」";
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    // 应用当前样式设置
+                    ApplyQuoteStyle();
+                    DailyQuoteTb.Text = text;
+                    // 淡入动画
+                    var anim = new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.8))
+                    {
+                        EasingFunction = new PowerEase { Power = 3, EasingMode = EasingMode.EaseOut }
+                    };
+                    DailyQuoteTb.BeginAnimation(UIElement.OpacityProperty, anim);
+                    DailyQuoteTb.Visibility = Visibility.Visible;
+                });
+            }
+            catch
+            {
+                // 网络异常时静默处理
+            }
+        }
+
+        /// <summary>将当前设置中的字体大小、颜色、斜体应用到 DailyQuoteTb</summary>
+        public void ApplyQuoteStyle()
+        {
+            DailyQuoteTb.FontSize = QuoteFontSize;
+            DailyQuoteTb.FontStyle = QuoteItalic ? FontStyles.Italic : FontStyles.Normal;
+            try
+            {
+                var c = (Color)ColorConverter.ConvertFromString(QuoteForegroundHex);
+                DailyQuoteTb.Foreground = new SolidColorBrush(c);
+            }
+            catch { }
+        }
+
+        /// <summary>启动/重启每日一言自动切换定时器</summary>
+        public void StartQuoteRefreshTimer()
+        {
+            _quoteRefreshTimer?.Stop();
+            _quoteRefreshTimer = null;
+
+            if (!ShowDailyQuote) return;
+            int intervalSec = QuoteAutoRefreshInterval;
+            if (intervalSec <= 0) return;
+
+            _quoteRefreshTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(intervalSec)
+            };
+            _quoteRefreshTimer.Tick += async (_, _) =>
+            {
+                // 淡出 → 重新加载 → 淡入
+                var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromSeconds(0.4))
+                {
+                    EasingFunction = new PowerEase { Power = 2, EasingMode = EasingMode.EaseIn }
+                };
+                fadeOut.Completed += async (_, _) => await LoadDailyQuoteAsync();
+                DailyQuoteTb.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+            };
+            _quoteRefreshTimer.Start();
+        }
+
+        private async void DailyQuoteTb_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // 点击刷新：先淡出再重新加载
+            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromSeconds(0.3))
+            {
+                EasingFunction = new PowerEase { Power = 2, EasingMode = EasingMode.EaseIn }
+            };
+            fadeOut.Completed += async (_, _) => await LoadDailyQuoteAsync();
+            DailyQuoteTb.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        }
+
+        // ══════════════════════════════════════════════════════
+        //  天气窗口管理
+        // ══════════════════════════════════════════════════════
+
+        /// <summary>显示天气窗口（或刷新已有窗口）</summary>
+        public void ShowWeatherWindow()
+        {
+            if (_weatherWindow == null)
+            {
+                _weatherWindow = new WeatherWindow(settings);
+                _weatherWindow.Closed += (_, _) => _weatherWindow = null;
+                _weatherWindow.Closing += (_, _) => _weatherWindow = null;
+                _weatherWindow.ApplyMode();
+                _weatherWindow.Show();
+                _ = _weatherWindow.LoadWeatherAsync();
+                _weatherWindow.StartRefreshTimer();
+            }
+            else
+            {
+                _weatherWindow.ApplyMode();
+                _weatherWindow.PositionWindow();
+                _weatherWindow.ApplyWindowLayer();
+                _weatherWindow.StartRefreshTimer();
+            }
+        }
+
+        /// <summary>关闭天气窗口</summary>
+        public void CloseWeatherWindow()
+        {
+            _weatherWindow?.Close();
+            _weatherWindow = null;
+        }
+
+        /// <summary>切换天气窗口显示/隐藏</summary>
+        public void ToggleWeatherWindow()
+        {
+            if (_weatherWindow != null && _weatherWindow.IsLoaded)
+            {
+                CloseWeatherWindow();
+            }
+            else
+            {
+                ShowWeatherWindow();
+            }
+        }
+
+        /// <summary>从 SettingWindow 调用的公开刷新方法</summary>
+        public async Task RefreshWeatherAsync()
+        {
+            if (_weatherWindow != null && _weatherWindow.IsLoaded)
+                await _weatherWindow.LoadWeatherAsync();
         }
     }
 }

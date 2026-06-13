@@ -1,0 +1,73 @@
+<Window x:Class="GaokaoCountdown.WeatherWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="天气"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="False"
+        ShowInTaskbar="False"
+        Height="80"
+        Width="300"
+        MouseLeftButtonDown="Window_MouseLeftButtonDown"
+        Closing="Window_Closing">
+
+    <Grid>
+        <!-- ═══ 窗口模式背景（仅窗口模式可见） ═══ -->
+        <Border x:Name="WindowFrame" Visibility="Collapsed"
+                Background="#E815152A"
+                BorderBrush="#30FFFFFF"
+                BorderThickness="1"
+                CornerRadius="12"
+                Padding="12">
+            <Border.Effect>
+                <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="3" Opacity="0.5"/>
+            </Border.Effect>
+        </Border>
+
+        <!-- ═══ 文字模式背景（全透明，仅文字可见） ═══ -->
+        <Border x:Name="TextFrame" Visibility="Visible"
+                Background="Transparent"
+                BorderThickness="0"/>
+
+        <!-- ═══ 主内容 ═══ -->
+        <Grid Margin="0" x:Name="ContentGrid">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 第一行：天气图标 + 地点 + 天气 + 温度 -->
+            <WrapPanel Grid.Row="0" VerticalAlignment="Center">
+                <TextBlock x:Name="WeatherIconTb" Text="☀"
+                           FontSize="22" Foreground="#FFFFAA00"
+                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <TextBlock x:Name="CityTb" Text="--"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="#FFFFFFFF"
+                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock x:Name="WeatherTb" Text="--"
+                           FontSize="14"
+                           Foreground="#FFCCCCDD"
+                           VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock x:Name="TempTb" Text="--°C"
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="#FFFF8844"
+                           VerticalAlignment="Center"/>
+            </WrapPanel>
+
+            <!-- 第二行：风向风力 + 湿度 + 更新时间 -->
+            <WrapPanel Grid.Row="1" VerticalAlignment="Center" Margin="0,2,0,0">
+                <TextBlock x:Name="WindTb" Text="--"
+                           FontSize="12" Foreground="#88CCCCDD"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock x:Name="HumidityTb" Text="--"
+                           FontSize="12" Foreground="#88CCCCDD"
+                           VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock x:Name="ReportTimeTb" Text="--"
+                           FontSize="11" Foreground="#66AAAAAA"
+                           VerticalAlignment="Center"/>
+            </WrapPanel>
+        </Grid>
+    </Grid>
+</Window>
