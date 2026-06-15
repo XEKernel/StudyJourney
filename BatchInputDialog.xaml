@@ -1,0 +1,88 @@
+<Window x:Class="GaokaoCountdown.BatchInputDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="批量添加课节"
+        Height="300" Width="360"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False">
+
+    <Border Background="#FF1E1E3A" BorderBrush="#30FFFFFF" BorderThickness="1"
+            CornerRadius="10" Padding="16">
+        <StackPanel>
+            <TextBlock Text="批量添加课节" FontSize="15" FontWeight="SemiBold"
+                       Foreground="#FFE8E8F8" Margin="0,0,0,12"/>
+
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="课程名称" VerticalAlignment="Center"
+                           Foreground="#88CCCCDD" FontSize="12"/>
+                <TextBox Grid.Column="1" x:Name="CourseNameBox" Height="28"
+                         Text="新课程" Foreground="#FFFFFFFF"
+                         Background="#15FFFFFF" BorderBrush="#20FFFFFF"
+                         SelectionBrush="#336688CC"/>
+            </Grid>
+
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="20"/>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="上课时间" VerticalAlignment="Center"
+                           Foreground="#88CCCCDD" FontSize="12"/>
+                <TextBox Grid.Column="1" x:Name="StartTimeBox" Height="28"
+                         Text="08:00" Foreground="#FFFFFFFF"
+                         Background="#15FFFFFF" BorderBrush="#20FFFFFF"/>
+                <TextBlock Grid.Column="3" Text="下课" VerticalAlignment="Center"
+                           Foreground="#88CCCCDD" FontSize="12" Margin="8,0,0,0"/>
+                <TextBox Grid.Column="4" x:Name="EndTimeBox" Height="28"
+                         Text="08:45" Foreground="#FFFFFFFF"
+                         Background="#15FFFFFF" BorderBrush="#20FFFFFF"/>
+            </Grid>
+
+            <Grid Margin="0,0,0,8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="70"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="节次类型" VerticalAlignment="Center"
+                           Foreground="#88CCCCDD" FontSize="12"/>
+                <ComboBox Grid.Column="1" x:Name="PeriodTypeCombo" Height="28"
+                          SelectedIndex="0">
+                    <ComboBoxItem Content="普通课" Tag="Normal"/>
+                    <ComboBoxItem Content="早自习" Tag="Morning"/>
+                    <ComboBoxItem Content="晚自习" Tag="Evening"/>
+                    <ComboBoxItem Content="晚读" Tag="Reading"/>
+                    <ComboBoxItem Content="午休" Tag="Noon"/>
+                </ComboBox>
+            </Grid>
+
+            <TextBlock Text="适用星期" Foreground="#88CCCCDD" FontSize="12" Margin="0,0,0,4"/>
+            <WrapPanel Margin="0,0,0,12">
+                <CheckBox x:Name="ChkMon" Content="一" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkTue" Content="二" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkWed" Content="三" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkThu" Content="四" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkFri" Content="五" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkSat" Content="六" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkSun" Content="日" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
+            </WrapPanel>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="取消" Width="64" Height="28" Margin="0,0,8,0"
+                        Background="#33FFFFFF" Click="Cancel_Click"/>
+                <Button Content="确认添加" Width="80" Height="28"
+                        Background="#335588CC" Click="Confirm_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Border>
+</Window>

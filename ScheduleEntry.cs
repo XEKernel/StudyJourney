@@ -121,6 +121,15 @@ namespace GaokaoCountdown
         public List<ScheduleEntry> Entries { get; set; } = new();
         public List<ExamEntry> Exams { get; set; } = new();
 
+        /// <summary>按 星期→节次 排序（DataGrid 展示用）</summary>
+        public void SortEntries()
+        {
+            Entries = Entries
+                .OrderBy(e => e.DayOfWeek)
+                .ThenBy(e => e.Period)
+                .ToList();
+        }
+
         private static readonly string _schedulePath =
             Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "schedule.json");
 

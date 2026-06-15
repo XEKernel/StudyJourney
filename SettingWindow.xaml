@@ -1585,6 +1585,9 @@
                                     <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
                                         <Button Content="＋ 添加课节" Click="AddScheduleEntry_Click"
                                                 Width="100" Background="#332D5A3D"/>
+                                        <Button Content="＋ 批量添加" Click="BatchAddSchedule_Click"
+                                                Width="90" Margin="6,0,0,0" Background="#33336688"
+                                                ToolTip="为指定课程快速填满一周"/>
                                         <Button Content="－ 删除选中" Click="DeleteScheduleEntry_Click"
                                                 Width="90" Margin="6,0,0,0" Background="#33552222"/>
                                         <Button Content="保存课表" Click="SaveSchedule_Click"
@@ -2005,8 +2008,13 @@
                                         <Button Content="－ 删除科目" Click="DeleteExamSubject_Click"
                                                 Width="90" Margin="6,0,0,0" Background="#33552222"/>
                                     </StackPanel>
+                                    <TextBlock x:Name="NoExamSelectedHint" Text="👆 请先在上方选中一场考试"
+                                               FontSize="13" Foreground="#44CCCCDD"
+                                               HorizontalAlignment="Center" Margin="0,20,0,20"
+                                               Visibility="Visible"/>
                                     <DataGrid x:Name="ExamSubjectGrid"
                                               AutoGenerateColumns="False"
+                                              Visibility="Collapsed"
                                               CanUserAddRows="False"
                                               CanUserDeleteRows="False"
                                               RowHeight="28"

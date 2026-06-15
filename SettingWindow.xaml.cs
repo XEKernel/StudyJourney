@@ -1674,8 +1674,87 @@ namespace GaokaoCountdown
         {
             var sm = _mainWindow.GetScheduleManager();
             if (sm?.Data == null) return;
-            sm.Data.Entries.Add(new ScheduleEntry { DayOfWeek = 1, Period = sm.Data.Entries.Count + 1, Subject = "新课程" });
+
+            // 智能默认值：从上一行推算节次和时间
+            int nextPeriod = 1;
+            string startTime = "08:00";
+            string endTime   = "08:45";
+            int lastDay = 1;
+
+            if (sm.Data.Entries.Count > 0)
+            {
+                var last = sm.Data.Entries[sm.Data.Entries.Count - 1];
+                lastDay = last.DayOfWeek;
+                nextPeriod = last.Period + 1;
+                // 时间从前一节课推算（用上一节下课+5分钟）
+                if (TimeSpan.TryParse(last.EndTimeStr, out var lastEnd))
+                {
+                    var nextStart = lastEnd.Add(TimeSpan.FromMinutes(5));
+                    var nextEnd   = nextStart.Add(TimeSpan.FromMinutes(45));
+                    startTime = $"{nextStart.Hours:D2}:{nextStart.Minutes:D2}";
+                    endTime   = $"{nextEnd.Hours:D2}:{nextEnd.Minutes:D2}";
+                }
+            }
+
+            sm.Data.Entries.Add(new ScheduleEntry
+            {
+                DayOfWeek = lastDay,
+                Period = nextPeriod,
+                Subject = "新课程",
+                StartTimeStr = startTime,
+                EndTimeStr = endTime
+            });
+            sm.Data.SortEntries();
             RefreshScheduleGrid();
+
+            // 滚动到新行
+            ScheduleDataGrid.SelectedIndex = sm.Data.Entries.Count - 1;
+            ScheduleDataGrid.ScrollIntoView(ScheduleDataGrid.SelectedItem);
+            // 自动进入编辑模式
+            ScheduleDataGrid.Focus();
+            ScheduleDataGrid.CurrentCell = new DataGridCellInfo(
+                ScheduleDataGrid.Items[ScheduleDataGrid.SelectedIndex],
+                ScheduleDataGrid.Columns[2]); // 课程列
+            ScheduleDataGrid.BeginEdit();
+        }
+
+        private void BatchAddSchedule_Click(object sender, RoutedEventArgs e)
+        {
+            var sm = _mainWindow.GetScheduleManager();
+            if (sm?.Data == null) return;
+
+            var dialog = new BatchInputDialog { Owner = this };
+            if (dialog.ShowDialog() != true) return;
+
+            // 根据所选星期批量添加
+            string name = dialog.CourseName;
+            string start = dialog.StartTime;
+            string end = dialog.EndTime;
+            var type = dialog.Type;
+
+            foreach (int day in dialog.SelectedDays)
+            {
+                // 计算该天的节次（比已有最大节次+1，或从 1 开始）
+                int maxPeriod = 0;
+                foreach (var e2 in sm.Data.Entries)
+                    if (e2.DayOfWeek == day && e2.Period > maxPeriod)
+                        maxPeriod = e2.Period;
+
+                sm.Data.Entries.Add(new ScheduleEntry
+                {
+                    DayOfWeek = day,
+                    Period = maxPeriod + 1,
+                    Subject = name,
+                    StartTimeStr = start,
+                    EndTimeStr = end,
+                    Type = type
+                });
+            }
+
+            sm.Data.SortEntries();
+            sm.Save();
+            RefreshScheduleGrid();
+            ScheduleStatusTb.Text += $"  ✅ 已添加 {dialog.SelectedDays.Count} 天";
         }
 
         private void DeleteScheduleEntry_Click(object sender, RoutedEventArgs e)
@@ -1717,7 +1796,24 @@ namespace GaokaoCountdown
                 }
                 ExamDataGrid.ItemsSource = null;
                 ExamDataGrid.ItemsSource = sm.Data.Exams;
-                ExamSubjectGrid.ItemsSource = null;
+                // 自动选中第一场考试，避免科目表空白
+                if (sm.Data.Exams.Count > 0 && ExamDataGrid.SelectedIndex < 0)
+                {
+                    ExamDataGrid.SelectedIndex = 0;
+                    ExamSubjectGrid.ItemsSource = sm.Data.Exams[0].Subjects;
+                    ExamSubjectGrid.Visibility = System.Windows.Visibility.Visible;
+                    NoExamSelectedHint.Visibility = System.Windows.Visibility.Collapsed;
+                }
+                else if (sm.Data.Exams.Count == 0)
+                {
+                    ExamSubjectGrid.ItemsSource = null;
+                    ExamSubjectGrid.Visibility = System.Windows.Visibility.Collapsed;
+                    NoExamSelectedHint.Visibility = System.Windows.Visibility.Visible;
+                }
+                else
+                {
+                    ExamSubjectGrid.ItemsSource = null;
+                }
                 RefreshExamStatus();
             }
             catch (Exception ex)
@@ -1737,9 +1833,17 @@ namespace GaokaoCountdown
         private void ExamDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (ExamDataGrid.SelectedItem is ExamEntry exam)
+            {
                 ExamSubjectGrid.ItemsSource = exam.Subjects;
+                ExamSubjectGrid.Visibility = System.Windows.Visibility.Visible;
+                NoExamSelectedHint.Visibility = System.Windows.Visibility.Collapsed;
+            }
             else
+            {
                 ExamSubjectGrid.ItemsSource = null;
+                ExamSubjectGrid.Visibility = System.Windows.Visibility.Collapsed;
+                NoExamSelectedHint.Visibility = System.Windows.Visibility.Visible;
+            }
         }
 
         private void AddExam_Click(object sender, RoutedEventArgs e)
