@@ -143,6 +143,31 @@ namespace GaokaoCountdown
         {
             if (e.Key == Key.Escape)
                 CloseWindow();
+            else if (e.Key == Key.F11)
+                ToggleFullScreen();
+        }
+
+        private void Window_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            ToggleFullScreen();
+        }
+
+        private void ToggleFullScreen()
+        {
+            if (WindowState == WindowState.Maximized)
+            {
+                WindowState = WindowState.Normal;
+                WindowStyle = WindowStyle.SingleBorderWindow;
+                Width = SystemParameters.WorkArea.Width * 0.8;
+                Height = SystemParameters.WorkArea.Height * 0.8;
+                Left = (SystemParameters.WorkArea.Width - Width) / 2;
+                Top = (SystemParameters.WorkArea.Height - Height) / 2;
+            }
+            else
+            {
+                WindowStyle = WindowStyle.None;
+                WindowState = WindowState.Maximized;
+            }
         }
 
         private void ExitBtn_Click(object sender, RoutedEventArgs e)
@@ -260,6 +285,12 @@ namespace GaokaoCountdown
             {
                 _warnShown = true;
                 WarningTb.Visibility = Visibility.Visible;
+                System.Media.SystemSounds.Beep.Play();
+            }
+            // 5 分钟临界提醒（每秒蜂鸣）
+            if (remaining.TotalMinutes <= 5 && remaining.TotalSeconds % 2 == 0)
+            {
+                System.Media.SystemSounds.Beep.Play();
             }
             // 科目切换后重置警告
             if (subject.Name != _currentSubjectName)

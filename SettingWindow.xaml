@@ -1170,6 +1170,7 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="70"/>
                                             <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="城市名称" Foreground="#88CCCCDD"
                                                    FontSize="12" VerticalAlignment="Center"/>
@@ -1180,6 +1181,9 @@
                                                  Background="#15FFFFFF"
                                                  BorderBrush="#20FFFFFF"
                                                  SelectionBrush="#336688CC"/>
+                                        <Button Grid.Column="2" Content="自动定位" Click="AutoLocateCity_Click"
+                                                Width="66" Height="28" Margin="6,0,0,0"
+                                                FontSize="11" Background="#224488CC"/>
                                     </Grid>
                                     <Grid Margin="0,6,0,6">
                                         <Grid.ColumnDefinitions>

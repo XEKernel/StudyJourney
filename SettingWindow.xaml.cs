@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -1434,6 +1436,38 @@ namespace GaokaoCountdown
             {
                 WeatherIconColorBox.Text = ColorToHex(picked);
                 RefreshColorPreview(WeatherIconColorBox, WeatherIconColorPreview);
+            }
+        }
+
+        // ── 天气自动定位 ──────────────────────────────────────
+        private static readonly HttpClient _geoHttp = new() { Timeout = TimeSpan.FromSeconds(5) };
+
+        private async void AutoLocateCity_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            if (btn != null) { btn.IsEnabled = false; btn.Content = "定位中…"; }
+            try
+            {
+                var json = await _geoHttp.GetStringAsync("http://ip-api.com/json/?lang=zh-CN&fields=city,regionName,country");
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                string city = root.GetProperty("city").GetString() ?? "";
+                string region = root.GetProperty("regionName").GetString() ?? "";
+                if (!string.IsNullOrWhiteSpace(city))
+                {
+                    WeatherCityBox.Text = city;
+                    // 如果是直辖市（北京/上海/天津/重庆），城市即地区
+                    if (city == region || string.IsNullOrWhiteSpace(region) ||
+                        city is "北京" or "上海" or "天津" or "重庆")
+                        WeatherCityBox.ToolTip = city;
+                    else
+                        WeatherCityBox.ToolTip = $"{city}, {region}";
+                }
+            }
+            catch { /* 网络不通静默 */ }
+            finally
+            {
+                if (btn != null) { btn.IsEnabled = true; btn.Content = "自动定位"; }
             }
         }
 

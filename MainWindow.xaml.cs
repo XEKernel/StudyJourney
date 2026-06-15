@@ -20,6 +20,7 @@ namespace GaokaoCountdown
     {
         private DispatcherTimer? timer;
         private TaskbarIcon? notifyIcon;
+        private MenuItem? _trayScheduleItem; // 托盘"课表栏"菜单项引用
         private AppSettings settings;
 
         // ── 缓存的画刷（颜色变更时重建，避免每秒 new）───────────
@@ -347,13 +348,22 @@ namespace GaokaoCountdown
             if (_scheduleBarWindow != null) return;
             if (_scheduleManager == null || _reminderService == null) return;
             _scheduleBarWindow = new ScheduleBarWindow(settings, _scheduleManager, _reminderService);
+            _scheduleBarWindow.Closed += (s, e) => { _scheduleBarWindow = null; SyncTrayMenu(); };
             _scheduleBarWindow.Show();
+            SyncTrayMenu();
         }
 
         private void HideScheduleBarWindow()
         {
             _scheduleBarWindow?.Close();
             _scheduleBarWindow = null;
+            SyncTrayMenu();
+        }
+
+        private void SyncTrayMenu()
+        {
+            if (_trayScheduleItem != null)
+                _trayScheduleItem.Header = _scheduleBarWindow != null ? "课表栏 ✓" : "课表栏";
         }
 
         /// <summary>设置窗口应用设置后调用，刷新课表栏状态</summary>
@@ -434,6 +444,7 @@ namespace GaokaoCountdown
             var showHideItem = new MenuItem { Header = "显示 / 隐藏" };
             showHideItem.Click += (s, e) => ToggleVisibility();
             var scheduleBarItem = new MenuItem { Header = "课表栏" };
+            _trayScheduleItem = scheduleBarItem;
             scheduleBarItem.Click += (s, e) =>
             {
                 if (_scheduleBarWindow != null) HideScheduleBarWindow();

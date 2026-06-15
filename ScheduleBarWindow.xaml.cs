@@ -187,6 +187,7 @@ namespace GaokaoCountdown
         // ── "快上课"闪烁状态 ──────────────────────────────────
         private bool _flashVisible = true;
         private const int FLASH_THRESHOLD_SECONDS = 60;
+        private bool _showTomorrowPreview = false;
 
         // ── 课节卡片缓存（避免每秒重建 UI）─────────────────────
         private DateTime _lastBuildDate = DateTime.MinValue;
@@ -326,6 +327,25 @@ namespace GaokaoCountdown
                 // 设置关闭了自动收缩，立即展开
                 SetExpanded();
             }
+
+            // ── 放学后 / 周末显示明天课程 ──
+            bool todayDone = cur == null && next == null;
+            if (todayDone && _lastBuildDate != now.Date)
+            {
+                // 当天课已全部结束或今日无课，检查明天
+                var tomorrowEntries = _manager.GetTodayEntries(now.Date.AddDays(1));
+                if (tomorrowEntries.Count > 0)
+                {
+                    _showTomorrowPreview = true;
+                    _lastBuildDate = DateTime.MinValue; // 强制重建
+                    RebuildPeriodPanel(now);
+                    _lastBuildDate = now.Date; // 恢复缓存键
+                }
+            }
+            else if (!todayDone)
+            {
+                _showTomorrowPreview = false;
+            }
         }
 
         // ── 重建课节卡片（仅日期变更时调用）─────────────────────
@@ -342,6 +362,28 @@ namespace GaokaoCountdown
             double periodLabelSize = baseFont * 0.65;
             double subjectSize     = baseFont * 0.8;
             double timeSize        = baseFont * 0.65;
+
+            if (entries.Count == 0 && _showTomorrowPreview)
+            {
+                // 今日无课，展示明天课程预览
+                var tomorrowEntries = _manager.GetTodayEntries(now.Date.AddDays(1));
+                if (tomorrowEntries.Count > 0)
+                {
+                    var header = new TextBlock
+                    {
+                        Text = "明天课程",
+                        FontSize = periodLabelSize * 1.2,
+                        Foreground = BrOrange,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(6, 0, 6, 0)
+                    };
+                    PeriodPanel.Children.Add(header);
+
+                    foreach (var entry in tomorrowEntries)
+                        BuildCard(entry, false, false, periodLabelSize, subjectSize, timeSize);
+                    return;
+                }
+            }
 
             if (entries.Count == 0)
             {
@@ -361,80 +403,84 @@ namespace GaokaoCountdown
             {
                 bool isCur  = cur  == entry;
                 bool isNext = next == entry;
-
-                var cardStyle = isCur ? (Style)FindResource("PeriodCardActive")
-                              : isNext ? (Style)FindResource("PeriodCardNext")
-                              : (Style)FindResource("PeriodCard");
-
-                var card = new Border { Style = cardStyle };
-
-                // ── "快上课"闪烁 ──
-                if (isNext && !_flashVisible)
-                {
-                    card.Opacity = 0.25;
-                    card.BorderBrush = BrOrange;
-                    card.Background = BrFlashBg;
-                }
-
-                var periodTb = new TextBlock
-                {
-                    Text = entry.Type switch
-                    {
-                        PeriodType.Morning => "早自习",
-                        PeriodType.Evening => "晚自习",
-                        PeriodType.Reading => "晚读",
-                        PeriodType.Noon    => "午自习",
-                        _                  => $"第 {entry.Period} 节"
-                    },
-                    FontSize = periodLabelSize,
-                    Foreground = isCur ? BrLtGreen : isNext ? BrLtBlue : BrLightGray,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-
-                var subjectTb = new TextBlock
-                {
-                    Text = entry.Subject,
-                    FontSize = subjectSize,
-                    FontWeight = isCur ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = BrWhite,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-
-                var timeTb = new TextBlock
-                {
-                    Text = $"{entry.StartTimeStr}-{entry.EndTimeStr}",
-                    FontSize = timeSize,
-                    Foreground = BrLightGray,
-                    HorizontalAlignment = HorizontalAlignment.Center
-                };
-
-                var stack = new StackPanel();
-                stack.Children.Add(periodTb);
-                stack.Children.Add(subjectTb);
-                stack.Children.Add(timeTb);
-                card.Child = stack;
-
-                if (isCur)
-                {
-                    var outer = new Grid();
-                    outer.Children.Add(card);
-                    var indicator = new Border
-                    {
-                        Height = 2,
-                        Background = BrIndicator,
-                        VerticalAlignment = VerticalAlignment.Bottom,
-                        CornerRadius = new CornerRadius(0, 0, 4, 4)
-                    };
-                    outer.Children.Add(indicator);
-                    PeriodPanel.Children.Add(outer);
-                }
-                else
-                {
-                    PeriodPanel.Children.Add(card);
-                }
-
-                _periodCardRefs.Add((entry, card, periodTb, subjectTb, timeTb));
+                BuildCard(entry, isCur, isNext, periodLabelSize, subjectSize, timeSize);
             }
+        }
+
+        private void BuildCard(ScheduleEntry entry, bool isCur, bool isNext,
+                               double periodLabelSize, double subjectSize, double timeSize)
+        {
+            var cardStyle = isCur ? (Style)FindResource("PeriodCardActive")
+                          : isNext ? (Style)FindResource("PeriodCardNext")
+                          : (Style)FindResource("PeriodCard");
+
+            var card = new Border { Style = cardStyle };
+
+            if (isNext && !_flashVisible)
+            {
+                card.Opacity = 0.25;
+                card.BorderBrush = BrOrange;
+                card.Background = BrFlashBg;
+            }
+
+            var periodTb = new TextBlock
+            {
+                Text = entry.Type switch
+                {
+                    PeriodType.Morning => "早自习",
+                    PeriodType.Evening => "晚自习",
+                    PeriodType.Reading => "晚读",
+                    PeriodType.Noon    => "午自习",
+                    _                  => $"第 {entry.Period} 节"
+                },
+                FontSize = periodLabelSize,
+                Foreground = isCur ? BrLtGreen : isNext ? BrLtBlue : BrLightGray,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var subjectTb = new TextBlock
+            {
+                Text = entry.Subject,
+                FontSize = subjectSize,
+                FontWeight = isCur ? FontWeights.Bold : FontWeights.Normal,
+                Foreground = BrWhite,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var timeTb = new TextBlock
+            {
+                Text = $"{entry.StartTimeStr}-{entry.EndTimeStr}",
+                FontSize = timeSize,
+                Foreground = BrLightGray,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+
+            var stack = new StackPanel();
+            stack.Children.Add(periodTb);
+            stack.Children.Add(subjectTb);
+            stack.Children.Add(timeTb);
+            card.Child = stack;
+
+            if (isCur)
+            {
+                var outer = new Grid();
+                outer.Children.Add(card);
+                var indicator = new Border
+                {
+                    Height = 2,
+                    Background = BrIndicator,
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    CornerRadius = new CornerRadius(0, 0, 4, 4)
+                };
+                outer.Children.Add(indicator);
+                PeriodPanel.Children.Add(outer);
+            }
+            else
+            {
+                PeriodPanel.Children.Add(card);
+            }
+
+            _periodCardRefs.Add((entry, card, periodTb, subjectTb, timeTb));
         }
 
         /// <summary>同一天内仅更新卡片视觉状态（不重建控件）</summary>
