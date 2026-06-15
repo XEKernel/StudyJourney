@@ -126,6 +126,8 @@ namespace GaokaoCountdown
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             _timer?.Stop();
+            _weatherTimer?.Stop();
+            _expandTimer?.Stop();
             _reminder.Countdown60Tick -= OnCountdown60Tick;
             ContentRendered -= OnContentRendered;
         }
@@ -182,6 +184,28 @@ namespace GaokaoCountdown
         private DispatcherTimer? _expandTimer;
         private bool _isCompact = false;
 
+        // ── "快上课"闪烁状态 ──────────────────────────────────
+        private bool _flashVisible = true;
+        private const int FLASH_THRESHOLD_SECONDS = 60;
+
+        // ── 课节卡片缓存（避免每秒重建 UI）─────────────────────
+        private DateTime _lastBuildDate = DateTime.MinValue;
+        /// <summary>(entry, card, 节次Label, 课程Label, 时间Label)</summary>
+        private readonly List<(ScheduleEntry Entry, Border Card, TextBlock PeriodLabel,
+                               TextBlock SubjectLabel, TextBlock TimeLabel)> _periodCardRefs = new();
+
+        // ── 缓存画刷（避免每秒 new SolidColorBrush）─────────────
+        private static readonly SolidColorBrush BrOrange   = new(Color.FromRgb(0xFF, 0x88, 0x44));
+        private static readonly SolidColorBrush BrRed      = new(Color.FromRgb(0xFF, 0x44, 0x44));
+        private static readonly SolidColorBrush BrGreen    = new(Color.FromRgb(0x4C, 0xAF, 0x50));
+        private static readonly SolidColorBrush BrGray     = new(Color.FromRgb(0xAA, 0xAA, 0xAA));
+        private static readonly SolidColorBrush BrLightGray= new(Color.FromRgb(0x88, 0x88, 0x88));
+        private static readonly SolidColorBrush BrWhite    = new SolidColorBrush(Colors.White);
+        private static readonly SolidColorBrush BrLtGreen  = new(Color.FromRgb(0xA5, 0xD6, 0xA7));
+        private static readonly SolidColorBrush BrLtBlue   = new(Color.FromRgb(0x90, 0xCA, 0xF9));
+        private static readonly SolidColorBrush BrFlashBg  = new(Color.FromRgb(0x55, 0x15, 0x00));
+        private static readonly SolidColorBrush BrIndicator= new(Color.FromRgb(0x4C, 0xAF, 0x50));
+
         // ── 定时刷新 ──────────────────────────────────────────
         private void StartTimer()
         {
@@ -199,38 +223,64 @@ namespace GaokaoCountdown
             CurrentTimeTb.Text = now.ToString("HH:mm:ss");
             DateTb.Text = now.ToString("MM月dd日 ddd");
 
-            // 重建课节列表
-            RebuildPeriodPanel(now);
-
             // 当前/下节信息
             var cur  = _manager.GetCurrentEntry(now);
             var next = _manager.GetNextEntry(now);
+            var timeToNext = _manager.GetTimeToNextEntry(now);
 
-            // 状态文本
-            if (cur != null)
+            // ── "快上课"闪烁检测 ──
+            bool isFlashing = timeToNext.HasValue
+                && timeToNext.Value.TotalSeconds <= FLASH_THRESHOLD_SECONDS
+                && timeToNext.Value.TotalSeconds > 0;
+            if (isFlashing)
+                _flashVisible = !_flashVisible;
+            else
+                _flashVisible = true;
+
+            // 重建课节列表（仅在日期变更或首次时重建，其余仅更新状态）
+            if (_lastBuildDate != now.Date)
+            {
+                _lastBuildDate = now.Date;
+                RebuildPeriodPanel(now);
+            }
+            else
+            {
+                UpdatePeriodCardStates(now);
+            }
+
+            // 状态文本（快上课时显示特殊提示）
+            if (isFlashing && next != null)
+            {
+                int remainSec = (int)timeToNext!.Value.TotalSeconds;
+                StatusTb.Text = $"即将上课：{next.Subject}";
+                StatusTb.Foreground = BrOrange;
+                NextCountdownTb.Text = $"还有 {remainSec}s";
+                NextCountdownTb.Foreground = BrRed;
+            }
+            else if (cur != null)
             {
                 StatusTb.Text = $"正在上课：{cur.Subject}";
-                StatusTb.Foreground = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50));
+                StatusTb.Foreground = BrGreen;
             }
             else if (next != null)
             {
                 StatusTb.Text = "课间休息";
-                StatusTb.Foreground = new SolidColorBrush(Color.FromRgb(0xFF, 0x88, 0x44));
+                StatusTb.Foreground = BrOrange;
             }
             else
             {
                 StatusTb.Text = "今日课程已结束";
-                StatusTb.Foreground = new SolidColorBrush(Color.FromRgb(0xAA, 0xAA, 0xAA));
+                StatusTb.Foreground = BrGray;
             }
 
-            // 距下节课倒计时
-            var timeToNext = _manager.GetTimeToNextEntry(now);
-            if (timeToNext.HasValue)
+            // 距下节课倒计时（非闪烁时显示正常倒计时）
+            if (!isFlashing && timeToNext.HasValue)
             {
                 var ts = timeToNext.Value;
                 NextCountdownTb.Text = $"距下节课 {ts.Hours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+                NextCountdownTb.Foreground = BrOrange;
             }
-            else
+            else if (!isFlashing)
             {
                 NextCountdownTb.Text = string.Empty;
             }
@@ -278,10 +328,11 @@ namespace GaokaoCountdown
             }
         }
 
-        // ── 重建课节卡片 ──────────────────────────────────────
+        // ── 重建课节卡片（仅日期变更时调用）─────────────────────
         private void RebuildPeriodPanel(DateTime now)
         {
             PeriodPanel.Children.Clear();
+            _periodCardRefs.Clear();
             var entries = _manager.GetTodayEntries(now.Date);
             var cur  = _manager.GetCurrentEntry(now);
             var next = _manager.GetNextEntry(now);
@@ -298,7 +349,7 @@ namespace GaokaoCountdown
                 {
                     Text = "今日无课",
                     FontSize = periodLabelSize * 1.2,
-                    Foreground = new SolidColorBrush(Color.FromRgb(0xAA, 0xAA, 0xAA)),
+                    Foreground = BrGray,
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(6, 0, 0, 0)
                 };
@@ -316,46 +367,51 @@ namespace GaokaoCountdown
                               : (Style)FindResource("PeriodCard");
 
                 var card = new Border { Style = cardStyle };
-                var stack = new StackPanel();
 
-                string periodLabel = entry.Type switch
+                // ── "快上课"闪烁 ──
+                if (isNext && !_flashVisible)
                 {
-                    PeriodType.Morning => "早自习",
-                    PeriodType.Evening => "晚自习",
-                    PeriodType.Reading => "晚读",
-                    PeriodType.Noon    => "午自习",
-                    _                  => $"第 {entry.Period} 节"
+                    card.Opacity = 0.25;
+                    card.BorderBrush = BrOrange;
+                    card.Background = BrFlashBg;
+                }
+
+                var periodTb = new TextBlock
+                {
+                    Text = entry.Type switch
+                    {
+                        PeriodType.Morning => "早自习",
+                        PeriodType.Evening => "晚自习",
+                        PeriodType.Reading => "晚读",
+                        PeriodType.Noon    => "午自习",
+                        _                  => $"第 {entry.Period} 节"
+                    },
+                    FontSize = periodLabelSize,
+                    Foreground = isCur ? BrLtGreen : isNext ? BrLtBlue : BrLightGray,
+                    HorizontalAlignment = HorizontalAlignment.Center
                 };
 
-                stack.Children.Add(new TextBlock
-                {
-                    Text = periodLabel,
-                    FontSize = periodLabelSize,
-                    Foreground = isCur
-                        ? new SolidColorBrush(Color.FromRgb(0xA5, 0xD6, 0xA7))
-                        : isNext
-                            ? new SolidColorBrush(Color.FromRgb(0x90, 0xCA, 0xF9))
-                            : new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
-                    HorizontalAlignment = HorizontalAlignment.Center
-                });
-
-                stack.Children.Add(new TextBlock
+                var subjectTb = new TextBlock
                 {
                     Text = entry.Subject,
                     FontSize = subjectSize,
                     FontWeight = isCur ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = new SolidColorBrush(Colors.White),
+                    Foreground = BrWhite,
                     HorizontalAlignment = HorizontalAlignment.Center
-                });
+                };
 
-                stack.Children.Add(new TextBlock
+                var timeTb = new TextBlock
                 {
                     Text = $"{entry.StartTimeStr}-{entry.EndTimeStr}",
                     FontSize = timeSize,
-                    Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)),
+                    Foreground = BrLightGray,
                     HorizontalAlignment = HorizontalAlignment.Center
-                });
+                };
 
+                var stack = new StackPanel();
+                stack.Children.Add(periodTb);
+                stack.Children.Add(subjectTb);
+                stack.Children.Add(timeTb);
                 card.Child = stack;
 
                 if (isCur)
@@ -365,7 +421,7 @@ namespace GaokaoCountdown
                     var indicator = new Border
                     {
                         Height = 2,
-                        Background = new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)),
+                        Background = BrIndicator,
                         VerticalAlignment = VerticalAlignment.Bottom,
                         CornerRadius = new CornerRadius(0, 0, 4, 4)
                     };
@@ -376,6 +432,45 @@ namespace GaokaoCountdown
                 {
                     PeriodPanel.Children.Add(card);
                 }
+
+                _periodCardRefs.Add((entry, card, periodTb, subjectTb, timeTb));
+            }
+        }
+
+        /// <summary>同一天内仅更新卡片视觉状态（不重建控件）</summary>
+        private void UpdatePeriodCardStates(DateTime now)
+        {
+            if (_periodCardRefs.Count == 0) return;
+            var cur  = _manager.GetCurrentEntry(now);
+            var next = _manager.GetNextEntry(now);
+
+            foreach (var (entry, card, periodTb, subjectTb, timeTb) in _periodCardRefs)
+            {
+                bool isCur  = cur  == entry;
+                bool isNext = next == entry;
+
+                // 更新卡片样式
+                card.Style = isCur ? (Style)FindResource("PeriodCardActive")
+                           : isNext ? (Style)FindResource("PeriodCardNext")
+                           : (Style)FindResource("PeriodCard");
+
+                // 闪烁状态
+                if (isNext && !_flashVisible)
+                {
+                    card.Opacity = 0.25;
+                    card.BorderBrush = BrOrange;
+                    card.Background = BrFlashBg;
+                }
+                else
+                {
+                    card.Opacity = 1;
+                    card.ClearValue(Border.BorderBrushProperty);
+                    card.ClearValue(Border.BackgroundProperty);
+                }
+
+                // 文字颜色
+                periodTb.Foreground = isCur ? BrLtGreen : isNext ? BrLtBlue : BrLightGray;
+                subjectTb.FontWeight = isCur ? FontWeights.Bold : FontWeights.Normal;
             }
         }
 
@@ -506,6 +601,7 @@ namespace GaokaoCountdown
 
             SetExpanded();
             _expandTimer?.Stop();
+            _expandTimer = null;
             _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
             _expandTimer.Tick += (_, _) =>
             {
@@ -560,14 +656,14 @@ namespace GaokaoCountdown
                     WeatherHumidityTb.FontSize = weatherFs * 0.65;
 
                     // 应用天气颜色
-                    WeatherCityTb.Foreground = ParseColor(_settings.WeatherCityColor, "#FFFFFFFF");
-                    WeatherTb.Foreground = ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
-                    WeatherWindTb.Foreground = ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
-                    WeatherHumidityTb.Foreground = ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
-                    WeatherTempTb.Foreground = ParseColor(_settings.WeatherTempColor, "#FFFF8844");
-                    WeatherIconTb.Foreground = ParseColor(_settings.WeatherIconColor, "#FFFFAA00");
+                    WeatherCityTb.Foreground = ColorUtils.ParseColor(_settings.WeatherCityColor, "#FFFFFFFF");
+                    WeatherTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
+                    WeatherWindTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
+                    WeatherHumidityTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
+                    WeatherTempTb.Foreground = ColorUtils.ParseColor(_settings.WeatherTempColor, "#FFFF8844");
+                    WeatherIconTb.Foreground = ColorUtils.ParseColor(_settings.WeatherIconColor, "#FFFFAA00");
 
-                    WeatherIconTb.Text = GetWeatherEmoji(wIcon);
+                    WeatherIconTb.Text = ColorUtils.GetWeatherEmoji(wIcon);
                     WeatherCityTb.Text = location;
                     WeatherTb.Text = weather;
                     WeatherTempTb.Text = $"{temperature}°";
@@ -602,27 +698,6 @@ namespace GaokaoCountdown
             _weatherTimer.Start();
         }
 
-        private static string GetWeatherEmoji(string? iconCode)
-        {
-            return iconCode switch
-            {
-                "100" => "☀", "101" => "🌤", "102" => "⛅",
-                "103" => "⛅", "104" => "☁", "200" => "🌦",
-                "300" => "🌧", "301" => "⛈", "400" => "❄",
-                "500" => "🌫", _     => "🌤"
-            };
-        }
-        private static SolidColorBrush ParseColor(string hex, string fallback)
-        {
-            try
-            {
-                return new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-                    !string.IsNullOrWhiteSpace(hex) ? hex : fallback));
-            }
-            catch
-            {
-                return new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback));
-            }
-        }
+        // GetWeatherEmoji / ParseColor 已移至共享 ColorUtils 类
     }
 }

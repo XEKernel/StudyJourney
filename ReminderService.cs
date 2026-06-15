@@ -231,6 +231,7 @@ namespace GaokaoCountdown
         private void StartCountdown60()
         {
             _countdown60Timer?.Stop();
+            _countdown60Timer = null;
             _countdown60Remaining = 60;
             Countdown60Tick?.Invoke(this, _countdown60Remaining);
 
@@ -249,6 +250,7 @@ namespace GaokaoCountdown
         {
             _timer.Stop();
             _countdown60Timer?.Stop();
+            _countdown60Timer = null;
         }
     }
 }

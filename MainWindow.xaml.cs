@@ -22,6 +22,11 @@ namespace GaokaoCountdown
         private TaskbarIcon? notifyIcon;
         private AppSettings settings;
 
+        // ── 缓存的画刷（颜色变更时重建，避免每秒 new）───────────
+        private SolidColorBrush _textBrushCache = new SolidColorBrush(Colors.White);
+        private SolidColorBrush _numberBrushCache = new SolidColorBrush(Colors.Red);
+        private SolidColorBrush _progressBrushCache = new SolidColorBrush(Colors.White);
+
         // ── 动态日期 ───────────────────────────────────────────
         private DateTime gaokaoDate;
         private DateTime startDate;
@@ -772,31 +777,33 @@ namespace GaokaoCountdown
             EnglishMinutesTb.Text = EnglishMinutesText;
             EnglishSecondsTb.Text = EnglishSecondsText;
 
-            // ── 颜色刷 ──────────────────────────────────────────
-            var textBrush   = new SolidColorBrush(TextColor);
-            var numberBrush = new SolidColorBrush(NumberColor);
+            // ── 颜色刷（仅颜色变更时重建）─────────────────────────
+            if (_textBrushCache.Color != TextColor)
+                _textBrushCache = new SolidColorBrush(TextColor);
+            if (_numberBrushCache.Color != NumberColor)
+                _numberBrushCache = new SolidColorBrush(NumberColor);
 
-            ChinesePrefixTb.Foreground  = textBrush;
-            ChineseDaysTb.Foreground    = textBrush;
-            ChineseHoursTb.Foreground   = textBrush;
-            ChineseMinutesTb.Foreground = textBrush;
-            ChineseSecondsTb.Foreground = textBrush;
+            ChinesePrefixTb.Foreground  = _textBrushCache;
+            ChineseDaysTb.Foreground    = _textBrushCache;
+            ChineseHoursTb.Foreground   = _textBrushCache;
+            ChineseMinutesTb.Foreground = _textBrushCache;
+            ChineseSecondsTb.Foreground = _textBrushCache;
 
-            EnglishPrefixTb.Foreground  = textBrush;
-            EnglishDaysTb.Foreground    = textBrush;
-            EnglishHoursTb.Foreground   = textBrush;
-            EnglishMinutesTb.Foreground = textBrush;
-            EnglishSecondsTb.Foreground = textBrush;
+            EnglishPrefixTb.Foreground  = _textBrushCache;
+            EnglishDaysTb.Foreground    = _textBrushCache;
+            EnglishHoursTb.Foreground   = _textBrushCache;
+            EnglishMinutesTb.Foreground = _textBrushCache;
+            EnglishSecondsTb.Foreground = _textBrushCache;
 
-            DaysTb.Foreground    = numberBrush;
-            HoursTb.Foreground   = numberBrush;
-            MinutesTb.Foreground = numberBrush;
-            SecondsTb.Foreground = numberBrush;
+            DaysTb.Foreground    = _numberBrushCache;
+            HoursTb.Foreground   = _numberBrushCache;
+            MinutesTb.Foreground = _numberBrushCache;
+            SecondsTb.Foreground = _numberBrushCache;
 
-            DaysEnTb.Foreground    = numberBrush;
-            HoursEnTb.Foreground   = numberBrush;
-            MinutesEnTb.Foreground = numberBrush;
-            SecondsEnTb.Foreground = numberBrush;
+            DaysEnTb.Foreground    = _numberBrushCache;
+            HoursEnTb.Foreground   = _numberBrushCache;
+            MinutesEnTb.Foreground = _numberBrushCache;
+            SecondsEnTb.Foreground = _numberBrushCache;
 
             // 发光颜色同步
             if (DaysTb.Effect is DropShadowEffect g1)     g1.Color = NumberColor;
@@ -804,27 +811,21 @@ namespace GaokaoCountdown
             if (MinutesTb.Effect is DropShadowEffect g3)  g3.Color = NumberColor;
             if (SecondsTb.Effect is DropShadowEffect g4)  g4.Color = NumberColor;
 
-            ProgressText.Foreground   = textBrush;
-            ProgressTextEn.Foreground = textBrush;
+            ProgressText.Foreground   = _textBrushCache;
+            ProgressTextEn.Foreground = _textBrushCache;
 
             // ── 进度条颜色 & 发光 ──────────────────────────────
-            ProgressBar.Foreground = new SolidColorBrush(ProgressBarColor);
+            if (_progressBrushCache.Color != ProgressBarColor)
+                _progressBrushCache = new SolidColorBrush(ProgressBarColor);
+            ProgressBar.Foreground = _progressBrushCache;
             if (ProgressBar.Effect is DropShadowEffect pg)
                 pg.Color = ProgressBarColor;
 
-            // ── 字体与大小 ──────────────────────────────────────
+            // ── 字体族（统一设置）─────────────────────────────────
             ChinesePanel.Children.OfType<TextBlock>().ToList().ForEach(tb =>
-            {
-                tb.FontFamily = CountdownFontFamily;
-                if (tb == DaysTb || tb == HoursTb || tb == MinutesTb || tb == SecondsTb)
-                    tb.FontSize = CountdownFontSize;
-                else
-                    tb.FontSize = CountdownFontSize;
-            });
+                tb.FontFamily = CountdownFontFamily);
             EnglishPanel.Children.OfType<TextBlock>().ToList().ForEach(tb =>
-            {
-                tb.FontFamily = CountdownFontFamily;
-            });
+                tb.FontFamily = CountdownFontFamily);
             // 直接设置数字块字号（中文行）
             DaysTb.FontSize    = CountdownFontSize;
             HoursTb.FontSize   = CountdownFontSize;
@@ -1101,6 +1102,10 @@ namespace GaokaoCountdown
         private void ExitApplication()
         {
             _isExiting = true;
+            _maximizeCheckTimer?.Stop();
+            _maximizeCheckTimer = null;
+            _quoteRefreshTimer?.Stop();
+            _quoteRefreshTimer = null;
             _reminderService?.Dispose();
             HideScheduleBarWindow();
             ExitExamMode();

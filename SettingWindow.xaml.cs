@@ -707,6 +707,17 @@ namespace GaokaoCountdown
             _mainWindow.ExamWarningFontSize       = ExamWarningFontSizeSlider.Value;
             _mainWindow.ExamEscHintFontSize       = ExamEscHintFontSizeSlider.Value;
             _mainWindow.ExamProgressBarHeight     = ExamProgressBarHeightSlider.Value;
+
+            // 考试模式颜色 — 保存前验证格式
+            if (!ValidateExamColor(ExamSubjectColorBox.Text,          "科目文字颜色")) return;
+            if (!ValidateExamColor(ExamNameColorBox.Text,             "考试名称颜色")) return;
+            if (!ValidateExamColor(ExamCountdownNormalColorBox.Text,  "倒计时正常颜色")) return;
+            if (!ValidateExamColor(ExamCountdownWarningColorBox.Text, "倒计时警告颜色")) return;
+            if (!ValidateExamColor(ExamCountdownCriticalColorBox.Text,"倒计时紧迫颜色")) return;
+            if (!ValidateExamColor(ExamDistanceColorBox.Text,         "距开考倒计时颜色")) return;
+            if (!ValidateExamColor(ExamInfoColorBox.Text,             "信息文字颜色")) return;
+            if (!ValidateExamColor(ExamProgressBarColorBox.Text,      "进度条颜色")) return;
+
             _mainWindow.ExamSubjectColor          = ExamSubjectColorBox.Text.Trim();
             _mainWindow.ExamNameColor             = ExamNameColorBox.Text.Trim();
             _mainWindow.ExamCountdownNormalColor  = ExamCountdownNormalColorBox.Text.Trim();
@@ -1464,8 +1475,18 @@ namespace GaokaoCountdown
             }
         }
 
+        /// <summary>验证颜色格式，无效时弹窗提醒</summary>
+        private bool ValidateExamColor(string hex, string label)
+        {
+            if (TryParseColor(hex, out _)) return true;
+            WpfMessageBox.Show($"{label}格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                               "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return false;
+        }
+
         private static string ColorToHex(Color c)
-            => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+            => c.A == 255 ? $"#{c.R:X2}{c.G:X2}{c.B:X2}"
+                          : $"#{c.A:X2}{c.R:X2}{c.G:X2}{c.B:X2}";
 
         private static void RefreshColorPreview(TextBox box, System.Windows.Shapes.Rectangle rect)
         {

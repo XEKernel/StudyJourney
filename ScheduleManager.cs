@@ -150,6 +150,9 @@ namespace GaokaoCountdown
                 var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
                 var data = JsonSerializer.Deserialize<ScheduleData>(json, opts);
                 if (data == null) return (false, "JSON 格式无效");
+                // 防止 JSON 中 Entries/Exams 显式设为 null 导致后续崩溃
+                data.Entries ??= new List<ScheduleEntry>();
+                data.Exams  ??= new List<ExamEntry>();
                 _data = data;
                 _data.Save();
                 return (true, $"导入成功：{data.Entries.Count} 节课，{data.Exams.Count} 场考试");

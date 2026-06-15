@@ -72,8 +72,8 @@ namespace GaokaoCountdown
             Refresh();  // 立即刷新，使颜色即时生效
         }
 
-        private Brush SP(string hex) => ParseColor(hex, "#FFFFFFFF");
-        private Brush Sd(string hex, string fallback) => ParseColor(hex, fallback);
+        private static Brush SP(string hex) => ColorUtils.ParseColor(hex, "#FFFFFFFF");
+        private static Brush Sd(string hex, string fallback) => ColorUtils.ParseColor(hex, fallback);
 
         /// <summary>应用静态样式（字体大小、颜色、进度条等不随计时变化的属性）</summary>
         private void ApplyStaticStyles()
@@ -307,12 +307,12 @@ namespace GaokaoCountdown
                     W2TempTb.FontSize = weatherFs * 0.93;
 
                     // 应用天气颜色
-                    W2CityTb.Foreground = ParseColor(_settings.WeatherCityColor, "#FFFFFFFF");
-                    W2WeatherTb.Foreground = ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
-                    W2TempTb.Foreground = ParseColor(_settings.WeatherTempColor, "#FFFF8844");
-                    W2IconTb.Foreground = ParseColor(_settings.WeatherIconColor, "#FFFFAA00");
+                    W2CityTb.Foreground = ColorUtils.ParseColor(_settings.WeatherCityColor, "#FFFFFFFF");
+                    W2WeatherTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
+                    W2TempTb.Foreground = ColorUtils.ParseColor(_settings.WeatherTempColor, "#FFFF8844");
+                    W2IconTb.Foreground = ColorUtils.ParseColor(_settings.WeatherIconColor, "#FFFFAA00");
 
-                    W2IconTb.Text = GetWeatherEmoji(wIcon);
+                    W2IconTb.Text = ColorUtils.GetWeatherEmoji(wIcon);
                     W2CityTb.Text = location;
                     W2WeatherTb.Text = weather;
                     W2TempTb.Text = $"{temperature}°";
@@ -335,27 +335,6 @@ namespace GaokaoCountdown
             _weatherTimer.Start();
         }
 
-        private static string GetWeatherEmoji(string? iconCode)
-        {
-            return iconCode switch
-            {
-                "100" => "☀", "101" => "🌤", "102" => "⛅",
-                "103" => "⛅", "104" => "☁", "200" => "🌦",
-                "300" => "🌧", "301" => "⛈", "400" => "❄",
-                "500" => "🌫", _     => "🌤"
-            };
-        }
-        private static SolidColorBrush ParseColor(string hex, string fallback)
-        {
-            try
-            {
-                return new SolidColorBrush((Color)ColorConverter.ConvertFromString(
-                    !string.IsNullOrWhiteSpace(hex) ? hex : fallback));
-            }
-            catch
-            {
-                return new SolidColorBrush((Color)ColorConverter.ConvertFromString(fallback));
-            }
-        }
+        // GetWeatherEmoji / ParseColor 已移至共享 ColorUtils 类
     }
 }
