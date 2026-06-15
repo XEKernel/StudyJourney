@@ -1324,7 +1324,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                             <TextBlock Text="高考倒计时" FontSize="20" FontWeight="Bold"
                                                        Foreground="#FFFFFFFF"/>
-                                            <TextBlock Text="  v1.2" FontSize="13"
+                                            <TextBlock Text="  v1.3" FontSize="13"
                                                        Foreground="#6688CCAA" VerticalAlignment="Bottom"
                                                        Margin="4,0,0,3"/>
                                         </StackPanel>
@@ -1348,7 +1348,7 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="版本" FontSize="12" Foreground="#66CCCCDD"/>
-                                            <TextBlock Grid.Column="1" Text="1.2"
+                                            <TextBlock Grid.Column="1" Text="1.3"
                                                        FontSize="13" Foreground="#AACCDDEE"/>
                                         </Grid>
 
@@ -1443,27 +1443,31 @@
                                         <LineBreak/>
                                         <Run Text="&#x1F4CA; 进度条直观展示高中生活完成度，百分比文字独立开关"/>
                                         <LineBreak/>
-                                        <Run Text="&#x1F4DD; 考试全屏倒计时，科目/剩余时间/进度/下一场一目了然"/>
+                                        <Run Text="&#x1F4DD; 考试全屏倒计时，科目剩余时间/进度/下一场可视化，最后5分钟蜂鸣提醒"/>
                                         <LineBreak/>
-                                        <Run Text="&#x1F4C5; 日程管理（课表栏），吸附屏幕顶部，上课自动收缩"/>
+                                        <Run Text="&#x1F4C5; 课表栏（课程表网格视图），自动收缩+紧凑模式展开按钮+放学显示明天课程"/>
                                         <LineBreak/>
-                                        <Run Text="&#x2601; 实时天气（窗口 + 文本两种模式），多城市自动定位"/>
+                                        <Run Text="&#x1F504; 调休功能，一键复制某天课表到另一天"/>
+                                        <LineBreak/>
+                                        <Run Text="&#x2601; 实时天气（窗口 + 文本两种模式），支持城市名输入"/>
                                         <LineBreak/>
                                         <Run Text="&#x1F4AC; 每日一言 API，励志语录随机展示"/>
                                         <LineBreak/>
-                                        <Run Text="&#x1F514; 自定义提醒弹窗（右下角滑入+图标弹跳），支持日程/考试提醒"/>
+                                        <Run Text="&#x1F514; 提醒弹窗（右下角滑入+图标弹跳），「稍后提醒(5分钟)」+自动消失8秒"/>
                                         <LineBreak/>
                                         <Run Text="&#x1F39B; 数字脉冲动画，流畅不卡顿（可关闭）"/>
                                         <LineBreak/>
-                                        <Run Text="&#x1F3A8; 字号 / 字体 / 颜色 / 透明度 / 对齐 — 全部可调"/>
+                                        <Run Text="&#x1F3A8; 字号/字体/颜色/透明度/对齐 — 全部可调"/>
                                         <LineBreak/>
                                         <Run Text="&#x1F4CC; 6 种位置预设 + 自定义坐标拖动定位 + Y 偏移"/>
                                         <LineBreak/>
                                         <Run Text="&#x1F4A1; 预设模式下鼠标穿透，不阻挡桌面操作"/>
                                         <LineBreak/>
-                                        <Run Text="&#x1F4E6; 系统托盘常驻，右键菜单快捷切换"/>
+                                        <Run Text="&#x1F4E6; 系统托盘常驻，右键菜单快捷切换，课表栏状态同步"/>
                                         <LineBreak/>
                                         <Run Text="&#x1F4BE; JSON 配置持久化，关闭重启不丢失设置"/>
+                                        <LineBreak/>
+                                        <Run Text="&#x26A1; 性能优化：Brush 缓存 + 秒级仅更新状态 + Timer 生命周期规范化"/>
                                     </TextBlock>
                                 </StackPanel>
                             </Border>
@@ -1472,6 +1476,42 @@
                             <Border Style="{StaticResource CardPanel}">
                                 <StackPanel>
                                     <TextBlock Text="&#x1F4CB;  更新日志" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="v1.3" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="#FF6688CC" Margin="0,0,0,4"/>
+                                    <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
+                                        <Run Text="• 课表改为课程表网格视图（横向星期、纵向时段），支持时段模板管理"/>
+                                        <LineBreak/>
+                                        <Run Text="• 调休功能，一键复制某天课表到另一天"/>
+                                        <LineBreak/>
+                                        <Run Text="• 放学后/周末自动显示明天课程预览"/>
+                                        <LineBreak/>
+                                        <Run Text="• 考试模式最后5分钟蜂鸣提醒，15分钟警告蜂鸣一声"/>
+                                        <LineBreak/>
+                                        <Run Text="• 考试 ESC / 退出按钮在考试进行中弹确认防误触"/>
+                                        <LineBreak/>
+                                        <Run Text="• 最后一场考试结束自动退出，恢复正常上课状态"/>
+                                        <LineBreak/>
+                                        <Run Text="• 双击/F11 切换考试全屏↔窗口模式"/>
+                                        <LineBreak/>
+                                        <Run Text="• 提醒弹窗新增「稍后提醒(5分钟)」按钮，自动消失延长至8秒"/>
+                                        <LineBreak/>
+                                        <Run Text="• 批量添加课节弹窗，一键为多天填入课程"/>
+                                        <LineBreak/>
+                                        <Run Text="• 删除操作（课节/考试/科目）全部增加确认对话框"/>
+                                        <LineBreak/>
+                                        <Run Text="• 设置窗口按钮优化：「确定」→「保存并关闭」，「取消」→「关闭」"/>
+                                        <LineBreak/>
+                                        <Run Text="• 课表栏紧凑模式新增 ▲ 展开按钮，支持手动查看完整信息"/>
+                                        <LineBreak/>
+                                        <Run Text="• 性能优化：课程卡片缓存仅日期变更时重建，10+个 Brush 静态缓存"/>
+                                        <LineBreak/>
+                                        <Run Text="• 代码优化：ColorUtils 共享工具类，Timer 生命周期规范化"/>
+                                        <LineBreak/>
+                                        <Run Text="• 托盘菜单「课表栏」状态同步显示 ✓"/>
+                                        <LineBreak/>
+                                        <Run Text="• 共享暗色主题样式（ComboBox/ComboBoxItem 移至 Styles.xaml）"/>
+                                    </TextBlock>
+                                    <Separator Background="#15FFFFFF" Margin="0,8,0,4"/>
                                     <TextBlock Text="v1.2" FontSize="13" FontWeight="SemiBold"
                                                Foreground="#FF6688CC" Margin="0,0,0,4"/>
                                     <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
