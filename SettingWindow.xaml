@@ -1617,12 +1617,14 @@
                                                 SelectedValueBinding="{Binding DayOfWeek}"
                                                 SelectedValuePath="Value" DisplayMemberPath="Key">
                                                 <DataGridComboBoxColumn.ElementStyle>
-                                                    <Style TargetType="ComboBox">
+                                                    <Style TargetType="ComboBox"
+                                                           BasedOn="{StaticResource {x:Type ComboBox}}">
                                                         <Setter Property="FontSize" Value="11"/>
                                                     </Style>
                                                 </DataGridComboBoxColumn.ElementStyle>
                                                 <DataGridComboBoxColumn.EditingElementStyle>
-                                                    <Style TargetType="ComboBox">
+                                                    <Style TargetType="ComboBox"
+                                                           BasedOn="{StaticResource {x:Type ComboBox}}">
                                                         <Setter Property="FontSize" Value="11"/>
                                                     </Style>
                                                 </DataGridComboBoxColumn.EditingElementStyle>
@@ -1641,12 +1643,14 @@
                                                 SelectedValueBinding="{Binding Type}"
                                                 SelectedValuePath="Value" DisplayMemberPath="Key">
                                                 <DataGridComboBoxColumn.ElementStyle>
-                                                    <Style TargetType="ComboBox">
+                                                    <Style TargetType="ComboBox"
+                                                           BasedOn="{StaticResource {x:Type ComboBox}}">
                                                         <Setter Property="FontSize" Value="11"/>
                                                     </Style>
                                                 </DataGridComboBoxColumn.ElementStyle>
                                                 <DataGridComboBoxColumn.EditingElementStyle>
-                                                    <Style TargetType="ComboBox">
+                                                    <Style TargetType="ComboBox"
+                                                           BasedOn="{StaticResource {x:Type ComboBox}}">
                                                         <Setter Property="FontSize" Value="11"/>
                                                     </Style>
                                                 </DataGridComboBoxColumn.EditingElementStyle>
