@@ -291,14 +291,16 @@
                             </Track.DecreaseRepeatButton>
                         </Track>
 
-                        <!-- 上下箭头按钮（透明） -->
+                        <!-- 上下箭头按钮（透明、禁止命中测试，否则会拦截 Thumb 拖拽事件） -->
                         <RepeatButton x:Name="LineUp"
                                       Command="ScrollBar.LineUpCommand"
                                       Opacity="0"
+                                      IsHitTestVisible="False"
                                       Focusable="False"/>
                         <RepeatButton x:Name="LineDown"
                                       Command="ScrollBar.LineDownCommand"
                                       Opacity="0"
+                                      IsHitTestVisible="False"
                                       Focusable="False"/>
                     </Grid>
 
