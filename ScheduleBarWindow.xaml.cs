@@ -8,6 +8,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace GaokaoCountdown
@@ -90,6 +91,17 @@ namespace GaokaoCountdown
             ApplySettings();
             ApplyFontSizes();
             PositionToTop();
+
+            // ── 窗口入场淡入动画 ──
+            Opacity = 0;
+            var fadeIn = new DoubleAnimation(0, _settings.ScheduleBarOpacity,
+                TimeSpan.FromMilliseconds(400))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            fadeIn.Completed += (_, _) => Opacity = _settings.ScheduleBarOpacity;
+            BeginAnimation(Window.OpacityProperty, fadeIn);
+
             StartTimer();
             Refresh();
             _ = LoadWeatherAsync();
@@ -167,6 +179,10 @@ namespace GaokaoCountdown
         }
 
         // ── 定时刷新 ──────────────────────────────────────────
+        private DispatcherTimer? _expandTimer;
+        private bool _isCompact = false;
+
+        // ── 定时刷新 ──────────────────────────────────────────
         private void StartTimer()
         {
             _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -227,10 +243,38 @@ namespace GaokaoCountdown
                 ProgressLabelTb.Text   = cur.Subject;
                 CurrentClassProgress.Value = pct.Value * 100;
                 ProgressPctTb.Text     = $"{pct.Value * 100:F0}%";
+
+                // 同步更新紧凑模式进度条
+                CompactProgress.Value = pct.Value * 100;
+                CompactPctTb.Text = $"{pct.Value * 100:F0}%";
+                CompactSubjectTb.Text = cur.Subject;
+                var remaining = _manager.GetTimeToEndOfCurrent(now);
+                CompactRemainingTb.Text = remaining.HasValue
+                    ? $"剩余 {remaining.Value.Hours:D2}:{remaining.Value.Minutes:D2}:{remaining.Value.Seconds:D2}"
+                    : "";
             }
             else
             {
                 ProgressRow.Visibility = Visibility.Collapsed;
+            }
+
+            // ── 自动收缩/展开 ──
+            if (_settings.ScheduleBarAutoCollapse)
+            {
+                bool inClass = cur != null;
+                if (inClass && !_isCompact && _expandTimer == null)
+                {
+                    SetCompact();
+                }
+                else if (!inClass && _isCompact)
+                {
+                    SetExpanded();
+                }
+            }
+            else if (_isCompact)
+            {
+                // 设置关闭了自动收缩，立即展开
+                SetExpanded();
             }
         }
 
@@ -342,14 +386,135 @@ namespace GaokaoCountdown
             {
                 if (remaining > 0)
                 {
-                    Countdown60Panel.Visibility = Visibility.Visible;
+                    if (Countdown60Panel.Visibility != Visibility.Visible)
+                    {
+                        Countdown60Panel.Visibility = Visibility.Visible;
+                        Countdown60Panel.Opacity = 0;
+                        if (Countdown60Panel.RenderTransform is not ScaleTransform)
+                        {
+                            Countdown60Panel.RenderTransform = new ScaleTransform(0.8, 0.8);
+                            Countdown60Panel.RenderTransformOrigin = new Point(0.5, 0.5);
+                        }
+                        var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(250))
+                        {
+                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                        };
+                        var scaleIn = new DoubleAnimation(0.8, 1, TimeSpan.FromMilliseconds(250))
+                        {
+                            EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut, Amplitude = 0.3 }
+                        };
+                        Countdown60Panel.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                        if (Countdown60Panel.RenderTransform is ScaleTransform st)
+                        {
+                            st.BeginAnimation(ScaleTransform.ScaleXProperty, scaleIn);
+                            st.BeginAnimation(ScaleTransform.ScaleYProperty, scaleIn);
+                        }
+                    }
                     Countdown60Tb.Text = $"下课倒计时 {remaining}s";
                 }
                 else
                 {
-                    Countdown60Panel.Visibility = Visibility.Collapsed;
+                    // 淡出后隐藏
+                    if (Countdown60Panel.Visibility == Visibility.Visible)
+                    {
+                        var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200))
+                        {
+                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+                        };
+                        fadeOut.Completed += (_, _) =>
+                        {
+                            Countdown60Panel.Visibility = Visibility.Collapsed;
+                        };
+                        Countdown60Panel.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+                    }
                 }
             });
+        }
+
+        // ── 紧凑/展开模式（带动画过渡）───────────────────────
+
+        /// <summary>切换到紧凑模式（仅显示进度条），带交叉淡入淡出</summary>
+        private void SetCompact()
+        {
+            if (_isCompact) return;
+            _isCompact = true;
+
+            // 先淡出完整模式
+            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(180))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+            fadeOut.Completed += (_, _) =>
+            {
+                FullInfoRoot.Visibility = Visibility.Collapsed;
+                CompactRow.Visibility = Visibility.Visible;
+                CompactRow.Opacity = 0;
+
+                // 淡入紧凑模式
+                var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                CompactRow.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                PositionToTop();
+            };
+            FullInfoRoot.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        }
+
+        /// <summary>切换到完整模式，带交叉淡入淡出</summary>
+        private void SetExpanded()
+        {
+            if (!_isCompact) return;
+            _isCompact = false;
+
+            // 先淡出紧凑模式
+            var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(180))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+            fadeOut.Completed += (_, _) =>
+            {
+                CompactRow.Visibility = Visibility.Collapsed;
+                FullInfoRoot.Visibility = Visibility.Visible;
+                FullInfoRoot.Opacity = 0;
+
+                // 淡入完整模式
+                var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(250))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                FullInfoRoot.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                PositionToTop();
+            };
+            CompactRow.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+        }
+
+        /// <summary>提醒时临时展开 10 秒，之后若仍在课上则恢复紧凑</summary>
+        public void ExpandOnReminder(ReminderType type)
+        {
+            if (!_isCompact) return;
+
+            bool shouldExpand = type switch
+            {
+                ReminderType.ClassEndSoon  => true,
+                ReminderType.ClassEnd      => true,
+                ReminderType.NextClassSoon => true,
+                ReminderType.DayEnd        => true,
+                _ => false
+            };
+            if (!shouldExpand) return;
+
+            SetExpanded();
+            _expandTimer?.Stop();
+            _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+            _expandTimer.Tick += (_, _) =>
+            {
+                _expandTimer?.Stop();
+                _expandTimer = null;
+                var cur = _manager.GetCurrentEntry(DateTime.Now);
+                if (cur != null) SetCompact();
+            };
+            _expandTimer.Start();
         }
 
         // ── 天气加载（复用 WeatherWindow 逻辑）───────────────
@@ -409,7 +574,16 @@ namespace GaokaoCountdown
                     WeatherWindTb.Text = !string.IsNullOrWhiteSpace(windDir)
                         ? $"{windDir} {windPower}".Trim() : "--";
                     WeatherHumidityTb.Text = humidity > 0 ? $"{humidity}%" : "--";
-                    WeatherRow.Visibility = Visibility.Visible;
+                    if (WeatherRow.Visibility != Visibility.Visible)
+                    {
+                        WeatherRow.Visibility = Visibility.Visible;
+                        WeatherRow.Opacity = 0;
+                        var weatherFadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(500))
+                        {
+                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                        };
+                        WeatherRow.BeginAnimation(UIElement.OpacityProperty, weatherFadeIn);
+                    }
                 });
             }
             catch { /* 网络异常静默 */ }

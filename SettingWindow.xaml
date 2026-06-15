@@ -855,6 +855,9 @@
                                               Content="其他应用最大化时自动隐藏"
                                               Checked="HideWhenMaximizedCheck_Changed"
                                               Unchecked="HideWhenMaximizedCheck_Changed"/>
+                                    <CheckBox x:Name="HideDuringClassCheck"
+                                              Content="上课/考试时自动隐藏倒计时窗口"
+                                              Margin="0,6,0,0"/>
                                     <TextBlock FontSize="11" Foreground="#66CCCCDD"
                                                Margin="20,0,0,0" TextWrapping="Wrap">
                                         <Run Text="前台窗口最大化时自动隐藏倒计时，恢复时重新显示。"/>
@@ -1493,6 +1496,7 @@
                                     <CheckBox x:Name="ShowScheduleBarCheck" Content="启用课表悬浮栏（吸附屏幕顶部）"/>
                                     <CheckBox x:Name="ScheduleBarAlwaysOnTopCheck" Content="始终置顶" Margin="0,6,0,0"/>
                                     <CheckBox x:Name="ScheduleBarClickThroughCheck" Content="鼠标点击穿透" Margin="0,4,0,0"/>
+                                    <CheckBox x:Name="ScheduleBarAutoCollapseCheck" Content="上课时自动收缩为进度条（提醒时展开）" Margin="0,4,0,0"/>
                                     <TextBlock Text="透明度" Margin="0,10,0,2"/>
                                     <StackPanel Orientation="Horizontal">
                                         <Slider x:Name="ScheduleBarOpacitySlider"
@@ -1672,6 +1676,254 @@
                                     <TextBlock Text="调节考试全屏窗口中当前时间文字的大小"
                                                FontSize="11" Foreground="#66CCCCDD"
                                                Margin="70,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 考试全屏样式卡片 -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="全屏样式" Style="{StaticResource SectionTitle}" Margin="0,0,0,10"/>
+
+                                    <!-- 字体大小 -->
+                                    <TextBlock Text="字体大小" FontWeight="SemiBold" Margin="0,6,0,4"/>
+                                    <!-- 科目名称 -->
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="科目名称" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="ExamSubjectFontSizeSlider"
+                                                Minimum="24" Maximum="120" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="ExamSubjectFontSizeSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="ExamSubjectFontSizeText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 考试名称 -->
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="考试名称" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="ExamNameFontSizeSlider"
+                                                Minimum="12" Maximum="60" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="ExamNameFontSizeSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="ExamNameFontSizeText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 倒计时 -->
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="倒计时数字" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="ExamCountdownFontSizeSlider"
+                                                Minimum="48" Maximum="200" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="ExamCountdownFontSizeSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="ExamCountdownFontSizeText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 时间信息 -->
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="时间信息" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="ExamTimeInfoFontSizeSlider"
+                                                Minimum="10" Maximum="36" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="ExamTimeInfoFontSizeSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="ExamTimeInfoFontSizeText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 下一场 -->
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="下一场" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="ExamNextSubjectFontSizeSlider"
+                                                Minimum="12" Maximum="48" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="ExamNextSubjectFontSizeSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="ExamNextSubjectFontSizeText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 警告 -->
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="15分警告" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="ExamWarningFontSizeSlider"
+                                                Minimum="12" Maximum="48" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="ExamWarningFontSizeSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="ExamWarningFontSizeText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- ESC提示 -->
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="ESC提示" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="ExamEscHintFontSizeSlider"
+                                                Minimum="8" Maximum="28" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="ExamEscHintFontSizeSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="ExamEscHintFontSizeText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <TextBlock Text="颜色" FontWeight="SemiBold" Margin="0,10,0,4"/>
+                                    <!-- 科目名颜色 -->
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="24"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="科目名称" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamSubjectColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamSubjectColorPreview"
+                                                   Width="18" Height="18" RadiusX="3" RadiusY="3"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 考试名颜色 -->
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="24"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="考试名称" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamNameColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamNameColorPreview"
+                                                   Width="18" Height="18" RadiusX="3" RadiusY="3"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 倒计时正常色 -->
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="24"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="倒计时(正常)" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamCountdownNormalColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamCountdownNormalColorPreview"
+                                                   Width="18" Height="18" RadiusX="3" RadiusY="3"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 倒计时警告色 -->
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="24"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="倒计时(警告)" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamCountdownWarningColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamCountdownWarningColorPreview"
+                                                   Width="18" Height="18" RadiusX="3" RadiusY="3"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 倒计时紧迫色 -->
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="24"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="倒计时(紧迫)" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamCountdownCriticalColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamCountdownCriticalColorPreview"
+                                                   Width="18" Height="18" RadiusX="3" RadiusY="3"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 距开考色 -->
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="24"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="距开考" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamDistanceColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamDistanceColorPreview"
+                                                   Width="18" Height="18" RadiusX="3" RadiusY="3"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 信息文字色 -->
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="24"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="信息文字" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamInfoColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamInfoColorPreview"
+                                                   Width="18" Height="18" RadiusX="3" RadiusY="3"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <!-- 进度条颜色 -->
+                                    <Grid Margin="0,0,0,3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="24"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="进度条" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamProgressBarColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamProgressBarColorPreview"
+                                                   Width="18" Height="18" RadiusX="3" RadiusY="3"
+                                                   Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                    </Grid>
+
+                                    <TextBlock Text="进度条高度" FontWeight="SemiBold" Margin="0,12,0,4"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="高度" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
+                                        <Slider Grid.Column="1" x:Name="ExamProgressBarHeightSlider"
+                                                Minimum="4" Maximum="40" TickFrequency="1"
+                                                IsSnapToTickEnabled="True"
+                                                ValueChanged="ExamProgressBarHeightSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="2" x:Name="ExamProgressBarHeightText"
+                                                   Foreground="#FFFFFFFF" FontSize="12"
+                                                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                    </Grid>
+                                    <TextBlock Text="调节考试全屏窗口中进度条的粗细"
+                                               FontSize="11" Foreground="#66CCCCDD"
+                                               Margin="90,0,0,0" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
 

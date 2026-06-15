@@ -65,6 +65,17 @@ namespace GaokaoCountdown
             return startDt - dt;
         }
 
+        /// <summary>距离当前课结束的剩余时间，不在上课返回 null</summary>
+        public TimeSpan? GetTimeToEndOfCurrent(DateTime? now = null)
+        {
+            var dt = now ?? DateTime.Now;
+            var cur = GetCurrentEntry(dt);
+            if (cur == null) return null;
+            var endDt = cur.GetEndDateTime(dt.Date);
+            var remaining = endDt - dt;
+            return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
+        }
+
         /// <summary>当前课的上课进度 0.0~1.0，当前不在上课时间返回 null</summary>
         public double? GetCurrentProgress(DateTime? now = null)
         {

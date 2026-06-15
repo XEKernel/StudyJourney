@@ -12,7 +12,7 @@
         Loaded="Window_Loaded"
         Closing="Window_Closing">
 
-    <Grid>
+    <Grid x:Name="MainGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
@@ -21,9 +21,9 @@
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <!-- ESC 提示 -->
-        <TextBlock Grid.Row="0" Text="按 ESC 退出考试模式"
-                   FontSize="14" Foreground="#44FFFFFF"
+        <!-- ESC 提示（保留键盘退出方式） -->
+        <TextBlock x:Name="EscHintTb" Grid.Row="0" Text="ESC 退出"
+                   FontSize="12" Foreground="#33FFFFFF"
                    HorizontalAlignment="Right" VerticalAlignment="Top"
                    Margin="0,20,30,0"/>
 
@@ -40,7 +40,7 @@
                    HorizontalAlignment="Center"
                    Margin="0,0,0,8"/>
 
-        <!-- 主倒计时 mm:ss -->
+        <!-- 主倒计时 hh:mm:ss -->
         <TextBlock x:Name="CountdownTb" Grid.Row="2"
                    FontSize="120" FontWeight="Bold"
                    FontFamily="Consolas"
@@ -108,5 +108,41 @@
                        Visibility="Collapsed"
                        Margin="0,16,0,0"/>
         </StackPanel>
+
+        <!-- 底部退出按钮（触摸屏友好） -->
+        <Button x:Name="ExitBtn"
+                Grid.Row="4" VerticalAlignment="Bottom" HorizontalAlignment="Center"
+                Width="120" Height="44"
+                Margin="0,0,0,20"
+                Background="#33FFFFFF"
+                BorderBrush="#44FFFFFF"
+                BorderThickness="1"
+                Foreground="#AAFFFFFF"
+                FontSize="16"
+                Cursor="Hand"
+                Click="ExitBtn_Click"
+                ToolTip="退出考试模式（也可按 ESC）">
+            <Button.Template>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="border"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="10">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#55FFFFFF"/>
+                            <Setter TargetName="border" Property="BorderBrush" Value="#88FFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="border" Property="Background" Value="#88FFFFFF"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Button.Template>
+            退出考试模式
+        </Button>
     </Grid>
 </Window>

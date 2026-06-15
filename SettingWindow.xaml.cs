@@ -83,6 +83,16 @@ namespace GaokaoCountdown
                     WeatherTimeColorBox.TextChanged += WeatherTimeColorBox_TextChanged;
                     WeatherIconColorBox.TextChanged += WeatherIconColorBox_TextChanged;
 
+                    // 考试模式样式颜色实时预览
+                    ExamSubjectColorBox.TextChanged += ExamSubjectColorBox_TextChanged;
+                    ExamNameColorBox.TextChanged += ExamNameColorBox_TextChanged;
+                    ExamCountdownNormalColorBox.TextChanged += ExamCountdownNormalColorBox_TextChanged;
+                    ExamCountdownWarningColorBox.TextChanged += ExamCountdownWarningColorBox_TextChanged;
+                    ExamCountdownCriticalColorBox.TextChanged += ExamCountdownCriticalColorBox_TextChanged;
+                    ExamDistanceColorBox.TextChanged += ExamDistanceColorBox_TextChanged;
+                    ExamInfoColorBox.TextChanged += ExamInfoColorBox_TextChanged;
+                    ExamProgressBarColorBox.TextChanged += ExamProgressBarColorBox_TextChanged;
+
                     // 窗口入场动画
                     if (_enableSettingsAnimations)
                     {
@@ -355,6 +365,7 @@ namespace GaokaoCountdown
             AlwaysOnTopCheck.IsChecked = _mainWindow.AlwaysOnTop;
             AutoStartCheck.IsChecked   = MainWindow.GetAutoStartFromRegistry();
             HideWhenMaximizedCheck.IsChecked = _mainWindow.HideWhenMaximized;
+            HideDuringClassCheck.IsChecked = _mainWindow.HideDuringClass;
 
             // ── 显示 ──────────────────────────────────────────
             ShowEnglishCheck.IsChecked      = _mainWindow.ShowEnglishLine;
@@ -393,6 +404,7 @@ namespace GaokaoCountdown
             ShowScheduleBarCheck.IsChecked         = _mainWindow.ShowScheduleBar;
             ScheduleBarAlwaysOnTopCheck.IsChecked  = _mainWindow.ScheduleBarAlwaysOnTop;
             ScheduleBarClickThroughCheck.IsChecked = _mainWindow.ScheduleBarClickThrough;
+            ScheduleBarAutoCollapseCheck.IsChecked = _mainWindow.ScheduleBarAutoCollapse;
             ScheduleBarOpacitySlider.Value         = _mainWindow.ScheduleBarOpacity;
             ScheduleBarOpacityLabel.Text           = $"{_mainWindow.ScheduleBarOpacity * 100:F0}%";
             ScheduleBarWidthBox.Text               = _mainWindow.ScheduleBarWidth.ToString("F0");
@@ -413,6 +425,41 @@ namespace GaokaoCountdown
             AutoEnterExamModeCheck.IsChecked = _mainWindow.AutoEnterExamMode;
             ExamModeFontSizeSlider.Value     = _mainWindow.ExamModeFontSize;
             ExamModeFontSizeText.Text        = _mainWindow.ExamModeFontSize.ToString("F0");
+
+            // ── 考试模式样式 ──────────────────────────────────
+            ExamSubjectFontSizeSlider.Value     = _mainWindow.ExamSubjectFontSize;
+            ExamSubjectFontSizeText.Text        = _mainWindow.ExamSubjectFontSize.ToString("F0");
+            ExamNameFontSizeSlider.Value        = _mainWindow.ExamNameFontSize;
+            ExamNameFontSizeText.Text           = _mainWindow.ExamNameFontSize.ToString("F0");
+            ExamCountdownFontSizeSlider.Value   = _mainWindow.ExamCountdownFontSize;
+            ExamCountdownFontSizeText.Text      = _mainWindow.ExamCountdownFontSize.ToString("F0");
+            ExamTimeInfoFontSizeSlider.Value    = _mainWindow.ExamTimeInfoFontSize;
+            ExamTimeInfoFontSizeText.Text       = _mainWindow.ExamTimeInfoFontSize.ToString("F0");
+            ExamNextSubjectFontSizeSlider.Value = _mainWindow.ExamNextSubjectFontSize;
+            ExamNextSubjectFontSizeText.Text    = _mainWindow.ExamNextSubjectFontSize.ToString("F0");
+            ExamWarningFontSizeSlider.Value     = _mainWindow.ExamWarningFontSize;
+            ExamWarningFontSizeText.Text        = _mainWindow.ExamWarningFontSize.ToString("F0");
+            ExamEscHintFontSizeSlider.Value     = _mainWindow.ExamEscHintFontSize;
+            ExamEscHintFontSizeText.Text        = _mainWindow.ExamEscHintFontSize.ToString("F0");
+            ExamProgressBarHeightSlider.Value   = _mainWindow.ExamProgressBarHeight;
+            ExamProgressBarHeightText.Text      = _mainWindow.ExamProgressBarHeight.ToString("F0");
+
+            ExamSubjectColorBox.Text           = _mainWindow.ExamSubjectColor;
+            ExamNameColorBox.Text              = _mainWindow.ExamNameColor;
+            ExamCountdownNormalColorBox.Text   = _mainWindow.ExamCountdownNormalColor;
+            ExamCountdownWarningColorBox.Text  = _mainWindow.ExamCountdownWarningColor;
+            ExamCountdownCriticalColorBox.Text = _mainWindow.ExamCountdownCriticalColor;
+            ExamDistanceColorBox.Text          = _mainWindow.ExamDistanceColor;
+            ExamInfoColorBox.Text              = _mainWindow.ExamInfoColor;
+            ExamProgressBarColorBox.Text       = _mainWindow.ExamProgressBarColor;
+            RefreshColorPreview(ExamSubjectColorBox,          ExamSubjectColorPreview);
+            RefreshColorPreview(ExamNameColorBox,             ExamNameColorPreview);
+            RefreshColorPreview(ExamCountdownNormalColorBox,  ExamCountdownNormalColorPreview);
+            RefreshColorPreview(ExamCountdownWarningColorBox, ExamCountdownWarningColorPreview);
+            RefreshColorPreview(ExamCountdownCriticalColorBox,ExamCountdownCriticalColorPreview);
+            RefreshColorPreview(ExamDistanceColorBox,         ExamDistanceColorPreview);
+            RefreshColorPreview(ExamInfoColorBox,             ExamInfoColorPreview);
+            RefreshColorPreview(ExamProgressBarColorBox,      ExamProgressBarColorPreview);
 
             // 填充课表 DataGrid
             var sm = _mainWindow.GetScheduleManager();
@@ -513,6 +560,7 @@ namespace GaokaoCountdown
             _mainWindow.AutoStart   = AutoStartCheck.IsChecked == true;
             // HideWhenMaximized 在 CheckBox 事件中实时生效，此处同步 settings 字段
             _mainWindow.HideWhenMaximized = HideWhenMaximizedCheck.IsChecked == true;
+            _mainWindow.HideDuringClass = HideDuringClassCheck.IsChecked == true;
 
             // ── 显示 ──────────────────────────────────────────
             _mainWindow.ShowEnglishLine       = ShowEnglishCheck.IsChecked == true;
@@ -619,6 +667,7 @@ namespace GaokaoCountdown
             _mainWindow.ShowScheduleBar         = ShowScheduleBarCheck.IsChecked == true;
             _mainWindow.ScheduleBarAlwaysOnTop  = ScheduleBarAlwaysOnTopCheck.IsChecked == true;
             _mainWindow.ScheduleBarClickThrough = ScheduleBarClickThroughCheck.IsChecked == true;
+            _mainWindow.ScheduleBarAutoCollapse = ScheduleBarAutoCollapseCheck.IsChecked == true;
             _mainWindow.ScheduleBarOpacity      = ScheduleBarOpacitySlider.Value;
             if (double.TryParse(ScheduleBarWidthBox.Text, out double sbw)) _mainWindow.ScheduleBarWidth = sbw;
             _mainWindow.ScheduleBarFontSize     = ScheduleBarFontSizeSlider.Value;
@@ -636,6 +685,27 @@ namespace GaokaoCountdown
             _mainWindow.EnableExamMode    = EnableExamModeCheck.IsChecked == true;
             _mainWindow.AutoEnterExamMode = AutoEnterExamModeCheck.IsChecked == true;
             _mainWindow.ExamModeFontSize  = ExamModeFontSizeSlider.Value;
+
+            // ── 考试模式样式 ──────────────────────────────────
+            _mainWindow.ExamSubjectFontSize       = ExamSubjectFontSizeSlider.Value;
+            _mainWindow.ExamNameFontSize          = ExamNameFontSizeSlider.Value;
+            _mainWindow.ExamCountdownFontSize     = ExamCountdownFontSizeSlider.Value;
+            _mainWindow.ExamTimeInfoFontSize      = ExamTimeInfoFontSizeSlider.Value;
+            _mainWindow.ExamNextSubjectFontSize   = ExamNextSubjectFontSizeSlider.Value;
+            _mainWindow.ExamWarningFontSize       = ExamWarningFontSizeSlider.Value;
+            _mainWindow.ExamEscHintFontSize       = ExamEscHintFontSizeSlider.Value;
+            _mainWindow.ExamProgressBarHeight     = ExamProgressBarHeightSlider.Value;
+            _mainWindow.ExamSubjectColor          = ExamSubjectColorBox.Text.Trim();
+            _mainWindow.ExamNameColor             = ExamNameColorBox.Text.Trim();
+            _mainWindow.ExamCountdownNormalColor  = ExamCountdownNormalColorBox.Text.Trim();
+            _mainWindow.ExamCountdownWarningColor = ExamCountdownWarningColorBox.Text.Trim();
+            _mainWindow.ExamCountdownCriticalColor= ExamCountdownCriticalColorBox.Text.Trim();
+            _mainWindow.ExamDistanceColor         = ExamDistanceColorBox.Text.Trim();
+            _mainWindow.ExamInfoColor             = ExamInfoColorBox.Text.Trim();
+            _mainWindow.ExamProgressBarColor      = ExamProgressBarColorBox.Text.Trim();
+
+            // 应用考试模式窗口样式（若已打开）
+            _mainWindow.ApplyExamModeStyle();
 
             // 通知主窗口刷新课表栏
             _mainWindow.ApplyScheduleBarSettings();
@@ -658,7 +728,13 @@ namespace GaokaoCountdown
 
         private void CancelButton_Click(object sender, RoutedEventArgs e) => Close();
 
-        private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
+        private void CloseButton_Click(object sender, RoutedEventArgs e)
+        {
+            // 直接关闭，不做淡出动画。
+            // BeginAnimation 会持有 MainGrid.OpacityProperty，
+            // 与 ContentHost 内子 ScrollViewer 的 tab 切换动画冲突。
+            Close();
+        }
 
         private void GitHubLink_RequestNavigate(object sender, System.Windows.Navigation.RequestNavigateEventArgs e)
         {
@@ -715,6 +791,7 @@ namespace GaokaoCountdown
             _mainWindow.AlwaysOnTop         = defaults.AlwaysOnTop;
             _mainWindow.AutoStart           = defaults.AutoStart;  // 默认 false → 删除注册表项
             _mainWindow.HideWhenMaximized   = defaults.HideWhenMaximized;
+            _mainWindow.HideDuringClass     = defaults.HideDuringClass;
             _mainWindow.GaokaoDateStr       = defaults.GaokaoDateStr;
             _mainWindow.StartDateStr        = defaults.StartDateStr;
             _mainWindow.ProgressDecimalDigits = defaults.ProgressDecimalDigits;
@@ -737,7 +814,32 @@ namespace GaokaoCountdown
             _mainWindow.WeatherTimeColor        = defaults.WeatherTimeColor;
             _mainWindow.WeatherIconColor        = defaults.WeatherIconColor;
             _mainWindow.ScheduleBarFontSize     = defaults.ScheduleBarFontSize;
+            _mainWindow.ScheduleBarAutoCollapse = defaults.ScheduleBarAutoCollapse;
             _mainWindow.ExamModeFontSize        = defaults.ExamModeFontSize;
+            _mainWindow.ExamSubjectFontSize       = defaults.ExamSubjectFontSize;
+            _mainWindow.ExamNameFontSize          = defaults.ExamNameFontSize;
+            _mainWindow.ExamCountdownFontSize     = defaults.ExamCountdownFontSize;
+            _mainWindow.ExamTimeInfoFontSize      = defaults.ExamTimeInfoFontSize;
+            _mainWindow.ExamNextSubjectFontSize   = defaults.ExamNextSubjectFontSize;
+            _mainWindow.ExamWarningFontSize       = defaults.ExamWarningFontSize;
+            _mainWindow.ExamEscHintFontSize       = defaults.ExamEscHintFontSize;
+            _mainWindow.ExamProgressBarHeight     = defaults.ExamProgressBarHeight;
+            _mainWindow.ExamSubjectColor          = defaults.ExamSubjectColor;
+            _mainWindow.ExamNameColor             = defaults.ExamNameColor;
+            _mainWindow.ExamCountdownNormalColor  = defaults.ExamCountdownNormalColor;
+            _mainWindow.ExamCountdownWarningColor = defaults.ExamCountdownWarningColor;
+            _mainWindow.ExamCountdownCriticalColor= defaults.ExamCountdownCriticalColor;
+            _mainWindow.ExamDistanceColor         = defaults.ExamDistanceColor;
+            _mainWindow.ExamInfoColor             = defaults.ExamInfoColor;
+            _mainWindow.ExamProgressBarColor      = defaults.ExamProgressBarColor;
+            _mainWindow.ExamProgressBarBgColor    = defaults.ExamProgressBarBgColor;
+            _mainWindow.ExamBackgroundColor       = defaults.ExamBackgroundColor;
+            _mainWindow.ExamNextSubjectColor      = defaults.ExamNextSubjectColor;
+            _mainWindow.ExamWarningColor          = defaults.ExamWarningColor;
+            _mainWindow.ExamProgressPctColor      = defaults.ExamProgressPctColor;
+            _mainWindow.ExamCountdownFontFamily   = defaults.ExamCountdownFontFamily;
+            _mainWindow.ExamInfoDimColor          = defaults.ExamInfoDimColor;
+            _mainWindow.ApplyExamModeStyle();
             _mainWindow.RefreshDateFields();
             _mainWindow.ApplyWindowLayer();
             _mainWindow.UpdateCountdownDisplay();
@@ -1148,6 +1250,23 @@ namespace GaokaoCountdown
                 ExamModeFontSizeText.Text = $"{(int)ExamModeFontSizeSlider.Value}";
         }
 
+        private void ExamSubjectFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        { if (ExamSubjectFontSizeText != null) ExamSubjectFontSizeText.Text = $"{(int)ExamSubjectFontSizeSlider.Value}"; }
+        private void ExamNameFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        { if (ExamNameFontSizeText != null) ExamNameFontSizeText.Text = $"{(int)ExamNameFontSizeSlider.Value}"; }
+        private void ExamCountdownFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        { if (ExamCountdownFontSizeText != null) ExamCountdownFontSizeText.Text = $"{(int)ExamCountdownFontSizeSlider.Value}"; }
+        private void ExamTimeInfoFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        { if (ExamTimeInfoFontSizeText != null) ExamTimeInfoFontSizeText.Text = $"{(int)ExamTimeInfoFontSizeSlider.Value}"; }
+        private void ExamNextSubjectFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        { if (ExamNextSubjectFontSizeText != null) ExamNextSubjectFontSizeText.Text = $"{(int)ExamNextSubjectFontSizeSlider.Value}"; }
+        private void ExamWarningFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        { if (ExamWarningFontSizeText != null) ExamWarningFontSizeText.Text = $"{(int)ExamWarningFontSizeSlider.Value}"; }
+        private void ExamEscHintFontSizeSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        { if (ExamEscHintFontSizeText != null) ExamEscHintFontSizeText.Text = $"{(int)ExamEscHintFontSizeSlider.Value}"; }
+        private void ExamProgressBarHeightSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        { if (ExamProgressBarHeightText != null) ExamProgressBarHeightText.Text = $"{(int)ExamProgressBarHeightSlider.Value}"; }
+
         private void FontFamilyComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) { }
 
         private void PosCustom_Checked(object sender, RoutedEventArgs e)
@@ -1195,6 +1314,23 @@ namespace GaokaoCountdown
 
         private void WeatherIconColorBox_TextChanged(object sender, TextChangedEventArgs e)
             => RefreshColorPreview(WeatherIconColorBox, WeatherIconColorPreview);
+
+        private void ExamSubjectColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamSubjectColorBox, ExamSubjectColorPreview);
+        private void ExamNameColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamNameColorBox, ExamNameColorPreview);
+        private void ExamCountdownNormalColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamCountdownNormalColorBox, ExamCountdownNormalColorPreview);
+        private void ExamCountdownWarningColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamCountdownWarningColorBox, ExamCountdownWarningColorPreview);
+        private void ExamCountdownCriticalColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamCountdownCriticalColorBox, ExamCountdownCriticalColorPreview);
+        private void ExamDistanceColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamDistanceColorBox, ExamDistanceColorPreview);
+        private void ExamInfoColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamInfoColorBox, ExamInfoColorPreview);
+        private void ExamProgressBarColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamProgressBarColorBox, ExamProgressBarColorPreview);
 
         // ── 颜色选择对话框 ────────────────────────────────────
         private void SelectNumberColor_Click(object sender, RoutedEventArgs e)
@@ -1593,15 +1729,6 @@ namespace GaokaoCountdown
         public double Ease(double t)
         {
             return 1 - Math.Sqrt(1 - t * t);
-        }
-    }
-
-    public class SineEaseEase : IEasingFunction
-    {
-        public EasingMode EasingMode { get; set; }
-        public double Ease(double t)
-        {
-            return Math.Sin(t * Math.PI / 2);
         }
     }
 

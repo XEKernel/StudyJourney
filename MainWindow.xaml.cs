@@ -172,6 +172,7 @@ namespace GaokaoCountdown
             }
         }
         public bool   HideWhenMaximized { get => settings.HideWhenMaximized; set => settings.HideWhenMaximized = value; }
+        public bool   HideDuringClass { get => settings.HideDuringClass; set => settings.HideDuringClass = value; }
 
         // ── 课表栏 & 提醒 & 考试模式代理属性 ─────────────────
         public bool   ShowScheduleBar         { get => settings.ShowScheduleBar;         set => settings.ShowScheduleBar         = value; }
@@ -179,6 +180,7 @@ namespace GaokaoCountdown
         public bool   ScheduleBarAlwaysOnTop  { get => settings.ScheduleBarAlwaysOnTop;  set => settings.ScheduleBarAlwaysOnTop  = value; }
         public bool   ScheduleBarClickThrough { get => settings.ScheduleBarClickThrough; set => settings.ScheduleBarClickThrough = value; }
         public double ScheduleBarWidth        { get => settings.ScheduleBarWidth;        set => settings.ScheduleBarWidth        = value; }
+        public bool   ScheduleBarAutoCollapse  { get => settings.ScheduleBarAutoCollapse;  set => settings.ScheduleBarAutoCollapse  = value; }
         public double ScheduleBarFontSize     { get => settings.ScheduleBarFontSize;     set => settings.ScheduleBarFontSize     = value; }
         public bool   EnableReminderSound     { get => settings.EnableReminderSound;     set => settings.EnableReminderSound     = value; }
         public string ReminderSoundPath       { get => settings.ReminderSoundPath;       set => settings.ReminderSoundPath       = value; }
@@ -192,6 +194,36 @@ namespace GaokaoCountdown
         public bool   EnableExamMode          { get => settings.EnableExamMode;          set => settings.EnableExamMode          = value; }
         public bool   AutoEnterExamMode       { get => settings.AutoEnterExamMode;       set => settings.AutoEnterExamMode       = value; }
         public double ExamModeFontSize        { get => settings.ExamModeFontSize;        set => settings.ExamModeFontSize        = value; }
+        // ── 考试模式样式代理 ──────────────────────────────
+        public double ExamSubjectFontSize       { get => settings.ExamSubjectFontSize;       set => settings.ExamSubjectFontSize       = value; }
+        public double ExamNameFontSize          { get => settings.ExamNameFontSize;          set => settings.ExamNameFontSize          = value; }
+        public double ExamCountdownFontSize     { get => settings.ExamCountdownFontSize;     set => settings.ExamCountdownFontSize     = value; }
+        public double ExamTimeInfoFontSize      { get => settings.ExamTimeInfoFontSize;      set => settings.ExamTimeInfoFontSize      = value; }
+        public double ExamNextSubjectFontSize   { get => settings.ExamNextSubjectFontSize;   set => settings.ExamNextSubjectFontSize   = value; }
+        public double ExamWarningFontSize       { get => settings.ExamWarningFontSize;       set => settings.ExamWarningFontSize       = value; }
+        public double ExamEscHintFontSize       { get => settings.ExamEscHintFontSize;       set => settings.ExamEscHintFontSize       = value; }
+        public double ExamProgressBarHeight     { get => settings.ExamProgressBarHeight;     set => settings.ExamProgressBarHeight     = value; }
+        public string ExamSubjectColor          { get => settings.ExamSubjectColor;          set => settings.ExamSubjectColor          = value; }
+        public string ExamNameColor             { get => settings.ExamNameColor;             set => settings.ExamNameColor             = value; }
+        public string ExamCountdownNormalColor  { get => settings.ExamCountdownNormalColor;  set => settings.ExamCountdownNormalColor  = value; }
+        public string ExamCountdownWarningColor { get => settings.ExamCountdownWarningColor; set => settings.ExamCountdownWarningColor = value; }
+        public string ExamCountdownCriticalColor{ get => settings.ExamCountdownCriticalColor;set => settings.ExamCountdownCriticalColor= value; }
+        public string ExamDistanceColor         { get => settings.ExamDistanceColor;         set => settings.ExamDistanceColor         = value; }
+        public string ExamInfoColor             { get => settings.ExamInfoColor;             set => settings.ExamInfoColor             = value; }
+        public string ExamProgressBarColor      { get => settings.ExamProgressBarColor;      set => settings.ExamProgressBarColor      = value; }
+        public string ExamProgressBarBgColor    { get => settings.ExamProgressBarBgColor;    set => settings.ExamProgressBarBgColor    = value; }
+        public string ExamBackgroundColor       { get => settings.ExamBackgroundColor;       set => settings.ExamBackgroundColor       = value; }
+        public string ExamNextSubjectColor      { get => settings.ExamNextSubjectColor;      set => settings.ExamNextSubjectColor      = value; }
+        public string ExamWarningColor          { get => settings.ExamWarningColor;          set => settings.ExamWarningColor          = value; }
+        public string ExamProgressPctColor      { get => settings.ExamProgressPctColor;      set => settings.ExamProgressPctColor      = value; }
+        public string ExamCountdownFontFamily   { get => settings.ExamCountdownFontFamily;   set => settings.ExamCountdownFontFamily   = value; }
+        public string ExamInfoDimColor          { get => settings.ExamInfoDimColor;          set => settings.ExamInfoDimColor          = value; }
+
+        /// <summary>应用考试模式窗口样式（若已打开）</summary>
+        public void ApplyExamModeStyle()
+        {
+            _examModeWindow?.ApplyAllSettings(settings);
+        }
 
         /// <summary>供设置窗口访问课表管理器</summary>
         public ScheduleManager? GetScheduleManager() => _scheduleManager;
@@ -297,15 +329,11 @@ namespace GaokaoCountdown
 
         private void OnReminder(object? sender, ReminderEventArgs e)
         {
-            // 在主 UI 线程触发（ReminderService 已通过 DispatcherTimer 在 UI 线程运行）
-            ShowTrayNotification(e.Title, e.Message);
-        }
+            // 自定义提醒窗口（右下角滑入）
+            ReminderWindow.Show(e.Title, e.Message, e.Type);
 
-        // ── 托盘通知（供 ReminderService 调用）─────────────────
-        public void ShowTrayNotification(string title, string message)
-        {
-            notifyIcon?.ShowBalloonTip(title, message,
-                Hardcodet.Wpf.TaskbarNotification.BalloonIcon.Info);
+            // 触发课表栏临时展开（提醒时显示完整信息）
+            _scheduleBarWindow?.ExpandOnReminder(e.Type);
         }
 
         // ── 课表栏窗口管理 ────────────────────────────────────
@@ -472,15 +500,6 @@ namespace GaokaoCountdown
             }
         }
 
-        private void ExitApplication()
-        {
-            _reminderService?.Dispose();
-            HideScheduleBarWindow();
-            ExitExamMode();
-            notifyIcon?.Dispose();
-            Application.Current.Shutdown();
-        }
-
         // ── 窗口层级 ───────────────────────────────────────────
         public void ApplyWindowLayer()
         {
@@ -555,9 +574,19 @@ namespace GaokaoCountdown
             else if (!isForegroundMaximized && _hiddenByMaximize)
             {
                 _hiddenByMaximize = false;
+                Opacity = 0;
                 Show();
                 ApplyWindowLayer();
-                if (EnableAnimations) PlayIntroAnimation();
+                var fadeIn = new DoubleAnimation(0, Math.Clamp(OverallOpacity, 0.1, 1.0),
+                    TimeSpan.FromMilliseconds(350))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                fadeIn.Completed += (_, _) =>
+                {
+                    if (EnableAnimations) PlayIntroAnimation();
+                };
+                BeginAnimation(OpacityProperty, fadeIn);
             }
         }
 
@@ -566,8 +595,8 @@ namespace GaokaoCountdown
         // ══════════════════════════════════════════════════════
         private void UpdateCountdown()
         {
-            // ── 上课 / 考试期间：隐藏高考倒计时窗口，跳过 UI 更新 ──
-            bool isInClass   = _scheduleManager?.GetCurrentEntry(DateTime.Now) != null;
+            // ── 上课期间隐藏主窗口（可设置）──
+            bool isInClass   = settings.HideDuringClass && _scheduleManager?.GetCurrentEntry(DateTime.Now) != null;
             bool isInExam    = _examModeWindow != null;
             bool shouldHide  = isInClass || isInExam;
 
@@ -583,7 +612,18 @@ namespace GaokaoCountdown
             else if (_hiddenByScheduleOrExam)
             {
                 _hiddenByScheduleOrExam = false;
+                Opacity = 0;
                 Show();
+                var fadeIn = new DoubleAnimation(0, Math.Clamp(OverallOpacity, 0.1, 1.0),
+                    TimeSpan.FromMilliseconds(400))
+                {
+                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                };
+                fadeIn.Completed += (_, _) =>
+                {
+                    if (EnableAnimations) PlayIntroAnimation();
+                };
+                BeginAnimation(OpacityProperty, fadeIn);
             }
 
             // 如果是被最大化窗口压下去的，也不做 UI 更新
@@ -643,7 +683,21 @@ namespace GaokaoCountdown
             double progress    = Math.Min(1, Math.Max(0, daysPassed / totalDays));
             // 入场动画期间不覆盖进度条（进度条正在动画中）
             if (!introRunning)
-                ProgressBar.Value = progress * 100;
+            {
+                // 平滑过渡（仅在启用动画时）
+                if (EnableAnimations)
+                {
+                    var pbAnim = new DoubleAnimation(progress * 100, TimeSpan.FromMilliseconds(600))
+                    {
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+                    ProgressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, pbAnim);
+                }
+                else
+                {
+                    ProgressBar.Value = progress * 100;
+                }
+            }
 
             string fmt = "F" + ProgressDecimalDigits;
             double pct = progress * 100.0;
@@ -1027,10 +1081,31 @@ namespace GaokaoCountdown
             }
         }
 
+        private bool _isExiting;
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
+            // 应用退出时直接放行（ExitApplication 已处理）
+            if (_isExiting) return;
             e.Cancel = true;
-            Hide();
+
+            // 淡出动画后隐藏
+            var fadeOut = new DoubleAnimation(Math.Clamp(OverallOpacity, 0.1, 1.0), 0,
+                TimeSpan.FromMilliseconds(300))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
+            fadeOut.Completed += (_, _) => Hide();
+            BeginAnimation(OpacityProperty, fadeOut);
+        }
+
+        private void ExitApplication()
+        {
+            _isExiting = true;
+            _reminderService?.Dispose();
+            HideScheduleBarWindow();
+            ExitExamMode();
+            notifyIcon?.Dispose();
+            Application.Current.Shutdown();
         }
 
         // ══════════════════════════════════════════════════════

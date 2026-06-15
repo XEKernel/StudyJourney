@@ -1,0 +1,233 @@
+<Window x:Class="GaokaoCountdown.ReminderWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="提醒"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        SizeToContent="WidthAndHeight"
+        MinWidth="280"
+        MaxWidth="360">
+
+    <!-- 外层边框带阴影 -->
+    <Border x:Name="RootBorder"
+            Background="#E8222330"
+            BorderBrush="#33FFFFFF"
+            BorderThickness="1"
+            CornerRadius="10"
+            Padding="0"
+            SnapsToDevicePixels="True"
+            RenderOptions.ClearTypeHint="Enabled"
+            RenderTransformOrigin="0.5,0.5">
+        <Border.RenderTransform>
+            <TranslateTransform/>
+        </Border.RenderTransform>
+        <Border.Effect>
+            <DropShadowEffect ShadowDepth="3" BlurRadius="18" Opacity="0.45" Color="#000000"/>
+        </Border.Effect>
+
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 左侧彩色指示条 -->
+            <Border x:Name="AccentBar"
+                    Grid.Column="0" Grid.RowSpan="2"
+                    CornerRadius="2,0,0,2"
+                    Background="#FF6688CC"/>
+
+            <!-- 内容区域 -->
+            <Grid Grid.Column="1" Grid.Row="0" Margin="12,14,8,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <!-- 标题行：图标 + 标题 -->
+                <StackPanel Grid.Row="0" Orientation="Horizontal">
+                    <!-- 图标 -->
+                    <TextBlock x:Name="IconTb"
+                               FontSize="18"
+                               VerticalAlignment="Center"
+                               Margin="0,0,8,0"
+                               RenderTransformOrigin="0.5,0.5">
+                        <TextBlock.RenderTransform>
+                            <ScaleTransform/>
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+
+                    <!-- 标题文字 -->
+                    <TextBlock x:Name="TitleTb"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="#FFFFFFFF"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               MaxWidth="240"/>
+                </StackPanel>
+
+                <!-- 消息文字 -->
+                <TextBlock x:Name="MessageTb"
+                           Grid.Row="1"
+                           FontSize="12"
+                           Foreground="#AACCCCEE"
+                           Margin="0,6,0,14"
+                           TextWrapping="Wrap"
+                           LineHeight="18"
+                           MaxWidth="280"/>
+            </Grid>
+
+            <!-- 关闭按钮 (右上角) -->
+            <Button x:Name="CloseBtn"
+                    Grid.Column="2" Grid.Row="0"
+                    Width="28" Height="28"
+                    Margin="0,6,4,0"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Cursor="Hand"
+                    Click="CloseBtn_Click">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="border"
+                                Background="Transparent"
+                                CornerRadius="6"
+                                Width="28" Height="28"
+                                RenderTransformOrigin="0.5,0.5">
+                            <Border.RenderTransform>
+                                <ScaleTransform/>
+                            </Border.RenderTransform>
+                            <TextBlock Text="✕"
+                                       FontSize="12"
+                                       Foreground="#66FFFFFF"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="border" Property="Background" Value="#22FFFFFF"/>
+                                <Setter TargetName="border" Property="TextBlock.Foreground" Value="#FFFFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Trigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation
+                                                Storyboard.TargetName="border"
+                                                Storyboard.TargetProperty="RenderTransform.ScaleX"
+                                                To="0.85" Duration="0:0:0.1">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation
+                                                Storyboard.TargetName="border"
+                                                Storyboard.TargetProperty="RenderTransform.ScaleY"
+                                                To="0.85" Duration="0:0:0.1">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.EnterActions>
+                                <Trigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation
+                                                Storyboard.TargetName="border"
+                                                Storyboard.TargetProperty="RenderTransform.ScaleX"
+                                                To="1" Duration="0:0:0.15">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                            <DoubleAnimation
+                                                Storyboard.TargetName="border"
+                                                Storyboard.TargetProperty="RenderTransform.ScaleY"
+                                                To="1" Duration="0:0:0.15">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </Trigger.ExitActions>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+
+        </Grid>
+    </Border>
+
+    <Window.Triggers>
+        <!-- 入场动画：从右下方滑入 + 淡入 + 图标弹跳 -->
+        <EventTrigger RoutedEvent="Window.Loaded">
+            <BeginStoryboard>
+                <Storyboard>
+                    <!-- 窗口透明度：0 → 1，0.4s -->
+                    <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                     From="0" To="1"
+                                     Duration="0:0:0.4">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <!-- 窗口从下方 40px 滑入到位，0.45s -->
+                    <DoubleAnimation Storyboard.TargetName="RootBorder"
+                                     Storyboard.TargetProperty="RenderTransform.Y"
+                                     From="40" To="0"
+                                     Duration="0:0:0.45">
+                        <DoubleAnimation.EasingFunction>
+                            <CubicEase EasingMode="EaseOut"/>
+                        </DoubleAnimation.EasingFunction>
+                    </DoubleAnimation>
+                    <!-- 图标弹跳：0 → 1.35 → 1，延迟 0.25s -->
+                    <DoubleAnimationUsingKeyFrames
+                        Storyboard.TargetName="IconTb"
+                        Storyboard.TargetProperty="RenderTransform.ScaleX"
+                        BeginTime="0:0:0.25">
+                        <LinearDoubleKeyFrame Value="0"   KeyTime="0:0:0"/>
+                        <EasingDoubleKeyFrame  Value="1.35" KeyTime="0:0:0.2">
+                            <EasingDoubleKeyFrame.EasingFunction>
+                                <CubicEase EasingMode="EaseOut"/>
+                            </EasingDoubleKeyFrame.EasingFunction>
+                        </EasingDoubleKeyFrame>
+                        <EasingDoubleKeyFrame  Value="1"    KeyTime="0:0:0.35">
+                            <EasingDoubleKeyFrame.EasingFunction>
+                                <CubicEase EasingMode="EaseIn"/>
+                            </EasingDoubleKeyFrame.EasingFunction>
+                        </EasingDoubleKeyFrame>
+                    </DoubleAnimationUsingKeyFrames>
+                    <DoubleAnimationUsingKeyFrames
+                        Storyboard.TargetName="IconTb"
+                        Storyboard.TargetProperty="RenderTransform.ScaleY"
+                        BeginTime="0:0:0.25">
+                        <LinearDoubleKeyFrame Value="0"   KeyTime="0:0:0"/>
+                        <EasingDoubleKeyFrame  Value="1.35" KeyTime="0:0:0.2">
+                            <EasingDoubleKeyFrame.EasingFunction>
+                                <CubicEase EasingMode="EaseOut"/>
+                            </EasingDoubleKeyFrame.EasingFunction>
+                        </EasingDoubleKeyFrame>
+                        <EasingDoubleKeyFrame  Value="1"    KeyTime="0:0:0.35">
+                            <EasingDoubleKeyFrame.EasingFunction>
+                                <CubicEase EasingMode="EaseIn"/>
+                            </EasingDoubleKeyFrame.EasingFunction>
+                        </EasingDoubleKeyFrame>
+                    </DoubleAnimationUsingKeyFrames>
+                </Storyboard>
+            </BeginStoryboard>
+        </EventTrigger>
+    </Window.Triggers>
+</Window>

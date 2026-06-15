@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Media;
-using System.Runtime.InteropServices;
-using System.Windows;
 using System.Windows.Threading;
 
 namespace GaokaoCountdown
@@ -204,11 +202,8 @@ namespace GaokaoCountdown
             // 播放声音
             PlaySound();
 
-            // 发出事件（UI 订阅者自行弹窗/通知）
+            // 发出事件（UI 订阅者通过 ReminderWindow 显示自定义通知）
             Reminder?.Invoke(this, new ReminderEventArgs(type, title, message));
-
-            // Windows 托盘气泡通知（Win10/11 会使用通知中心）
-            ShowBalloonTip(title, message);
         }
 
         private void PlaySound()
@@ -231,20 +226,6 @@ namespace GaokaoCountdown
             catch { }
         }
 
-        [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
-        private static extern void ShellExecute(IntPtr hwnd, string operation, string file, string parameters, string directory, int showCmd);
-
-        private void ShowBalloonTip(string title, string message)
-        {
-            // 通过 App.Current 的主窗口的托盘图标弹出气泡
-            // 找到主窗口实例并调用其托盘通知
-            try
-            {
-                if (Application.Current?.MainWindow is MainWindow mw)
-                    mw.ShowTrayNotification(title, message);
-            }
-            catch { }
-        }
 
         // ── 60 秒倒计时 ────────────────────────────────────
         private void StartCountdown60()

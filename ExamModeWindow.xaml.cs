@@ -4,7 +4,6 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace GaokaoCountdown
@@ -24,7 +23,6 @@ namespace GaokaoCountdown
         // ── 当前显示状态 ──────────────────────────────────────
         private string _currentSubjectName = string.Empty;
         private bool   _warnShown          = false;
-        private bool   _flashRunning       = false;
 
         public ExamModeWindow(ScheduleManager manager, AppSettings settings)
         {
@@ -35,11 +33,96 @@ namespace GaokaoCountdown
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            ApplyStaticStyles();
             StartTimer();
             Refresh();
             ApplyFontSizes();
             _ = LoadWeatherAsync();
             StartWeatherTimer();
+        }
+
+        /// <summary>应用考试模式所有样式设置</summary>
+        public void ApplyAllSettings(AppSettings s)
+        {
+            _settings.ExamSubjectFontSize        = s.ExamSubjectFontSize;
+            _settings.ExamNameFontSize           = s.ExamNameFontSize;
+            _settings.ExamCountdownFontSize      = s.ExamCountdownFontSize;
+            _settings.ExamTimeInfoFontSize       = s.ExamTimeInfoFontSize;
+            _settings.ExamNextSubjectFontSize    = s.ExamNextSubjectFontSize;
+            _settings.ExamWarningFontSize        = s.ExamWarningFontSize;
+            _settings.ExamEscHintFontSize        = s.ExamEscHintFontSize;
+            _settings.ExamProgressBarHeight      = s.ExamProgressBarHeight;
+            _settings.ExamSubjectColor           = s.ExamSubjectColor;
+            _settings.ExamNameColor              = s.ExamNameColor;
+            _settings.ExamCountdownNormalColor   = s.ExamCountdownNormalColor;
+            _settings.ExamCountdownWarningColor  = s.ExamCountdownWarningColor;
+            _settings.ExamCountdownCriticalColor = s.ExamCountdownCriticalColor;
+            _settings.ExamDistanceColor          = s.ExamDistanceColor;
+            _settings.ExamInfoColor              = s.ExamInfoColor;
+            _settings.ExamProgressBarColor       = s.ExamProgressBarColor;
+            _settings.ExamProgressBarBgColor     = s.ExamProgressBarBgColor;
+            _settings.ExamBackgroundColor        = s.ExamBackgroundColor;
+            _settings.ExamNextSubjectColor       = s.ExamNextSubjectColor;
+            _settings.ExamWarningColor           = s.ExamWarningColor;
+            _settings.ExamProgressPctColor       = s.ExamProgressPctColor;
+            _settings.ExamCountdownFontFamily    = s.ExamCountdownFontFamily;
+            _settings.ExamInfoDimColor           = s.ExamInfoDimColor;
+
+            ApplyStaticStyles();
+            Refresh();  // 立即刷新，使颜色即时生效
+        }
+
+        private Brush SP(string hex) => ParseColor(hex, "#FFFFFFFF");
+        private Brush Sd(string hex, string fallback) => ParseColor(hex, fallback);
+
+        /// <summary>应用静态样式（字体大小、颜色、进度条等不随计时变化的属性）</summary>
+        private void ApplyStaticStyles()
+        {
+            // 字体大小
+            SubjectTb.FontSize        = _settings.ExamSubjectFontSize;
+            ExamNameTb.FontSize       = _settings.ExamNameFontSize;
+            CountdownTb.FontSize      = _settings.ExamCountdownFontSize;
+            StartTimeTb.FontSize      = _settings.ExamTimeInfoFontSize;
+            EndTimeTb.FontSize        = _settings.ExamTimeInfoFontSize;
+            DurationTb.FontSize       = _settings.ExamTimeInfoFontSize;
+            NextSubjectTb.FontSize    = _settings.ExamNextSubjectFontSize;
+            WarningTb.FontSize        = _settings.ExamWarningFontSize;
+            ProgressPctTb.FontSize    = _settings.ExamTimeInfoFontSize * 0.81;
+            CurrentTimeTb.FontSize    = _settings.ExamModeFontSize;
+
+            // ESC 提示
+            EscHintTb.FontSize = _settings.ExamEscHintFontSize;
+
+            // 颜色
+            SubjectTb.Foreground     = SP(_settings.ExamSubjectColor);
+            ExamNameTb.Foreground    = Sd(_settings.ExamNameColor, "#AAFFFFFF");
+            NextSubjectTb.Foreground = Sd(_settings.ExamNextSubjectColor, "#88FFFFFF");
+            WarningTb.Foreground     = Sd(_settings.ExamWarningColor, "#FFCC8800");
+            ProgressPctTb.Foreground = Sd(_settings.ExamProgressPctColor, "#66FFFFFF");
+            StartTimeTb.Foreground   = Sd(_settings.ExamInfoColor, "#88FFFFFF");
+            EndTimeTb.Foreground     = Sd(_settings.ExamInfoColor, "#88FFFFFF");
+            DurationTb.Foreground    = Sd(_settings.ExamInfoColor, "#66FFFFFF");
+            CurrentTimeTb.Foreground = Sd(_settings.ExamInfoColor, "#66FFFFFF");
+
+            // 倒计时字体族
+            if (!string.IsNullOrWhiteSpace(_settings.ExamCountdownFontFamily))
+            {
+                try { CountdownTb.FontFamily = new FontFamily(_settings.ExamCountdownFontFamily); }
+                catch { }
+            }
+
+            // 进度条
+            ExamProgress.Height    = _settings.ExamProgressBarHeight;
+            ExamProgress.Foreground = SP(_settings.ExamProgressBarColor);
+            ExamProgress.Background = SP(_settings.ExamProgressBarBgColor);
+
+            // 窗口背景
+            try
+            {
+                var bgColor = (Color)ColorConverter.ConvertFromString(_settings.ExamBackgroundColor);
+                Background = new SolidColorBrush(bgColor);
+            }
+            catch { }
         }
 
         /// <summary>应用考试模式字体大小设置</summary>
@@ -53,12 +136,25 @@ namespace GaokaoCountdown
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             _timer?.Stop();
+            _weatherTimer?.Stop();
         }
 
         private void Window_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
-                Close();
+                CloseWindow();
+        }
+
+        private void ExitBtn_Click(object sender, RoutedEventArgs e)
+        {
+            CloseWindow();
+        }
+
+        private void CloseWindow()
+        {
+            _timer?.Stop();
+            _weatherTimer?.Stop();
+            Close();
         }
 
         // ── 定时刷新 ──────────────────────────────────────────
@@ -94,7 +190,7 @@ namespace GaokaoCountdown
                     CountdownTb.Text    = remaining > TimeSpan.Zero
                                           ? $"距开考 {remaining:hh\\:mm\\:ss}"
                                           : "--:--";
-                    CountdownTb.Foreground = new SolidColorBrush(Color.FromRgb(0x88, 0x99, 0xCC));
+                    CountdownTb.Foreground = SP(_settings.ExamDistanceColor);
                     ExamProgress.Value  = 0;
                     ProgressPctTb.Text  = string.Empty;
                     StartTimeTb.Text    = subject.StartTimeStr;
@@ -130,14 +226,14 @@ namespace GaokaoCountdown
             var remaining = endDt - now;
             if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
 
-            CountdownTb.Text = remaining.ToString(@"mm\:ss");
+            CountdownTb.Text = remaining.ToString(@"hh\:mm\:ss");
 
-            // 颜色随时间变化（沉稳配色）
+            // 颜色随时间变化（可配置）
             CountdownTb.Foreground = remaining.TotalMinutes <= 5
-                ? new SolidColorBrush(Color.FromRgb(0xCC, 0x44, 0x00))
+                ? SP(_settings.ExamCountdownCriticalColor)
                 : remaining.TotalMinutes <= 15
-                    ? new SolidColorBrush(Color.FromRgb(0xCC, 0x88, 0x00))
-                    : new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+                    ? SP(_settings.ExamCountdownWarningColor)
+                    : SP(_settings.ExamCountdownNormalColor);
 
             // 进度条
             var elapsed = now - (now.Date + subject.StartTime);
@@ -164,31 +260,14 @@ namespace GaokaoCountdown
             {
                 _warnShown = true;
                 WarningTb.Visibility = Visibility.Visible;
-                StartFlash();
             }
             // 科目切换后重置警告
             if (subject.Name != _currentSubjectName)
             {
                 _currentSubjectName = subject.Name;
                 _warnShown = false;
-                _flashRunning = false;
                 WarningTb.Visibility = Visibility.Collapsed;
             }
-        }
-
-        // ── 闪烁动画 ──────────────────────────────────────────
-        private void StartFlash()
-        {
-            if (_flashRunning) return;
-            _flashRunning = true;
-
-            var anim = new DoubleAnimation(0.3, 1.0, new Duration(TimeSpan.FromMilliseconds(600)))
-            {
-                AutoReverse  = true,
-                RepeatBehavior = new RepeatBehavior(TimeSpan.FromSeconds(5)),
-                EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut }
-            };
-            WarningTb.BeginAnimation(UIElement.OpacityProperty, anim);
         }
 
         // ── 天气加载 ──────────────────────────────────────────

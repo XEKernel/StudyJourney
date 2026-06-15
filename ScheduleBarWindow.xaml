@@ -40,101 +40,118 @@
     <!-- 外层容器，整体控制圆角与背景 -->
     <Border Background="#DD0D0D1A" CornerRadius="0,0,6,6" Padding="0,2,0,2">
         <Grid>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <!-- ── 主信息行 ── -->
-            <Grid Grid.Row="0" Margin="6,1,6,1">
+            <!-- ── 紧凑模式行（上课时仅显示进度条）── -->
+            <Grid x:Name="CompactRow" Visibility="Collapsed" Margin="6,2"
+                  Panel.ZIndex="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- 左：当前时间 + 日期 -->
-                <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
-                    <TextBlock x:Name="CurrentTimeTb"
-                               FontSize="14" FontWeight="Bold"
+                <TextBlock Grid.Column="0" x:Name="CompactSubjectTb"
+                           FontSize="11" FontWeight="Bold" Foreground="#CCFFFFFF"
+                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+
+                <Grid Grid.Column="1">
+                    <ProgressBar x:Name="CompactProgress" Height="8"
+                                 Background="#22FFFFFF" Foreground="#FF4CAF50"
+                                 Minimum="0" Maximum="100"/>
+                    <TextBlock x:Name="CompactPctTb" FontSize="10" FontWeight="SemiBold"
                                Foreground="#FFFFFFFF"
-                               FontFamily="Consolas"/>
-                    <TextBlock x:Name="DateTb"
-                               FontSize="9" Foreground="#AAFFFFFF"
-                               HorizontalAlignment="Center"/>
-                </StackPanel>
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Grid>
 
-                <!-- 中：课节滚动列表 -->
-                <ScrollViewer Grid.Column="1"
-                              HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Disabled"
-                              Background="Transparent">
-                    <StackPanel x:Name="PeriodPanel" Orientation="Horizontal"
-                                VerticalAlignment="Center" Margin="0,2"/>
-                </ScrollViewer>
+                <TextBlock Grid.Column="2" x:Name="CompactRemainingTb"
+                           FontSize="10" Foreground="#88CCFF"
+                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </Grid>
 
-                <!-- 右：状态信息面板 -->
-                <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0"
-                            MinWidth="110">
-                    <!-- 当前/空闲状态 -->
-                    <TextBlock x:Name="StatusTb"
-                               FontSize="9" Foreground="#AAFFFFFF"
-                               HorizontalAlignment="Right"/>
-                    <!-- 倒计时到下节课 -->
-                    <TextBlock x:Name="NextCountdownTb"
-                               FontSize="10" FontWeight="Bold"
-                               Foreground="#FFFF8844"
-                               HorizontalAlignment="Right"/>
-                    <!-- 60秒倒计时（下课前1分钟） -->
-                    <Border x:Name="Countdown60Panel" Visibility="Collapsed"
-                            Background="#881A0000" CornerRadius="3" Padding="4,1" Margin="0,1,0,0">
-                        <TextBlock x:Name="Countdown60Tb"
-                                   FontSize="11" FontWeight="Bold"
-                                   Foreground="#FFFF4444"
+            <!-- ── 完整信息行（含主区域 + 进度条，作为一个整体显隐）── -->
+            <StackPanel x:Name="FullInfoRoot" Panel.ZIndex="0">
+                <!-- 主信息 -->
+                <Grid Margin="6,1,6,1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- 左：当前时间 + 日期 -->
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
+                        <TextBlock x:Name="CurrentTimeTb"
+                                   FontSize="14" FontWeight="Bold"
+                                   Foreground="#FFFFFFFF"
+                                   FontFamily="Consolas"/>
+                        <TextBlock x:Name="DateTb"
+                                   FontSize="9" Foreground="#AAFFFFFF"
                                    HorizontalAlignment="Center"/>
-                    </Border>
-                </StackPanel>
-
-                <!-- 最右：天气 -->
-                <StackPanel Grid.Column="3" x:Name="WeatherRow" Visibility="Collapsed"
-                            VerticalAlignment="Center" Margin="10,0,4,0">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock x:Name="WeatherIconTb" FontSize="12"
-                                   VerticalAlignment="Center" Margin="0,0,3,0"/>
-                        <TextBlock x:Name="WeatherTempTb" FontSize="11" FontWeight="Bold"
-                                   Foreground="#FF88CCFF" VerticalAlignment="Center"/>
                     </StackPanel>
-                    <TextBlock x:Name="WeatherCityTb" FontSize="9"
-                               Foreground="#88FFFFFF" Margin="0,1,0,0"/>
-                    <TextBlock x:Name="WeatherTb" FontSize="9"
-                               Foreground="#88FFFFFF"/>
-                    <TextBlock x:Name="WeatherWindTb" FontSize="8"
-                               Foreground="#66FFFFFF" Visibility="Collapsed"/>
-                    <TextBlock x:Name="WeatherHumidityTb" FontSize="8"
-                               Foreground="#66FFFFFF" Visibility="Collapsed"/>
-                </StackPanel>
-            </Grid>
 
-            <!-- ── 当前课进度条行 ── -->
-            <Grid Grid.Row="1" Margin="6,0,6,2" x:Name="ProgressRow" Visibility="Collapsed">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock x:Name="ProgressLabelTb" Grid.Column="0"
-                           FontSize="9" Foreground="#88FFFFFF"
-                           VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <ProgressBar x:Name="CurrentClassProgress" Grid.Column="1"
-                             Height="4" VerticalAlignment="Center"
-                             Background="#33FFFFFF"
-                             Foreground="#FF4CAF50"
-                             Minimum="0" Maximum="100"/>
-                <TextBlock x:Name="ProgressPctTb" Grid.Column="2"
-                           FontSize="9" Foreground="#88FFFFFF"
-                           VerticalAlignment="Center" Margin="4,0,0,0"/>
-            </Grid>
+                    <!-- 中：课节滚动列表 -->
+                    <ScrollViewer Grid.Column="1"
+                                  HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled"
+                                  Background="Transparent">
+                        <StackPanel x:Name="PeriodPanel" Orientation="Horizontal"
+                                    VerticalAlignment="Center" Margin="0,2"/>
+                    </ScrollViewer>
+
+                    <!-- 右：状态信息面板 -->
+                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0"
+                                MinWidth="110">
+                        <TextBlock x:Name="StatusTb"
+                                   FontSize="9" Foreground="#AAFFFFFF"
+                                   HorizontalAlignment="Right"/>
+                        <TextBlock x:Name="NextCountdownTb"
+                                   FontSize="10" FontWeight="Bold"
+                                   Foreground="#FFFF8844"
+                                   HorizontalAlignment="Right"/>
+                        <Border x:Name="Countdown60Panel" Visibility="Collapsed"
+                                Background="#881A0000" CornerRadius="3" Padding="4,1" Margin="0,1,0,0">
+                            <TextBlock x:Name="Countdown60Tb"
+                                       FontSize="11" FontWeight="Bold"
+                                       Foreground="#FFFF4444"
+                                       HorizontalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- 最右：天气 -->
+                    <StackPanel Grid.Column="3" x:Name="WeatherRow" Visibility="Collapsed"
+                                VerticalAlignment="Center" Margin="10,0,4,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock x:Name="WeatherIconTb" FontSize="12"
+                                       VerticalAlignment="Center" Margin="0,0,3,0"/>
+                            <TextBlock x:Name="WeatherTempTb" FontSize="11" FontWeight="Bold"
+                                       Foreground="#FF88CCFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock x:Name="WeatherCityTb" FontSize="9"
+                                   Foreground="#88FFFFFF" Margin="0,1,0,0"/>
+                        <TextBlock x:Name="WeatherTb" FontSize="9"
+                                   Foreground="#88FFFFFF"/>
+                        <TextBlock x:Name="WeatherWindTb" FontSize="8"
+                                   Foreground="#66FFFFFF" Visibility="Collapsed"/>
+                        <TextBlock x:Name="WeatherHumidityTb" FontSize="8"
+                                   Foreground="#66FFFFFF" Visibility="Collapsed"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 当前课进度条（位于完整模式底部） -->
+                <Grid Margin="6,0,6,2" x:Name="ProgressRow" Visibility="Collapsed">
+                    <ProgressBar x:Name="CurrentClassProgress" Height="6"
+                                 Background="#33FFFFFF" Foreground="#FF4CAF50"
+                                 Minimum="0" Maximum="100"/>
+                    <Grid Margin="8,0">
+                        <TextBlock x:Name="ProgressLabelTb"
+                                   FontSize="9" Foreground="#CCFFFFFF"
+                                   HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="ProgressPctTb"
+                                   FontSize="9" Foreground="#FFFFFFFF"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Grid>
+                </Grid>
+            </StackPanel>
         </Grid>
     </Border>
 </Window>

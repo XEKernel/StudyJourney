@@ -116,6 +116,8 @@ namespace GaokaoCountdown
         public bool AutoStart { get; set; } = false;
         // 其他窗口最大化时自动隐藏倒计时
         public bool HideWhenMaximized { get; set; } = false;
+        // 上课期间隐藏高考倒计时主窗口
+        public bool HideDuringClass { get; set; } = true;
 
         // ── 课表栏 ────────────────────────────────────────────
         public bool   ShowScheduleBar          { get; set; } = false;
@@ -126,6 +128,8 @@ namespace GaokaoCountdown
         public double ScheduleBarWidth         { get; set; } = 0;
         /// <summary>课表栏基础字体大小（默认 14）</summary>
         public double ScheduleBarFontSize      { get; set; } = 14;
+        /// <summary>上课时课表栏自动收缩为进度条</summary>
+        public bool   ScheduleBarAutoCollapse   { get; set; } = true;
 
         // ── 提醒开关 ──────────────────────────────────────────
         public bool EnableReminderSound  { get; set; } = true;
@@ -144,6 +148,55 @@ namespace GaokaoCountdown
         public bool AutoEnterExamMode    { get; set; } = false;
         /// <summary>考试模式当前时间字体大小（默认 32）</summary>
         public double ExamModeFontSize    { get; set; } = 32;
+
+        // ── 考试模式样式 ──────────────────────────────────────
+        /// <summary>科目名称字体大小（默认 64）</summary>
+        public double ExamSubjectFontSize       { get; set; } = 64;
+        /// <summary>考试名称字体大小（默认 28）</summary>
+        public double ExamNameFontSize          { get; set; } = 28;
+        /// <summary>倒计时字体大小（默认 120）</summary>
+        public double ExamCountdownFontSize     { get; set; } = 120;
+        /// <summary>时间信息行字体大小（默认 16）</summary>
+        public double ExamTimeInfoFontSize      { get; set; } = 16;
+        /// <summary>下一场文字字体大小（默认 22）</summary>
+        public double ExamNextSubjectFontSize   { get; set; } = 22;
+        /// <summary>警告文字字体大小（默认 20）</summary>
+        public double ExamWarningFontSize       { get; set; } = 20;
+        /// <summary>ESC 提示字体大小（默认 12）</summary>
+        public double ExamEscHintFontSize       { get; set; } = 12;
+
+        /// <summary>倒计时正常颜色（剩余 > 15 分钟）</summary>
+        public string ExamCountdownNormalColor   { get; set; } = "#FFFFFFFF";
+        /// <summary>倒计时警告颜色（剩余 5-15 分钟）</summary>
+        public string ExamCountdownWarningColor  { get; set; } = "#FFCC8800";
+        /// <summary>倒计时紧迫颜色（剩余 < 5 分钟）</summary>
+        public string ExamCountdownCriticalColor { get; set; } = "#FFCC4400";
+        /// <summary>距开考倒计时颜色</summary>
+        public string ExamDistanceColor          { get; set; } = "#FF8899CC";
+        /// <summary>信息文字颜色（时间/时长等）</summary>
+        public string ExamInfoColor              { get; set; } = "#88FFFFFF";
+        /// <summary>标签信息半透明颜色</summary>
+        public string ExamInfoDimColor           { get; set; } = "#44FFFFFF";
+        /// <summary>进度条颜色</summary>
+        public string ExamProgressBarColor       { get; set; } = "#FF5B9BD5";
+        /// <summary>进度条高度</summary>
+        public double ExamProgressBarHeight       { get; set; } = 12;
+        /// <summary>进度条背景颜色</summary>
+        public string ExamProgressBarBgColor     { get; set; } = "#22FFFFFF";
+        /// <summary>主窗口背景颜色</summary>
+        public string ExamBackgroundColor        { get; set; } = "#FF060B14";
+        /// <summary>科目文字颜色</summary>
+        public string ExamSubjectColor           { get; set; } = "#FFFFFFFF";
+        /// <summary>考试名称文字颜色</summary>
+        public string ExamNameColor              { get; set; } = "#AAFFFFFF";
+        /// <summary>下一场文字颜色</summary>
+        public string ExamNextSubjectColor       { get; set; } = "#88FFFFFF";
+        /// <summary>警告文字颜色</summary>
+        public string ExamWarningColor           { get; set; } = "#FFCC8800";
+        /// <summary>进度百分比文字颜色</summary>
+        public string ExamProgressPctColor       { get; set; } = "#66FFFFFF";
+        /// <summary>倒计时字体族</summary>
+        public string ExamCountdownFontFamily    { get; set; } = "Consolas";
 
         // ── 持久化 ────────────────────────────────────────────
         private static readonly string SettingsPath = "settings.json";
