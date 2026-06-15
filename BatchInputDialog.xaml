@@ -10,6 +10,14 @@
         ResizeMode="NoResize"
         ShowInTaskbar="False">
 
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Styles.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
     <Border Background="#FF1E1E3A" BorderBrush="#30FFFFFF" BorderThickness="1"
             CornerRadius="10" Padding="16">
         <StackPanel>
@@ -56,7 +64,7 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock Text="节次类型" VerticalAlignment="Center"
                            Foreground="#88CCCCDD" FontSize="12"/>
-                <ComboBox Grid.Column="1" x:Name="PeriodTypeCombo" Height="28"
+                <ComboBox Grid.Column="1" x:Name="PeriodTypeCombo"
                           SelectedIndex="0">
                     <ComboBoxItem Content="普通课" Tag="Normal"/>
                     <ComboBoxItem Content="早自习" Tag="Morning"/>
@@ -68,13 +76,13 @@
 
             <TextBlock Text="适用星期" Foreground="#88CCCCDD" FontSize="12" Margin="0,0,0,4"/>
             <WrapPanel Margin="0,0,0,12">
-                <CheckBox x:Name="ChkMon" Content="一" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
-                <CheckBox x:Name="ChkTue" Content="二" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
-                <CheckBox x:Name="ChkWed" Content="三" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
-                <CheckBox x:Name="ChkThu" Content="四" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
-                <CheckBox x:Name="ChkFri" Content="五" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
-                <CheckBox x:Name="ChkSat" Content="六" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
-                <CheckBox x:Name="ChkSun" Content="日" Foreground="#CCDDDDFF" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkMon" Content="一" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkTue" Content="二" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkWed" Content="三" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkThu" Content="四" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkFri" Content="五" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkSat" Content="六" Margin="0,0,10,4"/>
+                <CheckBox x:Name="ChkSun" Content="日" Margin="0,0,10,4"/>
             </WrapPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

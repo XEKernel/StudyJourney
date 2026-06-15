@@ -243,6 +243,127 @@
 
 
     <!-- ──────────────────────────────────────────────
+         ComboBox — 暗色下拉选择框
+         ────────────────────────────────────────────── -->
+    <Style TargetType="ComboBox">
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="#FFFFFFFF"/>
+        <Setter Property="Margin" Value="0,0,0,6"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBox">
+                    <Grid>
+                        <ToggleButton Name="ToggleButton"
+                                      Background="#22FFFFFF"
+                                      BorderBrush="#30FFFFFF"
+                                      BorderThickness="1"
+                                      IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                      ClickMode="Press"
+                                      SnapsToDevicePixels="True">
+                            <ToggleButton.Template>
+                                <ControlTemplate TargetType="ToggleButton">
+                                    <Border Name="Border"
+                                            Background="{TemplateBinding Background}"
+                                            BorderBrush="{TemplateBinding BorderBrush}"
+                                            BorderThickness="{TemplateBinding BorderThickness}"
+                                            CornerRadius="6"
+                                            SnapsToDevicePixels="True">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="22"/>
+                                            </Grid.ColumnDefinitions>
+                                            <ContentPresenter Grid.Column="0"
+                                                              Margin="8,5,0,5"
+                                                              HorizontalAlignment="Left"
+                                                              VerticalAlignment="Center"
+                                                              IsHitTestVisible="False"/>
+                                            <Path Grid.Column="1"
+                                                  Data="M0,0 L4,4 L8,0"
+                                                  Stroke="#AAFFFFFF"
+                                                  StrokeThickness="1.5"
+                                                  Fill="Transparent"
+                                                  HorizontalAlignment="Center"
+                                                  VerticalAlignment="Center"
+                                                  Stretch="None"
+                                                  SnapsToDevicePixels="True"/>
+                                        </Grid>
+                                    </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="Border" Property="Background" Value="#33FFFFFF"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
+                                </ControlTemplate>
+                            </ToggleButton.Template>
+                        </ToggleButton>
+                        <ContentPresenter Name="ContentSite"
+                                          Margin="8,5,24,5"
+                                          HorizontalAlignment="Left"
+                                          VerticalAlignment="Center"
+                                          IsHitTestVisible="False"
+                                          Content="{TemplateBinding SelectionBoxItem}"
+                                          ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                          ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"/>
+                        <Popup Name="Popup"
+                               Placement="Bottom"
+                               IsOpen="{TemplateBinding IsDropDownOpen}"
+                               AllowsTransparency="True"
+                               Focusable="False"
+                               PopupAnimation="Fade">
+                            <Border Name="DropDownBorder"
+                                    Background="#FF222240"
+                                    BorderBrush="#40FFFFFF"
+                                    BorderThickness="1"
+                                    CornerRadius="6"
+                                    MaxHeight="{TemplateBinding MaxDropDownHeight}"
+                                    MinWidth="{TemplateBinding ActualWidth}"
+                                    SnapsToDevicePixels="True"
+                                    Margin="0,2,0,0">
+                                <ScrollViewer SnapsToDevicePixels="True">
+                                    <ItemsPresenter/>
+                                </ScrollViewer>
+                            </Border>
+                        </Popup>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="#FFE0E0F0"/>
+        <Setter Property="Padding" Value="10,6"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ComboBoxItem">
+                    <Border Name="ItemBorder"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            CornerRadius="4"
+                            Margin="3,1"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsHighlighted" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="#FF334466"/>
+                            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="ItemBorder" Property="Background" Value="#FF2A2A50"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ──────────────────────────────────────────────
          ScrollBar — 细窄暗色滚动条（拇指长度随内容自适应）
          ────────────────────────────────────────────── -->
     <Style TargetType="ScrollBar">
