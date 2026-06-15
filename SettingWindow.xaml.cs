@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -1417,7 +1418,11 @@ namespace GaokaoCountdown
         // ── 拖动窗口 ──────────────────────────────────────────
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (e.OriginalSource is not TextBox && e.OriginalSource is not ComboBox)
+            if (e.OriginalSource is not TextBox
+                && e.OriginalSource is not ComboBox
+                && e.OriginalSource is not ScrollBar
+                && e.OriginalSource is not Thumb
+                && e.OriginalSource is not RepeatButton)
                 DragMove();
         }
 
