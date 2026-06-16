@@ -966,7 +966,13 @@ namespace GaokaoCountdown
             var list = settings.CustomCountdowns;
             if (list == null || list.Count == 0)
             {
-                CustomCountdownTb.Visibility = Visibility.Collapsed;
+                if (CustomCountdownTb.Visibility != Visibility.Collapsed)
+                {
+                    var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300))
+                        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
+                    fade.Completed += (_, _) => CustomCountdownTb.Visibility = Visibility.Collapsed;
+                    CustomCountdownTb.BeginAnimation(UIElement.OpacityProperty, fade);
+                }
                 return;
             }
 
@@ -987,14 +993,31 @@ namespace GaokaoCountdown
 
             if (nearestDate == null)
             {
-                CustomCountdownTb.Visibility = Visibility.Collapsed;
+                if (CustomCountdownTb.Visibility != Visibility.Collapsed)
+                {
+                    var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300))
+                        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
+                    fade.Completed += (_, _) => CustomCountdownTb.Visibility = Visibility.Collapsed;
+                    CustomCountdownTb.BeginAnimation(UIElement.OpacityProperty, fade);
+                }
                 return;
             }
 
             var ts = nearestDate.Value - now;
             string text = $"📅 {nearestName} 还剩 {ts.Days} 天 {ts.Hours:D2}时{ts.Minutes:D2}分";
-            CustomCountdownTb.Text = text;
-            CustomCountdownTb.Visibility = Visibility.Visible;
+
+            if (CustomCountdownTb.Text != text)
+            {
+                CustomCountdownTb.Text = text;
+                if (CustomCountdownTb.Visibility != Visibility.Visible)
+                {
+                    CustomCountdownTb.Visibility = Visibility.Visible;
+                    CustomCountdownTb.Opacity = 0;
+                    var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(500))
+                        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+                    CustomCountdownTb.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                }
+            }
         }
 
         /// <summary>动态更新所有数字 TextBlock 的缩放中心，使其居中</summary>

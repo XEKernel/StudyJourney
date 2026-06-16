@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
 namespace GaokaoCountdown
@@ -40,6 +41,23 @@ namespace GaokaoCountdown
             ApplyFontSizes();
             _ = LoadWeatherAsync();
             StartWeatherTimer();
+
+            // 入场动画：缩放弹入
+            MainGrid.RenderTransform = new ScaleTransform(0.9, 0.9);
+            MainGrid.RenderTransformOrigin = new Point(0.5, 0.5);
+            MainGrid.Opacity = 0;
+            var scaleAnim = new DoubleAnimation(0.9, 1, TimeSpan.FromMilliseconds(400))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            var fadeAnim = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(350))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
+            scaleAnim.Completed += (_, _) => MainGrid.RenderTransform = Transform.Identity;
+            MainGrid.RenderTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
+            MainGrid.RenderTransform.BeginAnimation(ScaleTransform.ScaleYProperty, scaleAnim);
+            MainGrid.BeginAnimation(UIElement.OpacityProperty, fadeAnim);
         }
 
         /// <summary>应用考试模式所有样式设置</summary>

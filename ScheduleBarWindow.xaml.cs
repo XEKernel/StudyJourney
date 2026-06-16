@@ -353,8 +353,32 @@ namespace GaokaoCountdown
         // ── 重建课节卡片（仅日期变更时调用）─────────────────────
         private void RebuildPeriodPanel(DateTime now)
         {
+            // 如果之前有内容，先淡出再重建（实现平滑过渡）
+            bool hadContent = PeriodPanel.Children.Count > 0;
+            if (hadContent)
+            {
+                var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150))
+                { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
+                PeriodPanel.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+                // 在下一帧重建
+                Dispatcher.InvokeAsync(async () =>
+                {
+                    await System.Threading.Tasks.Task.Delay(160);
+                    PeriodPanel.Children.Clear();
+                    _periodCardRefs.Clear();
+                    BuildPanelContent(now);
+                    PeriodPanel.Opacity = 1;
+                }, System.Windows.Threading.DispatcherPriority.Background);
+                return;
+            }
+
             PeriodPanel.Children.Clear();
             _periodCardRefs.Clear();
+            BuildPanelContent(now);
+        }
+
+        private void BuildPanelContent(DateTime now)
+        {
             var entries = _manager.GetTodayEntries(now.Date);
             var cur  = _manager.GetCurrentEntry(now);
             var next = _manager.GetNextEntry(now);
