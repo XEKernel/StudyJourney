@@ -7,7 +7,6 @@ on:
       - '**.md'
       - '**.txt'
       - 'schedule_example.json'
-      - '.github/**'
       - '.workbuddy/**'
       - '.gitignore'
   pull_request:

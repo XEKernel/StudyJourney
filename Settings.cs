@@ -3,6 +3,9 @@ using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+// 学程 (Study Journey) — 学生桌面伴侣
+// 应用设置数据模型，JSON 持久化到 settings.json
+
 namespace GaokaoCountdown
 {
     public class CustomCountdown
