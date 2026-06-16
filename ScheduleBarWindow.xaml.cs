@@ -250,41 +250,61 @@ namespace GaokaoCountdown
                 UpdatePeriodCardStates(now);
             }
 
-            // 状态文本（快上课时显示特殊提示）
+            // 状态文本（快上课时显示特殊提示）— 带交叉淡入淡出
+            string newStatus, newCountdown;
             if (isFlashing && next != null)
             {
                 int remainSec = (int)timeToNext!.Value.TotalSeconds;
-                StatusTb.Text = $"即将上课：{next.Subject}";
+                newStatus = $"即将上课：{next.Subject}";
+                newCountdown = $"还有 {remainSec}s";
                 StatusTb.Foreground = BrOrange;
-                NextCountdownTb.Text = $"还有 {remainSec}s";
                 NextCountdownTb.Foreground = BrRed;
             }
             else if (cur != null)
             {
-                StatusTb.Text = $"正在上课：{cur.Subject}";
+                newStatus = $"正在上课：{cur.Subject}";
+                newCountdown = string.Empty;
                 StatusTb.Foreground = BrGreen;
             }
             else if (next != null)
             {
-                StatusTb.Text = "课间休息";
+                newStatus = "课间休息";
+                newCountdown = string.Empty;
                 StatusTb.Foreground = BrOrange;
             }
             else
             {
-                StatusTb.Text = "今日课程已结束";
+                newStatus = "今日课程已结束";
+                newCountdown = string.Empty;
                 StatusTb.Foreground = BrGray;
             }
 
-            // 距下节课倒计时（非闪烁时显示正常倒计时）
+            // 状态文本 — 变化时做交叉淡入淡出
+            if (StatusTb.Text != newStatus && !isFlashing)
+            {
+                PulseOpacity(StatusTb);
+                StatusTb.Text = newStatus;
+            }
+            else StatusTb.Text = newStatus;
+
+            // 距下节课倒计时
             if (!isFlashing && timeToNext.HasValue)
             {
                 var ts = timeToNext.Value;
-                NextCountdownTb.Text = $"距下节课 {ts.Hours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+                var cnt = $"距下节课 {ts.Hours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+                NextCountdownTb.Text = cnt;
                 NextCountdownTb.Foreground = BrOrange;
+                NextCountdownTb.Visibility = Visibility.Visible;
             }
-            else if (!isFlashing)
+            else if (isFlashing && next != null)
             {
-                NextCountdownTb.Text = string.Empty;
+                NextCountdownTb.Text = $"还有 {(int)timeToNext!.Value.TotalSeconds}s";
+                NextCountdownTb.Foreground = BrRed;
+                NextCountdownTb.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                NextCountdownTb.Visibility = Visibility.Collapsed;
             }
 
             // 当前课进度条
@@ -375,6 +395,21 @@ namespace GaokaoCountdown
             PeriodPanel.Children.Clear();
             _periodCardRefs.Clear();
             BuildPanelContent(now);
+        }
+
+        /// <summary>文本变化时快速脉冲动画（150ms 淡到 0.3 再弹回 1）</summary>
+        private static void PulseOpacity(UIElement element)
+        {
+            element.Opacity = 1;
+            var dim = new DoubleAnimation(1, 0.3, TimeSpan.FromMilliseconds(80))
+                { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
+            dim.Completed += (_, _) =>
+            {
+                var up = new DoubleAnimation(0.3, 1, TimeSpan.FromMilliseconds(150))
+                    { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+                element.BeginAnimation(UIElement.OpacityProperty, up);
+            };
+            element.BeginAnimation(UIElement.OpacityProperty, dim);
         }
 
         private void BuildPanelContent(DateTime now)

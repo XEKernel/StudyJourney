@@ -164,7 +164,7 @@ namespace GaokaoCountdown
                 MainGrid.Opacity = 0;
                 var anim = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(450))
                 {
-                    EasingFunction = new CircleEaseEase { EasingMode = EasingMode.EaseOut }
+                    EasingFunction = new CircleEase { EasingMode = EasingMode.EaseOut }
                 };
                 MainGrid.BeginAnimation(UIElement.OpacityProperty, anim);
             }
@@ -1029,7 +1029,10 @@ namespace GaokaoCountdown
             Storyboard.SetTargetProperty(dotHAnim, new PropertyPath(Ellipse.HeightProperty));
             checkedSB.Children.Add(dotHAnim);
 
-            var dotOpAnim = new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.35));
+            var dotOpAnim = new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.35))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
             Storyboard.SetTargetName(dotOpAnim, "RadioDot");
             Storyboard.SetTargetProperty(dotOpAnim, new PropertyPath(Ellipse.OpacityProperty));
             checkedSB.Children.Add(dotOpAnim);
@@ -1041,17 +1044,26 @@ namespace GaokaoCountdown
             // ── Unchecked 动画（1.5s） ───────────────────────────
             var uncheckedSB = new Storyboard { FillBehavior = FillBehavior.Stop };
 
-            var dotWOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.35));
+            var dotWOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.35))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
             Storyboard.SetTargetName(dotWOut, "RadioDot");
             Storyboard.SetTargetProperty(dotWOut, new PropertyPath(Ellipse.WidthProperty));
             uncheckedSB.Children.Add(dotWOut);
 
-            var dotHOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.35));
+            var dotHOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.35))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
             Storyboard.SetTargetName(dotHOut, "RadioDot");
             Storyboard.SetTargetProperty(dotHOut, new PropertyPath(Ellipse.HeightProperty));
             uncheckedSB.Children.Add(dotHOut);
 
-            var dotOpOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.35));
+            var dotOpOut = new DoubleAnimation(0, TimeSpan.FromSeconds(0.35))
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
             Storyboard.SetTargetName(dotOpOut, "RadioDot");
             Storyboard.SetTargetProperty(dotOpOut, new PropertyPath(Ellipse.OpacityProperty));
             uncheckedSB.Children.Add(dotOpOut);
