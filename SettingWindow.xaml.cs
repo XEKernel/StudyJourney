@@ -242,47 +242,47 @@ namespace GaokaoCountdown
             if (sv.RenderTransform is TranslateTransform tt2) tt2.X = 0;
         }
 
-        private static readonly Duration SlideTime = new Duration(TimeSpan.FromSeconds(0.8));
+        // 0.3s 快切避免重影，Power EaseOut 保持丝滑
+        private static readonly Duration SlideTime = new Duration(TimeSpan.FromSeconds(0.3));
         private static readonly IEasingFunction SlideEase =
             new PowerEase { Power = 3, EasingMode = EasingMode.EaseOut };
 
-        /// <summary>新页面滑入：从视口外平移到 X=0</summary>
+        /// <summary>新页面滑入：从视口外平移 + 淡入</summary>
         private static void SlideIn(ScrollViewer sv, int direction, double width)
         {
             EnsureTranslate(sv);
 
-            // 停旧动画
             sv.BeginAnimation(UIElement.OpacityProperty, null);
             ((TranslateTransform)sv.RenderTransform).BeginAnimation(TranslateTransform.XProperty, null);
 
-            // 从视口外出发
             double startX = direction >= 0 ? width : -width;
             ((TranslateTransform)sv.RenderTransform).X = startX;
-            sv.Opacity = 1;
+            sv.Opacity = 0;
             sv.Visibility = Visibility.Visible;
 
-            // 动画完成后必须释放时钟，否则 HoldEnd 会干扰 ScrollViewer
-            // 内部 ScrollBar 的属性变更，导致拖动"不跟手"。
             var xAnim = new DoubleAnimation(startX, 0, SlideTime)
             {
                 EasingFunction = SlideEase,
                 FillBehavior = FillBehavior.Stop
             };
+            var opacityAnim = new DoubleAnimation(0, 1, SlideTime)
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+            };
             xAnim.Completed += (_, _) =>
             {
                 ((TranslateTransform)sv.RenderTransform).X = 0;
-                ((TranslateTransform)sv.RenderTransform).BeginAnimation(
-                    TranslateTransform.XProperty, null);
+                ((TranslateTransform)sv.RenderTransform).BeginAnimation(TranslateTransform.XProperty, null);
             };
             ((TranslateTransform)sv.RenderTransform).BeginAnimation(TranslateTransform.XProperty, xAnim);
+            sv.BeginAnimation(UIElement.OpacityProperty, opacityAnim);
         }
 
-        /// <summary>旧页面滑出：从 X=0 平移出视口，完成后折叠</summary>
+        /// <summary>旧页面滑出：平移 + 淡出，完成后折叠</summary>
         private void SlideOut(ScrollViewer sv, int direction, double width)
         {
             EnsureTranslate(sv);
 
-            // 停旧动画
             sv.BeginAnimation(UIElement.OpacityProperty, null);
             ((TranslateTransform)sv.RenderTransform).BeginAnimation(TranslateTransform.XProperty, null);
 
@@ -291,6 +291,10 @@ namespace GaokaoCountdown
             sv.Opacity = 1;
 
             var xAnim = new DoubleAnimation(0, endX, SlideTime) { EasingFunction = SlideEase };
+            var opacityAnim = new DoubleAnimation(1, 0, SlideTime)
+            {
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
+            };
             xAnim.Completed += (_, _) =>
             {
                 if (_outgoingPanel == sv)
@@ -300,6 +304,7 @@ namespace GaokaoCountdown
                 }
             };
             ((TranslateTransform)sv.RenderTransform).BeginAnimation(TranslateTransform.XProperty, xAnim);
+            sv.BeginAnimation(UIElement.OpacityProperty, opacityAnim);
         }
 
         private static void EnsureTranslate(ScrollViewer sv)
