@@ -647,7 +647,16 @@ namespace GaokaoCountdown
         private void ExpandBtn_Click(object sender, RoutedEventArgs e)
         {
             _expandTimer?.Stop();
-            _expandTimer = null;
+            _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+            _expandTimer.Tick += (_, _) =>
+            {
+                _expandTimer?.Stop();
+                _expandTimer = null;
+                var cur = _manager.GetCurrentEntry(DateTime.Now);
+                if (cur != null && _settings.ScheduleBarAutoCollapse)
+                    SetCompact();
+            };
+            _expandTimer.Start();
             SetExpanded();
         }
 
