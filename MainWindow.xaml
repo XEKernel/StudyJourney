@@ -25,6 +25,7 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- 中文倒计时 -->
@@ -126,8 +127,18 @@
                    Foreground="#D3D3D3"
                    HorizontalAlignment="Center"/>
 
+        <!-- 自定义倒计时 -->
+        <TextBlock Grid.Row="5" x:Name="CustomCountdownTb"
+                   FontSize="12"
+                   Foreground="#FFCC88"
+                   HorizontalAlignment="Center"
+                   Margin="0,2,0,0"
+                   TextTrimming="CharacterEllipsis"
+                   MaxWidth="800"
+                   Visibility="Collapsed"/>
+
         <!-- 每日一言 -->
-        <TextBlock Grid.Row="5" x:Name="DailyQuoteTb"
+        <TextBlock Grid.Row="6" x:Name="DailyQuoteTb"
                    FontSize="12"
                    Foreground="#AAAAAA"
                    FontStyle="Italic"

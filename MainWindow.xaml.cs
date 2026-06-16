@@ -224,6 +224,7 @@ namespace GaokaoCountdown
         public string ExamProgressPctColor      { get => settings.ExamProgressPctColor;      set => settings.ExamProgressPctColor      = value; }
         public string ExamCountdownFontFamily   { get => settings.ExamCountdownFontFamily;   set => settings.ExamCountdownFontFamily   = value; }
         public string ExamInfoDimColor          { get => settings.ExamInfoDimColor;          set => settings.ExamInfoDimColor          = value; }
+        public List<CustomCountdown> CustomCountdowns { get => settings.CustomCountdowns; set => settings.CustomCountdowns = value; }
 
         /// <summary>应用考试模式窗口样式（若已打开）</summary>
         public void ApplyExamModeStyle()
@@ -493,10 +494,17 @@ namespace GaokaoCountdown
             notifyIcon.TrayMouseDoubleClick += (s, e) => ToggleVisibility();
         }
 
-        private void ToggleVisibility()
+        public void ToggleVisibility()
         {
             if (Visibility == Visibility.Visible) { Hide(); }
             else { Show(); Activate(); ApplyWindowLayer(); if (EnableAnimations) PlayIntroAnimation(); }
+        }
+
+        /// <summary>快捷键切换课表栏（对 public，供 App 调用）</summary>
+        public void ToggleScheduleBarViaHotkey()
+        {
+            if (_scheduleBarWindow != null) HideScheduleBarWindow();
+            else ShowScheduleBarWindow();
         }
 
         private void OpenSettings()
@@ -948,6 +956,45 @@ namespace GaokaoCountdown
 
             // ── 重新定位 ──────────────────────────────────────────
             PositionWindow();
+
+            // ── 自定义倒计时（显示最近的一个）───────────────────
+            UpdateCustomCountdown();
+        }
+
+        private void UpdateCustomCountdown()
+        {
+            var list = settings.CustomCountdowns;
+            if (list == null || list.Count == 0)
+            {
+                CustomCountdownTb.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var now = DateTime.Now;
+            DateTime? nearestDate = null;
+            string nearestName = "";
+            foreach (var cc in list)
+            {
+                if (DateTime.TryParse(cc.DateStr, out var dt))
+                {
+                    if (dt > now && (nearestDate == null || dt < nearestDate))
+                    {
+                        nearestDate = dt;
+                        nearestName = cc.Name;
+                    }
+                }
+            }
+
+            if (nearestDate == null)
+            {
+                CustomCountdownTb.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            var ts = nearestDate.Value - now;
+            string text = $"📅 {nearestName} 还剩 {ts.Days} 天 {ts.Hours:D2}时{ts.Minutes:D2}分";
+            CustomCountdownTb.Text = text;
+            CustomCountdownTb.Visibility = Visibility.Visible;
         }
 
         /// <summary>动态更新所有数字 TextBlock 的缩放中心，使其居中</summary>

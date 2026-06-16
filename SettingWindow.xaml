@@ -981,10 +981,31 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Background="#10FFFFFF" CornerRadius="6" Padding="10" Margin="0,2,0,0"
-                                    BorderBrush="#15FFFFFF" BorderThickness="1">
-                                <TextBlock Foreground="#88CCCCDD" FontSize="11" TextWrapping="Wrap"
-                                           Text="进度条显示从「起算日期」到「考试日期」之间已经过去的百分比。修改后点击「应用」立即生效。"/>
+                            <!-- 自定义倒计时 -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="&#x1F4C6;  自定义倒计时" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <DataGrid x:Name="CustomCountdownGrid"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                              RowHeight="26" MaxHeight="150"
+                                              Background="#11FFFFFF" Foreground="#DDFFFFFF"
+                                              RowBackground="#00FFFFFF" BorderBrush="#22FFFFFF"
+                                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                              HorizontalGridLinesBrush="#15FFFFFF"
+                                              SelectionMode="Single" SelectionUnit="FullRow"
+                                              CanUserResizeRows="False" EnableRowVirtualization="True">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="名称" Width="150" Binding="{Binding Name}" IsReadOnly="False"/>
+                                            <DataGridTextColumn Header="日期" Width="*" Binding="{Binding DateStr}" IsReadOnly="False">
+                                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <Button Content="＋ 添加" Click="AddCustomCountdown_Click" Width="68" Background="#332D5A3D"/>
+                                        <Button Content="－ 删除" Click="DeleteCustomCountdown_Click" Width="68" Margin="6,0,0,0" Background="#33552222"/>
+                                    </StackPanel>
+                                </StackPanel>
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
@@ -1541,6 +1562,20 @@
                                         <LineBreak/>
                                         <Run Text="• 自定义窗口图标与托盘图标"/>
                                     </TextBlock>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 数据备份卡片 -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="&#x1F4E6;  数据备份" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="备份或还原所有配置（设置 + 课表 + 考试数据）" FontSize="11"
+                                               Foreground="#66CCCCDD" Margin="0,0,0,8"/>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="备份数据" Click="BackupData_Click" Width="80" Background="#332D5A3D"/>
+                                        <Button Content="还原数据" Click="RestoreData_Click" Width="80" Margin="6,0,0,0" Background="#33552222"
+                                                ToolTip="从备份文件夹恢复配置"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
                         </StackPanel>

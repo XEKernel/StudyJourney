@@ -394,6 +394,7 @@ namespace GaokaoCountdown
             // ── 日期 ──────────────────────────────────────────
             GaokaoDateBox.Text = _mainWindow.GaokaoDateStr;
             StartDateBox.Text  = _mainWindow.StartDateStr;
+            RefreshCustomCountdownGrid();
 
             // ── 动画 ──────────────────────────────────────────
             EnableAnimationsCheck.IsChecked = _mainWindow.EnableAnimations;
@@ -1459,6 +1460,94 @@ namespace GaokaoCountdown
             }
 
             DragMove();
+        }
+
+        private void RefreshCustomCountdownGrid()
+        {
+            CustomCountdownGrid.ItemsSource = null;
+            CustomCountdownGrid.ItemsSource = _mainWindow.CustomCountdowns;
+        }
+
+        private void AddCustomCountdown_Click(object sender, RoutedEventArgs e)
+        {
+            _mainWindow.CustomCountdowns.Add(new CustomCountdown { Name = "新目标", DateStr = "2027-01-01" });
+            _mainWindow.SaveSettings();
+            RefreshCustomCountdownGrid();
+        }
+
+        private void DeleteCustomCountdown_Click(object sender, RoutedEventArgs e)
+        {
+            if (CustomCountdownGrid.SelectedItem is not CustomCountdown cc) return;
+            _mainWindow.CustomCountdowns.Remove(cc);
+            _mainWindow.SaveSettings();
+            RefreshCustomCountdownGrid();
+        }
+
+        // ══════════════════════════════════════════════════════
+        //  数据备份 / 还原
+        // ══════════════════════════════════════════════════════
+
+        private void BackupData_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "选择备份目标文件夹"
+            };
+            if (dlg.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string destDir = System.IO.Path.Combine(dlg.SelectedPath,
+                    $"学程备份_{DateTime.Now:yyyyMMdd_HHmmss}");
+                System.IO.Directory.CreateDirectory(destDir);
+
+                foreach (var file in new[] { "settings.json", "schedule.json" })
+                {
+                    var src = System.IO.Path.Combine(baseDir, file);
+                    if (System.IO.File.Exists(src))
+                        System.IO.File.Copy(src, System.IO.Path.Combine(destDir, file), true);
+                }
+                WpfMessageBox.Show($"数据已备份到：\n{destDir}", "备份成功",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"备份失败：{ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void RestoreData_Click(object sender, RoutedEventArgs e)
+        {
+            var dlg = new System.Windows.Forms.FolderBrowserDialog
+            {
+                Description = "选择包含 settings.json 和 schedule.json 的备份文件夹"
+            };
+            if (dlg.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+
+            var r = WpfMessageBox.Show(
+                "将用备份文件覆盖当前所有配置和课表数据，确定继续吗？",
+                "还原确认", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (r != MessageBoxResult.Yes) return;
+
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                foreach (var file in new[] { "settings.json", "schedule.json" })
+                {
+                    var src = System.IO.Path.Combine(dlg.SelectedPath, file);
+                    if (System.IO.File.Exists(src))
+                        System.IO.File.Copy(src, System.IO.Path.Combine(baseDir, file), true);
+                }
+                WpfMessageBox.Show("数据已还原，请重启应用使设置生效。", "还原成功",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                WpfMessageBox.Show($"还原失败：{ex.Message}", "错误",
+                    MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         // ══════════════════════════════════════════════════════

@@ -5,6 +5,12 @@ using System.Text.Json.Serialization;
 
 namespace GaokaoCountdown
 {
+    public class CustomCountdown
+    {
+        public string Name { get; set; } = "";
+        public string DateStr { get; set; } = "";
+    }
+
     public class AppSettings
     {
         // ── 中文文本 ─────────────────────────────────────────
@@ -217,6 +223,9 @@ namespace GaokaoCountdown
             }
             return new AppSettings();
         }
+
+        // ── 自定义倒计时 ──────────────────────────────────────
+        public List<CustomCountdown> CustomCountdowns { get; set; } = new();
 
         public void Save()
         {
