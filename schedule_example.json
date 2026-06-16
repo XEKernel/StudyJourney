@@ -1,146 +1,110 @@
 {
   "entries": [
-    {
-      "dayOfWeek": 1,
-      "period": 0,
-      "subject": "早自习",
-      "startTimeStr": "07:10",
-      "endTimeStr": "07:55",
-      "type": 1,
-      "remark": "周一早自习"
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 1,
-      "subject": "语文",
-      "startTimeStr": "08:00",
-      "endTimeStr": "08:45",
-      "type": 0,
-      "remark": ""
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 2,
-      "subject": "数学",
-      "startTimeStr": "08:55",
-      "endTimeStr": "09:40",
-      "type": 0,
-      "remark": ""
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 3,
-      "subject": "英语",
-      "startTimeStr": "10:00",
-      "endTimeStr": "10:45",
-      "type": 0,
-      "remark": ""
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 4,
-      "subject": "物理",
-      "startTimeStr": "10:55",
-      "endTimeStr": "11:40",
-      "type": 0,
-      "remark": ""
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 5,
-      "subject": "午自习",
-      "startTimeStr": "12:20",
-      "endTimeStr": "12:50",
-      "type": 3,
-      "remark": "午间自习"
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 6,
-      "subject": "化学",
-      "startTimeStr": "14:00",
-      "endTimeStr": "14:45",
-      "type": 0,
-      "remark": ""
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 7,
-      "subject": "生物",
-      "startTimeStr": "14:55",
-      "endTimeStr": "15:40",
-      "type": 0,
-      "remark": ""
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 8,
-      "subject": "历史",
-      "startTimeStr": "16:00",
-      "endTimeStr": "16:45",
-      "type": 0,
-      "remark": ""
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 9,
-      "subject": "政治",
-      "startTimeStr": "16:55",
-      "endTimeStr": "17:40",
-      "type": 0,
-      "remark": ""
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 10,
-      "subject": "晚读",
-      "startTimeStr": "18:30",
-      "endTimeStr": "19:00",
-      "type": 4,
-      "remark": ""
-    },
-    {
-      "dayOfWeek": 1,
-      "period": 11,
-      "subject": "晚自习",
-      "startTimeStr": "19:10",
-      "endTimeStr": "21:00",
-      "type": 2,
-      "remark": ""
-    }
+    { "dayOfWeek": 1, "period": 1,  "subject": "", "startTimeStr": "07:20", "endTimeStr": "07:50", "type": 1, "remark": "" },
+    { "dayOfWeek": 1, "period": 2,  "subject": "", "startTimeStr": "08:00", "endTimeStr": "08:45", "type": 0, "remark": "" },
+    { "dayOfWeek": 1, "period": 3,  "subject": "", "startTimeStr": "09:15", "endTimeStr": "10:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 1, "period": 4,  "subject": "", "startTimeStr": "10:10", "endTimeStr": "10:55", "type": 0, "remark": "" },
+    { "dayOfWeek": 1, "period": 5,  "subject": "", "startTimeStr": "11:05", "endTimeStr": "11:50", "type": 0, "remark": "" },
+    { "dayOfWeek": 1, "period": 6,  "subject": "听力", "startTimeStr": "14:05", "endTimeStr": "14:30", "type": 4, "remark": "" },
+    { "dayOfWeek": 1, "period": 7,  "subject": "", "startTimeStr": "14:30", "endTimeStr": "15:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 1, "period": 8,  "subject": "", "startTimeStr": "15:25", "endTimeStr": "16:10", "type": 0, "remark": "" },
+    { "dayOfWeek": 1, "period": 9,  "subject": "", "startTimeStr": "16:15", "endTimeStr": "17:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 1, "period": 10, "subject": "", "startTimeStr": "17:25", "endTimeStr": "18:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 1, "period": 11, "subject": "", "startTimeStr": "18:40", "endTimeStr": "19:10", "type": 3, "remark": "" },
+    { "dayOfWeek": 1, "period": 12, "subject": "", "startTimeStr": "19:10", "endTimeStr": "19:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 1, "period": 13, "subject": "", "startTimeStr": "20:00", "endTimeStr": "20:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 1, "period": 14, "subject": "", "startTimeStr": "21:00", "endTimeStr": "22:00", "type": 2, "remark": "" },
+
+    { "dayOfWeek": 2, "period": 1,  "subject": "", "startTimeStr": "07:20", "endTimeStr": "07:50", "type": 1, "remark": "" },
+    { "dayOfWeek": 2, "period": 2,  "subject": "", "startTimeStr": "08:00", "endTimeStr": "08:45", "type": 0, "remark": "" },
+    { "dayOfWeek": 2, "period": 3,  "subject": "", "startTimeStr": "09:15", "endTimeStr": "10:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 2, "period": 4,  "subject": "", "startTimeStr": "10:10", "endTimeStr": "10:55", "type": 0, "remark": "" },
+    { "dayOfWeek": 2, "period": 5,  "subject": "", "startTimeStr": "11:05", "endTimeStr": "11:50", "type": 0, "remark": "" },
+    { "dayOfWeek": 2, "period": 6,  "subject": "自习", "startTimeStr": "14:05", "endTimeStr": "14:30", "type": 4, "remark": "" },
+    { "dayOfWeek": 2, "period": 7,  "subject": "", "startTimeStr": "14:30", "endTimeStr": "15:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 2, "period": 8,  "subject": "", "startTimeStr": "15:25", "endTimeStr": "16:10", "type": 0, "remark": "" },
+    { "dayOfWeek": 2, "period": 9,  "subject": "", "startTimeStr": "16:15", "endTimeStr": "17:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 2, "period": 10, "subject": "", "startTimeStr": "17:25", "endTimeStr": "18:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 2, "period": 11, "subject": "", "startTimeStr": "18:40", "endTimeStr": "19:10", "type": 3, "remark": "" },
+    { "dayOfWeek": 2, "period": 12, "subject": "", "startTimeStr": "19:10", "endTimeStr": "19:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 2, "period": 13, "subject": "", "startTimeStr": "20:00", "endTimeStr": "20:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 2, "period": 14, "subject": "", "startTimeStr": "21:00", "endTimeStr": "22:00", "type": 2, "remark": "" },
+
+    { "dayOfWeek": 3, "period": 1,  "subject": "", "startTimeStr": "07:20", "endTimeStr": "07:50", "type": 1, "remark": "" },
+    { "dayOfWeek": 3, "period": 2,  "subject": "", "startTimeStr": "08:00", "endTimeStr": "08:45", "type": 0, "remark": "" },
+    { "dayOfWeek": 3, "period": 3,  "subject": "", "startTimeStr": "09:15", "endTimeStr": "10:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 3, "period": 4,  "subject": "", "startTimeStr": "10:10", "endTimeStr": "10:55", "type": 0, "remark": "" },
+    { "dayOfWeek": 3, "period": 5,  "subject": "", "startTimeStr": "11:05", "endTimeStr": "11:50", "type": 0, "remark": "" },
+    { "dayOfWeek": 3, "period": 6,  "subject": "听力", "startTimeStr": "14:05", "endTimeStr": "14:30", "type": 4, "remark": "" },
+    { "dayOfWeek": 3, "period": 7,  "subject": "", "startTimeStr": "14:30", "endTimeStr": "15:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 3, "period": 8,  "subject": "", "startTimeStr": "15:25", "endTimeStr": "16:10", "type": 0, "remark": "" },
+    { "dayOfWeek": 3, "period": 9,  "subject": "", "startTimeStr": "16:15", "endTimeStr": "17:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 3, "period": 10, "subject": "", "startTimeStr": "17:25", "endTimeStr": "18:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 3, "period": 11, "subject": "", "startTimeStr": "18:40", "endTimeStr": "19:10", "type": 3, "remark": "" },
+    { "dayOfWeek": 3, "period": 12, "subject": "", "startTimeStr": "19:10", "endTimeStr": "19:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 3, "period": 13, "subject": "", "startTimeStr": "20:00", "endTimeStr": "20:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 3, "period": 14, "subject": "", "startTimeStr": "21:00", "endTimeStr": "22:00", "type": 2, "remark": "" },
+
+    { "dayOfWeek": 4, "period": 1,  "subject": "", "startTimeStr": "07:20", "endTimeStr": "07:50", "type": 1, "remark": "" },
+    { "dayOfWeek": 4, "period": 2,  "subject": "", "startTimeStr": "08:00", "endTimeStr": "08:45", "type": 0, "remark": "" },
+    { "dayOfWeek": 4, "period": 3,  "subject": "", "startTimeStr": "09:15", "endTimeStr": "10:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 4, "period": 4,  "subject": "", "startTimeStr": "10:10", "endTimeStr": "10:55", "type": 0, "remark": "" },
+    { "dayOfWeek": 4, "period": 5,  "subject": "", "startTimeStr": "11:05", "endTimeStr": "11:50", "type": 0, "remark": "" },
+    { "dayOfWeek": 4, "period": 6,  "subject": "自习", "startTimeStr": "14:05", "endTimeStr": "14:30", "type": 4, "remark": "" },
+    { "dayOfWeek": 4, "period": 7,  "subject": "", "startTimeStr": "14:30", "endTimeStr": "15:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 4, "period": 8,  "subject": "", "startTimeStr": "15:25", "endTimeStr": "16:10", "type": 0, "remark": "" },
+    { "dayOfWeek": 4, "period": 9,  "subject": "", "startTimeStr": "16:15", "endTimeStr": "17:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 4, "period": 10, "subject": "", "startTimeStr": "17:25", "endTimeStr": "18:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 4, "period": 11, "subject": "", "startTimeStr": "18:40", "endTimeStr": "19:10", "type": 3, "remark": "" },
+    { "dayOfWeek": 4, "period": 12, "subject": "", "startTimeStr": "19:10", "endTimeStr": "19:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 4, "period": 13, "subject": "", "startTimeStr": "20:00", "endTimeStr": "20:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 4, "period": 14, "subject": "", "startTimeStr": "21:00", "endTimeStr": "22:00", "type": 2, "remark": "" },
+
+    { "dayOfWeek": 5, "period": 1,  "subject": "", "startTimeStr": "07:20", "endTimeStr": "07:50", "type": 1, "remark": "" },
+    { "dayOfWeek": 5, "period": 2,  "subject": "", "startTimeStr": "08:00", "endTimeStr": "08:45", "type": 0, "remark": "" },
+    { "dayOfWeek": 5, "period": 3,  "subject": "", "startTimeStr": "09:15", "endTimeStr": "10:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 5, "period": 4,  "subject": "", "startTimeStr": "10:10", "endTimeStr": "10:55", "type": 0, "remark": "" },
+    { "dayOfWeek": 5, "period": 5,  "subject": "", "startTimeStr": "11:05", "endTimeStr": "11:50", "type": 0, "remark": "" },
+    { "dayOfWeek": 5, "period": 6,  "subject": "听力", "startTimeStr": "14:05", "endTimeStr": "14:30", "type": 4, "remark": "" },
+    { "dayOfWeek": 5, "period": 7,  "subject": "", "startTimeStr": "14:30", "endTimeStr": "15:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 5, "period": 8,  "subject": "", "startTimeStr": "15:25", "endTimeStr": "16:10", "type": 0, "remark": "" },
+    { "dayOfWeek": 5, "period": 9,  "subject": "", "startTimeStr": "16:15", "endTimeStr": "17:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 5, "period": 10, "subject": "", "startTimeStr": "17:25", "endTimeStr": "18:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 5, "period": 11, "subject": "", "startTimeStr": "18:40", "endTimeStr": "19:10", "type": 3, "remark": "" },
+    { "dayOfWeek": 5, "period": 12, "subject": "", "startTimeStr": "19:10", "endTimeStr": "19:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 5, "period": 13, "subject": "", "startTimeStr": "20:00", "endTimeStr": "20:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 5, "period": 14, "subject": "", "startTimeStr": "21:00", "endTimeStr": "22:00", "type": 2, "remark": "" },
+
+    { "dayOfWeek": 6, "period": 1,  "subject": "", "startTimeStr": "07:20", "endTimeStr": "07:50", "type": 1, "remark": "" },
+    { "dayOfWeek": 6, "period": 2,  "subject": "", "startTimeStr": "08:00", "endTimeStr": "08:45", "type": 0, "remark": "" },
+    { "dayOfWeek": 6, "period": 3,  "subject": "", "startTimeStr": "09:15", "endTimeStr": "10:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 6, "period": 4,  "subject": "", "startTimeStr": "10:10", "endTimeStr": "10:55", "type": 0, "remark": "" },
+    { "dayOfWeek": 6, "period": 5,  "subject": "", "startTimeStr": "11:05", "endTimeStr": "11:50", "type": 0, "remark": "" },
+    { "dayOfWeek": 6, "period": 6,  "subject": "自习", "startTimeStr": "14:05", "endTimeStr": "14:30", "type": 4, "remark": "" },
+    { "dayOfWeek": 6, "period": 7,  "subject": "", "startTimeStr": "14:30", "endTimeStr": "15:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 6, "period": 8,  "subject": "", "startTimeStr": "15:25", "endTimeStr": "16:10", "type": 0, "remark": "" },
+    { "dayOfWeek": 6, "period": 9,  "subject": "", "startTimeStr": "16:15", "endTimeStr": "17:00", "type": 0, "remark": "" },
+    { "dayOfWeek": 6, "period": 10, "subject": "", "startTimeStr": "17:25", "endTimeStr": "18:15", "type": 0, "remark": "" },
+    { "dayOfWeek": 6, "period": 11, "subject": "", "startTimeStr": "18:40", "endTimeStr": "19:10", "type": 3, "remark": "" },
+    { "dayOfWeek": 6, "period": 12, "subject": "", "startTimeStr": "19:10", "endTimeStr": "19:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 6, "period": 13, "subject": "", "startTimeStr": "20:00", "endTimeStr": "20:50", "type": 2, "remark": "" },
+    { "dayOfWeek": 6, "period": 14, "subject": "", "startTimeStr": "21:00", "endTimeStr": "22:00", "type": 2, "remark": "" }
   ],
-  "exams": [
-    {
-      "name": "2026学年期末考试",
-      "dateStr": "2026-07-01",
-      "subjects": [
-        {
-          "name": "语文",
-          "startTimeStr": "09:00",
-          "endTimeStr": "11:30"
-        },
-        {
-          "name": "数学",
-          "startTimeStr": "14:30",
-          "endTimeStr": "17:00"
-        }
-      ]
-    },
-    {
-      "name": "2026学年期末考试",
-      "dateStr": "2026-07-02",
-      "subjects": [
-        {
-          "name": "英语",
-          "startTimeStr": "09:00",
-          "endTimeStr": "11:30"
-        },
-        {
-          "name": "物理",
-          "startTimeStr": "14:30",
-          "endTimeStr": "16:30"
-        }
-      ]
-    }
+  "exams": [],
+  "timeTemplates": [
+    { "period": 1,  "startTime": "07:20", "endTime": "07:50", "type": 1 },
+    { "period": 2,  "startTime": "08:00", "endTime": "08:45", "type": 0 },
+    { "period": 3,  "startTime": "09:15", "endTime": "10:00", "type": 0 },
+    { "period": 4,  "startTime": "10:10", "endTime": "10:55", "type": 0 },
+    { "period": 5,  "startTime": "11:05", "endTime": "11:50", "type": 0 },
+    { "period": 6,  "startTime": "14:05", "endTime": "14:30", "type": 4 },
+    { "period": 7,  "startTime": "14:30", "endTime": "15:15", "type": 0 },
+    { "period": 8,  "startTime": "15:25", "endTime": "16:10", "type": 0 },
+    { "period": 9,  "startTime": "16:15", "endTime": "17:00", "type": 0 },
+    { "period": 10, "startTime": "17:25", "endTime": "18:15", "type": 0 },
+    { "period": 11, "startTime": "18:40", "endTime": "19:10", "type": 3 },
+    { "period": 12, "startTime": "19:10", "endTime": "19:50", "type": 2 },
+    { "period": 13, "startTime": "20:00", "endTime": "20:50", "type": 2 },
+    { "period": 14, "startTime": "21:00", "endTime": "22:00", "type": 2 }
   ]
 }
