@@ -55,10 +55,7 @@ namespace GaokaoCountdown
                     {
                         ContentAppearance,
                         ContentPosition,
-                        ContentDisplay,
-                        ContentText,
-                        ContentDate,
-                        ContentAnimation,
+                        ContentCustom,
                         ContentApi,
                         ContentSchedule,
                         ContentExam,

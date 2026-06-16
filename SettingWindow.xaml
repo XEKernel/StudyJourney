@@ -699,10 +699,7 @@
 
                     <TabItem Header="&#x1F3A8; 外观" />
                     <TabItem Header="&#x1F4D0; 位置" />
-                    <TabItem Header="&#x1F441; 显示" />
-                    <TabItem Header="&#x270F; 文本" />
-                    <TabItem Header="&#x1F4C5; 日期" />
-                    <TabItem Header="&#x2728; 动画" />
+                    <TabItem Header="&#x270F; 内容" />
                     <TabItem Header="&#x1F50C; API" />
                     <TabItem Header="&#x1F4CB; 课表" />
                     <TabItem Header="&#x1F4DD; 考试" />
@@ -789,6 +786,72 @@
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="可见内容" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <CheckBox Name="ShowEnglishCheck"  Content="显示英文倒计时行"/>
+                                    <CheckBox Name="ShowProgressBarCheck" Content="显示进度条"/>
+                                    <CheckBox Name="ShowProgressTextCheck" Content="显示进度百分比文字"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="时间精度 · 显示哪些单位" Style="{StaticResource SectionTitle}" Margin="0,0,0,4"/>
+                                    <TextBlock Text="隐藏某一单位后，该数字与标签均不显示；至少保留一项以防页面空白。"
+                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                                    <CheckBox Name="ShowDaysCheck"    Content="&#x1F4C5;  天（Days）"/>
+                                    <CheckBox Name="ShowHoursCheck"   Content="&#x23F0;  小时（Hours）"/>
+                                    <CheckBox Name="ShowMinutesCheck" Content="&#x23F1;  分钟（Minutes）"/>
+                                    <CheckBox Name="ShowSecondsCheck" Content="&#x231B;  秒（Seconds）"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="进度百分比精度" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="小数位数（0 ～ 10）"/>
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="48"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Slider Grid.Column="0" Name="DecimalSlider"
+                                                Minimum="0" Maximum="10" Value="7"
+                                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                                ValueChanged="DecimalSlider_ValueChanged"/>
+                                        <TextBlock Grid.Column="1" Name="DecimalText" Text="7"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                   Margin="8,0,0,0" FontSize="14"
+                                                   Foreground="#CCE0E0F0"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="主窗口动画" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <CheckBox Name="EnableAnimationsCheck"
+                                              Content="启用数字脉冲动画 &amp; 进度条平滑过渡"
+                                              Checked="EnableAnimationsCheck_Changed"
+                                              Unchecked="EnableAnimationsCheck_Changed"/>
+                                    <TextBlock Text="关闭后数字每秒直接更新，进度条直接跳转，性能更节省"
+                                               FontSize="11" Foreground="#66CCCCDD"
+                                               Margin="20,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="设置窗口动画" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <CheckBox Name="EnableSettingsAnimationsCheck"
+                                              Content="启用设置窗口 Tab 切换滑动动画"/>
+                                    <TextBlock Text="关闭后 Tab 切换直接显示，无过渡效果"
+                                               FontSize="11" Foreground="#66CCCCDD"
+                                               Margin="20,0,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
 
@@ -870,59 +933,31 @@
                     </ScrollViewer>
 
                     <!-- ═══ TAB 2：显示 ═══ -->
-                    <ScrollViewer x:Name="ContentDisplay" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
+                    <!-- ═══ TAB 2：内容 ═══ -->
+                    
+
+                    <!-- ═══ TAB 2：内容 ═══ -->
+                    <ScrollViewer x:Name="ContentCustom" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
                                   Visibility="Collapsed">
                         <StackPanel Margin="6,8,6,12">
 
                             <Border Style="{StaticResource CardPanel}">
                                 <StackPanel>
-                                    <TextBlock Text="可见内容" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
-                                    <CheckBox Name="ShowEnglishCheck"  Content="显示英文倒计时行"/>
-                                    <CheckBox Name="ShowProgressBarCheck" Content="显示进度条"/>
-                                    <CheckBox Name="ShowProgressTextCheck" Content="显示进度百分比文字"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- 新增：时间精度卡片 -->
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="时间精度 · 显示哪些单位" Style="{StaticResource SectionTitle}" Margin="0,0,0,4"/>
-                                    <TextBlock Text="隐藏某一单位后，该数字与标签均不显示；至少保留一项以防页面空白。"
-                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                                    <CheckBox Name="ShowDaysCheck"    Content="&#x1F4C5;  天（Days）"/>
-                                    <CheckBox Name="ShowHoursCheck"   Content="&#x23F0;  小时（Hours）"/>
-                                    <CheckBox Name="ShowMinutesCheck" Content="&#x23F1;  分钟（Minutes）"/>
-                                    <CheckBox Name="ShowSecondsCheck" Content="&#x231B;  秒（Seconds）"/>
+                                    <TextBlock Text="目标考试日期" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
+                                    <TextBlock Text="格式：yyyy-MM-dd HH:mm:ss  （例：2027-06-07 09:00:00）"
+                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                    <TextBox Name="GaokaoDateBox"/>
                                 </StackPanel>
                             </Border>
 
                             <Border Style="{StaticResource CardPanel}">
                                 <StackPanel>
-                                    <TextBlock Text="进度百分比精度" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
-                                    <TextBlock Text="小数位数（0 ～ 10）"/>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="48"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Slider Grid.Column="0" Name="DecimalSlider"
-                                                Minimum="0" Maximum="10" Value="7"
-                                                TickFrequency="1" IsSnapToTickEnabled="True"
-                                                ValueChanged="DecimalSlider_ValueChanged"/>
-                                        <TextBlock Grid.Column="1" Name="DecimalText" Text="7"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Margin="8,0,0,0" FontSize="14"
-                                                   Foreground="#CCE0E0F0"/>
-                                    </Grid>
+                                    <TextBlock Text="进度条起算日期" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
+                                    <TextBlock Text="格式：yyyy-MM-dd  （例：2024-08-24）"
+                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                    <TextBox Name="StartDateBox"/>
                                 </StackPanel>
                             </Border>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <!-- ═══ TAB 3：文本 ═══ -->
-                    <ScrollViewer x:Name="ContentText" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
-                                  Visibility="Collapsed">
-                        <StackPanel Margin="6,8,6,12">
 
                             <Border Style="{StaticResource CardPanel}">
                                 <StackPanel>
@@ -955,31 +990,6 @@
                                     <TextBox Name="EnglishSecondsText"/>
                                 </StackPanel>
                             </Border>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <!-- ═══ TAB 4：日期 ═══ -->
-                    <ScrollViewer x:Name="ContentDate" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
-                                  Visibility="Collapsed">
-                        <StackPanel Margin="6,8,6,12">
-
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="目标考试日期" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
-                                    <TextBlock Text="格式：yyyy-MM-dd HH:mm:ss  （例：2027-06-07 09:00:00）"
-                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                    <TextBox Name="GaokaoDateBox"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="进度条起算日期" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
-                                    <TextBlock Text="格式：yyyy-MM-dd  （例：2024-08-24）"
-                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                    <TextBox Name="StartDateBox"/>
-                                </StackPanel>
-                            </Border>
 
                             <!-- 自定义倒计时 -->
                             <Border Style="{StaticResource CardPanel}">
@@ -1010,46 +1020,10 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- ═══ TAB 5：动画 ═══ -->
-                    <ScrollViewer x:Name="ContentAnimation" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
-                                  Visibility="Collapsed">
-                        <StackPanel Margin="6,8,6,12">
+                    <!-- ═══ TAB 3：动画 ═══ -->
+                    
 
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="主窗口动画" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
-                                    <CheckBox Name="EnableAnimationsCheck"
-                                              Content="启用数字脉冲动画 &amp; 进度条平滑过渡"
-                                              Checked="EnableAnimationsCheck_Changed"
-                                              Unchecked="EnableAnimationsCheck_Changed"/>
-                                    <TextBlock Text="关闭后数字每秒直接更新，进度条直接跳转，性能更节省"
-                                               FontSize="11" Foreground="#66CCCCDD"
-                                               Margin="20,0,0,0" TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="设置窗口动画" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
-                                    <CheckBox Name="EnableSettingsAnimationsCheck"
-                                              Content="启用设置窗口过渡动画"
-                                              Checked="EnableSettingsAnimationsCheck_Changed"
-                                              Unchecked="EnableSettingsAnimationsCheck_Changed"/>
-                                    <TextBlock Text="包括窗口淡入效果、Tab 切换过渡、控件入场动画"
-                                               FontSize="11" Foreground="#66CCCCDD"
-                                               Margin="20,0,0,0" TextWrapping="Wrap"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Background="#10FFFFFF" CornerRadius="6" Padding="10" Margin="0,2,0,0"
-                                    BorderBrush="#15FFFFFF" BorderThickness="1">
-                                <TextBlock Foreground="#88CCCCDD" FontSize="11" TextWrapping="Wrap"
-                                           Text="提示：窗口动画为本次生效，下次打开时重新读取保存的设置。"/>
-                            </Border>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <!-- ═══ TAB 6：API 功能（每日一言 + 天气） ═══ -->
+                    <!-- ═══ TAB 3：API 功能（每日一言 + 天气） ═══ -->
                     <ScrollViewer x:Name="ContentApi" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
                                   Visibility="Collapsed">
                         <StackPanel Margin="6,8,6,12">
@@ -1327,7 +1301,7 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- ═══ TAB 7：关于 ═══ -->
+                    <!-- ═══ TAB 4：关于 ═══ -->
                     <ScrollViewer x:Name="ContentAbout" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
                                   Visibility="Collapsed">
                         <StackPanel Margin="6,8,6,12">
@@ -2192,4 +2166,3 @@
         </Grid>
     </Grid>
 </Window>
-
