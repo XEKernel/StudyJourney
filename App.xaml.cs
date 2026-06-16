@@ -31,7 +31,7 @@ namespace GaokaoCountdown
             if (!createdNew)
             {
                 // 已有实例在运行：激活其窗口并退出
-                IntPtr hWnd = FindWindow(null, "高考倒计时");
+                IntPtr hWnd = FindWindow(null, "学程");
                 if (hWnd != IntPtr.Zero)
                 {
                     ShowWindow(hWnd, SW_RESTORE);

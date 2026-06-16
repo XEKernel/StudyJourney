@@ -1,6 +1,6 @@
-# 高考倒计时
+# 学程
 
-> 🎓 一款精致的 WPF 桌面倒计时工具，为高考冲刺加油！
+> 🎓 WPF 学生桌面伴侣 — 倒计时 · 课表 · 考试 · 天气 · 提醒
 
 <p align="center">
   <img src="icon.ico" width="96" alt="图标"/>
@@ -80,7 +80,7 @@
 
 ```bash
 git clone https://github.com/SYSTEM-MEMZ-XEK/GaokaoCountdown.git
-cd GaokaoCountdown
+cd 学程
 dotnet run
 ```
 
@@ -97,7 +97,7 @@ dotnet publish -c Release -r win-x64 --self-contained true
 ## 📁 项目结构
 
 ```
-高考倒计时/
+学程/
 ├── MainWindow.xaml          # 主窗口 UI（倒计时面板）
 ├── MainWindow.xaml.cs       # 主窗口逻辑（倒计时/动画/托盘/考试联动）
 ├── SettingWindow.xaml       # 设置窗口 UI（10 个 Tab 页）
@@ -120,7 +120,7 @@ dotnet publish -c Release -r win-x64 --self-contained true
 ├── App.xaml / .cs           # 应用入口
 ├── Styles.xaml              # 全局暗色样式（CheckBox/RadioButton/ComboBox/ScrollBar/…）
 ├── icon.ico                 # 软件图标
-└── 高考倒计时.csproj         # 项目文件
+└── 学程.csproj              # 项目文件
 ```
 
 ---

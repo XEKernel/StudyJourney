@@ -1322,13 +1322,13 @@
                                     <!-- 左侧：文字信息 -->
                                     <StackPanel Grid.Column="0">
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                                            <TextBlock Text="高考倒计时" FontSize="20" FontWeight="Bold"
+                                            <TextBlock Text="学程" FontSize="20" FontWeight="Bold"
                                                        Foreground="#FFFFFFFF"/>
                                             <TextBlock Text="  v1.3" FontSize="13"
                                                        Foreground="#6688CCAA" VerticalAlignment="Bottom"
                                                        Margin="4,0,0,3"/>
                                         </StackPanel>
-                                        <TextBlock Text="Gaokao Countdown"
+                                        <TextBlock Text="Study Journey · 学生桌面伴侣"
                                                    FontSize="13" Foreground="#88CCCCDD" Margin="0,0,0,12"/>
 
                                         <Grid Margin="0,2,0,2">
