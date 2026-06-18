@@ -1896,6 +1896,118 @@ namespace GaokaoCountdown
             ScheduleStatusTb.Text = $"  ✅ 已从{_dayNames[from]}调休至{_dayNames[to]}";
         }
 
+        // ══════════════════════════════════════════════════════
+        //  调课 — 课程格子交换/移动
+        // ══════════════════════════════════════════════════════
+
+        /// <summary>从当前课程表网格构建所有可选的课程槽位</summary>
+        private List<CourseSlot> GetTimetableSlots()
+        {
+            if (TimetableGrid.ItemsSource is not List<TimetableRow> rows) return new();
+            var slots = new List<CourseSlot>();
+            for (int r = 0; r < rows.Count; r++)
+            {
+                for (int d = 0; d < 7; d++)
+                {
+                    slots.Add(new CourseSlot
+                    {
+                        RowIndex = r,
+                        DayIndex = d,
+                        Subject = rows[r][d],
+                        TimeLabel = rows[r].TimeLabel,
+                        DayName = _dayNames[d]
+                    });
+                }
+            }
+            return slots;
+        }
+
+        /// <summary>刷新调课 ComboBox 数据源</summary>
+        private void PopulateSwapCombos()
+        {
+            var slots = GetTimetableSlots();
+            SwapSourceCb.ItemsSource = null;
+            SwapSourceCb.ItemsSource = slots;
+            SwapSourceCb.DisplayMemberPath = "Display";
+            SwapTargetCb.ItemsSource = null;
+            SwapTargetCb.ItemsSource = slots;
+            SwapTargetCb.DisplayMemberPath = "Display";
+        }
+
+        private void SwapSource_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+        {
+            // 源变化时，目标自动选同一节次的下一个位置
+            if (SwapSourceCb.SelectedItem is CourseSlot src && src.IsEmpty)
+                ScheduleStatusTb.Text = "⚠ 源位置是空的，请选择有课程的位置";
+        }
+
+        /// <summary>交换两节课</summary>
+        private void SwapCourses_Click(object sender, RoutedEventArgs e)
+        {
+            if (SwapSourceCb.SelectedItem is not CourseSlot src ||
+                SwapTargetCb.SelectedItem is not CourseSlot tgt) return;
+
+            if (src.RowIndex == tgt.RowIndex && src.DayIndex == tgt.DayIndex)
+            {
+                ScheduleStatusTb.Text = "⚠ 源和目标不能相同";
+                return;
+            }
+
+            if (src.IsEmpty && tgt.IsEmpty)
+            {
+                ScheduleStatusTb.Text = "⚠ 两个位置都是空的，无需交换";
+                return;
+            }
+
+            var r = WpfMessageBox.Show(
+                $"交换「{src.Display}」↔「{tgt.Display}」？",
+                "调课·交换", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            if (r != MessageBoxResult.Yes) return;
+
+            if (TimetableGrid.ItemsSource is not List<TimetableRow> rows) return;
+            string tmp = rows[src.RowIndex][src.DayIndex];
+            rows[src.RowIndex][src.DayIndex] = rows[tgt.RowIndex][tgt.DayIndex];
+            rows[tgt.RowIndex][tgt.DayIndex] = tmp;
+            RefreshTimetable();
+            SaveTimetableToEntries(rows);
+            ScheduleStatusTb.Text = $"  ✅ 已交换「{src.Display}」↔「{tgt.Display}」";
+        }
+
+        /// <summary>移动课程到目标位置（源位置清空，目标原有内容丢失）</summary>
+        private void MoveCourse_Click(object sender, RoutedEventArgs e)
+        {
+            if (SwapSourceCb.SelectedItem is not CourseSlot src ||
+                SwapTargetCb.SelectedItem is not CourseSlot tgt) return;
+
+            if (src.RowIndex == tgt.RowIndex && src.DayIndex == tgt.DayIndex)
+            {
+                ScheduleStatusTb.Text = "⚠ 源和目标相同，无需移动";
+                return;
+            }
+
+            if (src.IsEmpty)
+            {
+                ScheduleStatusTb.Text = "⚠ 源位置是空的，请选择有课程的位置";
+                return;
+            }
+
+            string warn = !tgt.IsEmpty
+                ? $"\n\n目标位置「{tgt.Display}」将被覆盖！"
+                : "";
+
+            var r = WpfMessageBox.Show(
+                $"将「{src.Display}」移动到「{tgt.Display}」？{warn}",
+                "调课·移动", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (r != MessageBoxResult.Yes) return;
+
+            if (TimetableGrid.ItemsSource is not List<TimetableRow> rows) return;
+            rows[tgt.RowIndex][tgt.DayIndex] = rows[src.RowIndex][src.DayIndex];
+            rows[src.RowIndex][src.DayIndex] = "";
+            RefreshTimetable();
+            SaveTimetableToEntries(rows);
+            ScheduleStatusTb.Text = $"  ✅ 已移动「{src.Display}」→「{tgt.Display}」";
+        }
+
         private void SaveSchedule_Click(object sender, RoutedEventArgs e)
         {
             TimetableGrid.CommitEdit(DataGridEditingUnit.Row, true);

@@ -147,6 +147,19 @@ namespace GaokaoCountdown
         }
     }
 
+    /// <summary>调课操作中使用的课程位置标识</summary>
+    public class CourseSlot
+    {
+        public int RowIndex { get; set; }
+        public int DayIndex { get; set; } // 0=周一..6=周日
+        public string Subject { get; set; } = "";
+        public string TimeLabel { get; set; } = "";
+        public string DayName { get; set; } = "";
+
+        public string Display => DayName + " " + TimeLabel + (string.IsNullOrEmpty(Subject) ? " (空)" : " " + Subject);
+        public bool IsEmpty => string.IsNullOrEmpty(Subject);
+    }
+
     // ── 课表根容器 ─────────────────────────────────────────
     public class ScheduleData
     {

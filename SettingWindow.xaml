@@ -1764,6 +1764,25 @@
                                         <Button Content="应用调休" Click="ApplyShiftRest_Click"
                                                 Width="80" Background="#334488CC"/>
                                     </StackPanel>
+
+                                    <!-- 调课工具栏 -->
+                                    <StackPanel x:Name="SwapPanel" Orientation="Horizontal" Margin="0,8,0,0">
+                                        <TextBlock Text="调课：" VerticalAlignment="Center" FontSize="12"
+                                                   Foreground="#88CCCCDD" Margin="0,0,6,0"/>
+                                        <ComboBox x:Name="SwapSourceCb" Width="170" Margin="0,0,4,0"
+                                                  ToolTip="选择要移动的课程"
+                                                  SelectionChanged="SwapSource_SelectionChanged"/>
+                                        <TextBlock Text="→" VerticalAlignment="Center" FontSize="12"
+                                                   Foreground="#88CCCCDD" Margin="0,0,4,0"/>
+                                        <ComboBox x:Name="SwapTargetCb" Width="170" Margin="0,0,6,0"
+                                                  ToolTip="选择目标位置"/>
+                                        <Button Content="交换" Click="SwapCourses_Click"
+                                                Width="52" Background="#336688CC"
+                                                ToolTip="交换两节课的位置"/>
+                                        <Button Content="移动" Click="MoveCourse_Click"
+                                                Width="52" Margin="4,0,0,0" Background="#338866CC"
+                                                ToolTip="将源课程移至目标位置，源位置清空"/>
+                                    </StackPanel>
                                 </StackPanel>
                             </Border>
 
