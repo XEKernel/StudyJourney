@@ -101,7 +101,7 @@ dotnet publish -c Release -r win-x64 --self-contained true
 学程/
 ├── MainWindow.xaml          # 主窗口 UI（倒计时面板）
 ├── MainWindow.xaml.cs       # 主窗口逻辑（倒计时/动画/托盘/考试联动）
-├── SettingWindow.xaml       # 设置窗口 UI（7 个纵向侧边栏 Tab）
+├── SettingWindow.xaml       # 设置窗口 UI（6 个纵向侧边栏 Tab）
 ├── SettingWindow_Core.cs    # 设置窗口逻辑（外观/位置/内容/API/关于/动画）
 ├── SettingWindow_Schedule.cs# 设置窗口逻辑（课表/考试）
 ├── ExamModeWindow.xaml      # 考试全屏倒计时 UI
@@ -134,9 +134,8 @@ dotnet publish -c Release -r win-x64 --self-contained true
 
 | Tab | 功能 |
 |-----|------|
-| 🎨 外观 | 字体、字号、颜色、进度条、透明度、动画开关、各部分独立开关、小数位数 |
+| ⏳ 倒计时 | 字体、字号、颜色、透明度、可见内容、时间精度、动画开关、中英文文本、目标/起算日期、自定义倒计时 |
 | 📐 位置 | 6 种预设 + 自定义坐标 + Y 偏移量 + 始终置顶 |
-| ✏ 内容 | 中/英文文字自定义、高考目标日期、进度起算日期、自定义倒计时 |
 | 🔌 API | 每日一言 API + 实时天气（城市/模式/窗口位置/颜色/刷新间隔） |
 | 📋 课表 | 时段模板管理、课程表网格编辑、调休、调课（交换/移动/代课）、JSON 导入导出 |
 | 📝 考试 | 考试列表+科目编辑、导入导出、考试提醒覆盖层 |

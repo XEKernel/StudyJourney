@@ -709,20 +709,19 @@
                                 </Setter>
                             </Style>
                         </ListBox.Resources>
-                        <ListBoxItem Content="🎨 外观" Tag="0"/>
+                        <ListBoxItem Content="⏳ 倒计时" Tag="0"/>
                         <ListBoxItem Content="📐 位置" Tag="1"/>
-                        <ListBoxItem Content="✏ 内容" Tag="2"/>
-                        <ListBoxItem Content="🔌 API"  Tag="3"/>
-                        <ListBoxItem Content="📋 课表" Tag="4"/>
-                        <ListBoxItem Content="📝 考试" Tag="5"/>
-                        <ListBoxItem Content="ℹ 关于" Tag="6"/>
+                        <ListBoxItem Content="🔌 API"  Tag="2"/>
+                        <ListBoxItem Content="📋 课表" Tag="3"/>
+                        <ListBoxItem Content="📝 考试" Tag="4"/>
+                        <ListBoxItem Content="ℹ 关于" Tag="5"/>
                     </ListBox>
                 </Border>
 
                 <!-- 右侧内容面板 -->
                 <Grid Grid.Column="1" Margin="4,0,8,0" ClipToBounds="True" x:Name="ContentHost">
-                    <!-- ═══ TAB 0：外观 ═══ -->
-                    <ScrollViewer x:Name="ContentAppearance" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
+                    <!-- ═══ TAB 0：倒计时 ═══ -->
+                    <ScrollViewer x:Name="ContentCountdown" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
                                   Visibility="Visible">
                         <StackPanel Margin="6,8,6,12">
                             <!-- 字体卡片 -->
@@ -865,6 +864,86 @@
                                                Margin="20,0,0,0" TextWrapping="Wrap"/>
                                 </StackPanel>
                             </Border>
+
+                            <!-- ── 目标日期 ── -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="目标考试日期" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
+                                    <TextBlock Text="格式：yyyy-MM-dd HH:mm:ss  （例：2027-06-07 09:00:00）"
+                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                    <TextBox Name="GaokaoDateBox"/>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="进度条起算日期" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
+                                    <TextBlock Text="格式：yyyy-MM-dd  （例：2024-08-24）"
+                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,6"/>
+                                    <TextBox Name="StartDateBox"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ── 中文文本 ── -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="中文文本" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="前缀"/>
+                                    <TextBox Name="ChinesePrefixText"/>
+                                    <TextBlock Text="天 的后缀"/>
+                                    <TextBox Name="ChineseDaysText"/>
+                                    <TextBlock Text="小时 的后缀"/>
+                                    <TextBox Name="ChineseHoursText"/>
+                                    <TextBlock Text="分 的后缀"/>
+                                    <TextBox Name="ChineseMinutesText"/>
+                                    <TextBlock Text="秒 的后缀"/>
+                                    <TextBox Name="ChineseSecondsText"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ── 英文文本 ── -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="英文文本" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="前缀"/>
+                                    <TextBox Name="EnglishPrefixText"/>
+                                    <TextBlock Text="天（days）后缀"/>
+                                    <TextBox Name="EnglishDaysText"/>
+                                    <TextBlock Text="小时（hours）后缀"/>
+                                    <TextBox Name="EnglishHoursText"/>
+                                    <TextBlock Text="分钟（minutes）后缀"/>
+                                    <TextBox Name="EnglishMinutesText"/>
+                                    <TextBlock Text="秒（seconds）后缀 / 结尾"/>
+                                    <TextBox Name="EnglishSecondsText"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- ── 自定义倒计时 ── -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="&#x1F4C6;  自定义倒计时" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <DataGrid x:Name="CustomCountdownGrid"
+                                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                                              RowHeight="26" MaxHeight="150"
+                                              Background="#11FFFFFF" Foreground="#DDFFFFFF"
+                                              RowBackground="#00FFFFFF" BorderBrush="#22FFFFFF"
+                                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                                              HorizontalGridLinesBrush="#15FFFFFF"
+                                              SelectionMode="Single" SelectionUnit="FullRow"
+                                              CanUserResizeRows="False" EnableRowVirtualization="True">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="名称" Width="150" Binding="{Binding Name}" IsReadOnly="False"/>
+                                            <DataGridTextColumn Header="日期" Width="*" Binding="{Binding DateStr}" IsReadOnly="False">
+                                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
+                                            </DataGridTextColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                                        <Button Content="＋ 添加" Click="AddCustomCountdown_Click" Width="68" Background="#332D5A3D"/>
+                                        <Button Content="－ 删除" Click="DeleteCustomCountdown_Click" Width="68" Margin="6,0,0,0" Background="#33552222"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
 
@@ -945,98 +1024,7 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- ═══ TAB 2：显示 ═══ -->
-                    <!-- ═══ TAB 2：内容 ═══ -->
-                    
-
-                    <!-- ═══ TAB 2：内容 ═══ -->
-                    <ScrollViewer x:Name="ContentCustom" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
-                                  Visibility="Collapsed">
-                        <StackPanel Margin="6,8,6,12">
-
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="目标考试日期" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
-                                    <TextBlock Text="格式：yyyy-MM-dd HH:mm:ss  （例：2027-06-07 09:00:00）"
-                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                    <TextBox Name="GaokaoDateBox"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="进度条起算日期" Style="{StaticResource SectionTitle}" Margin="0,0,0,6"/>
-                                    <TextBlock Text="格式：yyyy-MM-dd  （例：2024-08-24）"
-                                               FontSize="11" Foreground="#66CCCCDD" TextWrapping="Wrap" Margin="0,0,0,6"/>
-                                    <TextBox Name="StartDateBox"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="中文文本" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
-                                    <TextBlock Text="前缀"/>
-                                    <TextBox Name="ChinesePrefixText"/>
-                                    <TextBlock Text="天 的后缀"/>
-                                    <TextBox Name="ChineseDaysText"/>
-                                    <TextBlock Text="小时 的后缀"/>
-                                    <TextBox Name="ChineseHoursText"/>
-                                    <TextBlock Text="分 的后缀"/>
-                                    <TextBox Name="ChineseMinutesText"/>
-                                    <TextBlock Text="秒 的后缀"/>
-                                    <TextBox Name="ChineseSecondsText"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="英文文本" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
-                                    <TextBlock Text="前缀"/>
-                                    <TextBox Name="EnglishPrefixText"/>
-                                    <TextBlock Text="天（days）后缀"/>
-                                    <TextBox Name="EnglishDaysText"/>
-                                    <TextBlock Text="小时（hours）后缀"/>
-                                    <TextBox Name="EnglishHoursText"/>
-                                    <TextBlock Text="分钟（minutes）后缀"/>
-                                    <TextBox Name="EnglishMinutesText"/>
-                                    <TextBlock Text="秒（seconds）后缀 / 结尾"/>
-                                    <TextBox Name="EnglishSecondsText"/>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- 自定义倒计时 -->
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="&#x1F4C6;  自定义倒计时" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
-                                    <DataGrid x:Name="CustomCountdownGrid"
-                                              AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
-                                              RowHeight="26" MaxHeight="150"
-                                              Background="#11FFFFFF" Foreground="#DDFFFFFF"
-                                              RowBackground="#00FFFFFF" BorderBrush="#22FFFFFF"
-                                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
-                                              HorizontalGridLinesBrush="#15FFFFFF"
-                                              SelectionMode="Single" SelectionUnit="FullRow"
-                                              CanUserResizeRows="False" EnableRowVirtualization="True">
-                                        <DataGrid.Columns>
-                                            <DataGridTextColumn Header="名称" Width="150" Binding="{Binding Name}" IsReadOnly="False"/>
-                                            <DataGridTextColumn Header="日期" Width="*" Binding="{Binding DateStr}" IsReadOnly="False">
-                                                <DataGridTextColumn.ElementStyle><Style TargetType="TextBlock"><Setter Property="HorizontalAlignment" Value="Center"/></Style></DataGridTextColumn.ElementStyle>
-                                            </DataGridTextColumn>
-                                        </DataGrid.Columns>
-                                    </DataGrid>
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                        <Button Content="＋ 添加" Click="AddCustomCountdown_Click" Width="68" Background="#332D5A3D"/>
-                                        <Button Content="－ 删除" Click="DeleteCustomCountdown_Click" Width="68" Margin="6,0,0,0" Background="#33552222"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-                    </ScrollViewer>
-
-                    <!-- ═══ TAB 3：动画 ═══ -->
-                    
-
-                    <!-- ═══ TAB 3：API 功能（每日一言 + 天气） ═══ -->
+                    <!-- ═══ TAB 2：API 功能（每日一言 + 天气） ═══ -->
                     <ScrollViewer x:Name="ContentApi" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
                                   Visibility="Collapsed">
                         <StackPanel Margin="6,8,6,12">
@@ -1314,7 +1302,7 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- ═══ TAB 4：关于 ═══ -->
+                    <!-- ═══ TAB 3：关于 ═══ -->
                     <ScrollViewer x:Name="ContentAbout" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
                                   Visibility="Collapsed">
                         <StackPanel Margin="6,8,6,12">
@@ -1508,12 +1496,14 @@
                                         <Run Text="• 架构优化：WeatherService 独立共享类 / SettingWindow 拆分 Core+Schedule partial"/>
                                         <LineBreak/>
                                         <Run Text="• CI 产物文件名改为英文 StudyJourney-win-x64.zip"/>
+                                        <LineBreak/>
+                                        <Run Text="• 设置 Tab 再次精简：外观+内容 → ⏳ 倒计时，7 个 → 6 个"/>
                                     </TextBlock>
                                     <Separator Background="#15FFFFFF" Margin="0,8,0,4"/>
                                     <TextBlock Text="v1.3" FontSize="13" FontWeight="SemiBold"
                                                Foreground="#FF6688CC" Margin="0,0,0,4"/>
                                     <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
-                                        <Run Text="• 设置 Tab 合并精简：10 个 → 7 个（外观+显示+动画 / 内容=文本+日期）"/>
+                                        <Run Text="• 设置 Tab 合并精简：外观+内容 → 倒计时，7 个 → 6 个"/>
                                         <LineBreak/>
                                         <Run Text="• 全局快捷键：Ctrl+Shift+H 显隐主窗口 · B 切换课表栏 · E 考试模式"/>
                                         <LineBreak/>
@@ -1608,7 +1598,7 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- ═══ TAB 8：课表 ═══ -->
+                    <!-- ═══ TAB 4：课表 ═══ -->
                     <ScrollViewer x:Name="ContentSchedule" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
                                   Visibility="Collapsed">
                         <StackPanel Margin="6,8,6,12">
@@ -1847,7 +1837,7 @@
                         </StackPanel>
                     </ScrollViewer>
 
-                    <!-- ═══ TAB 9：考试模式 ═══ -->
+                    <!-- ═══ TAB 5：考试模式 ═══ -->
                     <ScrollViewer x:Name="ContentExam" VerticalScrollBarVisibility="Auto" CanContentScroll="False"
                                   Visibility="Collapsed">
                         <StackPanel Margin="6,8,6,12">

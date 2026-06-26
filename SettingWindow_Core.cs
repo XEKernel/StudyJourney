@@ -53,9 +53,8 @@ namespace GaokaoCountdown
                     // 建立 Tab 索引 → 内容面板映射
                     _tabContents = new[]
                     {
-                        ContentAppearance,
+                        ContentCountdown,
                         ContentPosition,
-                        ContentCustom,
                         ContentApi,
                         ContentSchedule,
                         ContentExam,
