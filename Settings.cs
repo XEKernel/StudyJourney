@@ -157,6 +157,9 @@ namespace GaokaoCountdown
         public bool RemindDayEnd         { get; set; } = true;
         public bool RemindSpecialPeriod  { get; set; } = true;
 
+        // ── 更新检查 ──────────────────────────────────────────
+        public bool AutoCheckUpdate      { get; set; } = true;
+
         // ── 考试模式 ──────────────────────────────────────────
         public bool EnableExamMode       { get; set; } = false;
         /// <summary>当天有考试时自动进入考试模式</summary>

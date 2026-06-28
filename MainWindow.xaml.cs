@@ -1,7 +1,9 @@
 using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -198,6 +200,7 @@ namespace GaokaoCountdown
         public bool   RemindNextClassSoon     { get => settings.RemindNextClassSoon;     set => settings.RemindNextClassSoon     = value; }
         public bool   RemindDayEnd            { get => settings.RemindDayEnd;            set => settings.RemindDayEnd            = value; }
         public bool   RemindSpecialPeriod     { get => settings.RemindSpecialPeriod;     set => settings.RemindSpecialPeriod     = value; }
+        public bool   AutoCheckUpdate          { get => settings.AutoCheckUpdate;          set => settings.AutoCheckUpdate          = value; }
         public int    CountdownExpandSeconds  { get => settings.CountdownExpandSeconds;  set => settings.CountdownExpandSeconds  = value; }
         public bool   EnableCountdownSound    { get => settings.EnableCountdownSound;    set => settings.EnableCountdownSound    = value; }
         public bool   EnableExamMode          { get => settings.EnableExamMode;          set => settings.EnableExamMode          = value; }
@@ -351,6 +354,34 @@ namespace GaokaoCountdown
                     delay.Tick += (s, e) => { delay.Stop(); EnterExamMode(); };
                     delay.Start();
                 }
+            }
+
+            // 自动检查更新（延迟 5 秒，不阻塞启动）
+            if (settings.AutoCheckUpdate)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(5000);
+                    try
+                    {
+                        var info = await UpdateService.CheckAsync("XEKernel", "StudyJourney");
+                        if (info.HasUpdate)
+                        {
+                            Dispatcher.Invoke(() =>
+                            {
+                                var r = MessageBox.Show(
+                                    $"新版本 v{info.LatestVersion} 可用！（当前 v{UpdateService.CurrentVersion}）\n\n" +
+                                    $"是否前往 GitHub 下载？",
+                                    "学程 — 发现新版本",
+                                    MessageBoxButton.YesNo,
+                                    MessageBoxImage.Information);
+                                if (r == MessageBoxResult.Yes)
+                                    Process.Start(new ProcessStartInfo(info.DownloadUrl) { UseShellExecute = true });
+                            });
+                        }
+                    }
+                    catch { /* 网络不可用，静默 */ }
+                });
             }
         }
 

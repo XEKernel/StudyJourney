@@ -473,6 +473,7 @@ namespace GaokaoCountdown
             RemindNextClassSoonCheck.IsChecked     = _mainWindow.RemindNextClassSoon;
             RemindDayEndCheck.IsChecked            = _mainWindow.RemindDayEnd;
             RemindSpecialPeriodCheck.IsChecked     = _mainWindow.RemindSpecialPeriod;
+            AutoCheckUpdateCheck.IsChecked        = _mainWindow.AutoCheckUpdate;
 
             // ── 考试模式 ──────────────────────────────────────
             EnableExamModeCheck.IsChecked   = _mainWindow.EnableExamMode;
@@ -741,6 +742,7 @@ namespace GaokaoCountdown
             _mainWindow.EnableCountdownSound = EnableCountdownSoundCheck.IsChecked == true;
             _mainWindow.RemindDayEnd            = RemindDayEndCheck.IsChecked == true;
             _mainWindow.RemindSpecialPeriod     = RemindSpecialPeriodCheck.IsChecked == true;
+            _mainWindow.AutoCheckUpdate          = AutoCheckUpdateCheck.IsChecked == true;
 
             // ── 考试模式 ──────────────────────────────────────
             _mainWindow.EnableExamMode    = EnableExamModeCheck.IsChecked == true;
@@ -1539,6 +1541,40 @@ namespace GaokaoCountdown
             _mainWindow.CustomCountdowns.Remove(cc);
             _mainWindow.SaveSettings();
             RefreshCustomCountdownGrid();
+        }
+
+        // ══════════════════════════════════════════════════════
+        //  自动更新检查
+        // ══════════════════════════════════════════════════════
+
+        private async void CheckUpdateNow_Click(object sender, RoutedEventArgs e)
+        {
+            var btn = sender as Button;
+            if (btn != null) btn.IsEnabled = false;
+            try
+            {
+                var info = await UpdateService.CheckAsync("XEKernel", "StudyJourney");
+                if (info.HasUpdate)
+                {
+                    var r = WpfMessageBox.Show(
+                        $"发现新版本 v{info.LatestVersion}！（当前 v{UpdateService.CurrentVersion}）\n\n是否前往下载？",
+                        "检查更新", MessageBoxButton.YesNo, MessageBoxImage.Information);
+                    if (r == MessageBoxResult.Yes)
+                        System.Diagnostics.Process.Start(
+                            new System.Diagnostics.ProcessStartInfo(info.DownloadUrl) { UseShellExecute = true });
+                }
+                else
+                {
+                    WpfMessageBox.Show($"已是最新版本 v{UpdateService.CurrentVersion}。",
+                        "检查更新", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch
+            {
+                WpfMessageBox.Show("检查更新失败，请检查网络连接。", "检查更新",
+                    MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            if (btn != null) btn.IsEnabled = true;
         }
 
         // ══════════════════════════════════════════════════════
