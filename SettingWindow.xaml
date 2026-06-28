@@ -1323,7 +1323,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                             <TextBlock Text="学程" FontSize="20" FontWeight="Bold"
                                                        Foreground="#FFFFFFFF"/>
-                                            <TextBlock Text="  v1.4" FontSize="13"
+                                            <TextBlock Text="  v1.5" FontSize="13"
                                                        Foreground="#6688CCAA" VerticalAlignment="Bottom"
                                                        Margin="4,0,0,3"/>
                                         </StackPanel>
@@ -1347,7 +1347,7 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="版本" FontSize="12" Foreground="#66CCCCDD"/>
-                                            <TextBlock Grid.Column="1" Text="1.4"
+                                            <TextBlock Grid.Column="1" Text="1.5"
                                                        FontSize="13" Foreground="#AACCDDEE"/>
                                         </Grid>
 
@@ -1444,11 +1444,13 @@
                                         <LineBreak/>
                                         <Run Text="&#x1F4DD; 考试全屏倒计时，科目剩余时间/进度/下一场可视化，蜂鸣提醒+确认退出"/>
                                         <LineBreak/>
-                                        <Run Text="&#x1F4C5; 课表栏（课程表网格），自动收缩+展开按钮+放学显示明天+调休+调课+代课"/>
+                                        <Run Text="&#x1F4C5; 课表栏（课程表网格），自动收缩+上课/下课提醒+放学显示明天+调休+调课+代课"/>
                                         <LineBreak/>
                                         <Run Text="&#x2328; 全局快捷键（Ctrl+Shift+H/B/E），无需鼠标快速操作"/>
                                         <LineBreak/>
-                                        <Run Text="&#x1F4E2; 下课倒计时大字覆盖层（距下课1分钟弹出，屏幕居中大字，下课提示），3秒消失"/>
+                                        <Run Text="&#x1F514; 课表栏内置下课倒计时 + 距下课30秒自动展开高亮 + 下课2分钟延迟展开"/>
+                                        <LineBreak/>
+                                        <Run Text="&#x1F6AB; 按科目隐藏窗口（指定老师的课自动隐藏，下课恢复），上课预备铃提前2分钟进入上课模式"/>
                                         <LineBreak/>
                                         <Run Text="&#x2601; 实时天气（窗口 + 文本两种模式），支持城市名输入"/>
                                         <LineBreak/>
@@ -1477,36 +1479,35 @@
                             <Border Style="{StaticResource CardPanel}">
                                 <StackPanel>
                                     <TextBlock Text="&#x1F4CB;  更新日志" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <TextBlock Text="v1.5" FontSize="13" FontWeight="SemiBold"
+                                               Foreground="#FF6688CC" Margin="0,0,0,4"/>
+                                    <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
+                                        <Run Text="• 按科目隐藏窗口：设置指定老师的课，上课自动隐藏所有窗口，下课自动恢复"/>
+                                        <LineBreak/>
+                                        <Run Text="• 提前2分钟进入上课模式（预备铃），GetCurrentEntry 自动前移 2 分钟"/>
+                                        <LineBreak/>
+                                        <Run Text="• 下课 2 分钟后再展开课表栏，给老师留出操作 PPT 的时间窗口"/>
+                                        <LineBreak/>
+                                        <Run Text="• 删除全屏大字覆盖层弹窗，倒计时/下课提醒完全由课表栏承担，不干扰上课"/>
+                                        <LineBreak/>
+                                        <Run Text="• Tab 切换动画从横向改为纵向滑动 + 0.5s 慢速过渡"/>
+                                        <LineBreak/>
+                                        <Run Text="• 首次打开设置页切换 Tab 不再出现重影"/>
+                                        <LineBreak/>
+                                        <Run Text="• 距下课 30 秒时课表栏自动展开 + 橙色高亮文字提示"/>
+                                        <LineBreak/>
+                                        <Run Text="• 外观+内容 两 Tab 合并为 ⏳ 倒计时，6 个 Tab"/>
+                                    </TextBlock>
+                                    <Separator Background="#15FFFFFF" Margin="0,8,0,4"/>
                                     <TextBlock Text="v1.4" FontSize="13" FontWeight="SemiBold"
                                                Foreground="#FF6688CC" Margin="0,0,0,4"/>
                                     <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
-                                        <Run Text="• 设置页 Tab 从横向改为纵向侧边栏（沿左边排列，方便扩展）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 下课/考试结束前覆盖层大字提醒（屏幕居中，距下课1分钟+考试15分，3秒消失）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 课表调课功能：点击格子直接选源/目标，支持交换/移动/代课三种模式"/>
-                                        <LineBreak/>
-                                        <Run Text="• 代码签名（自签名证书，CI 自动签名并验签）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 修复上课/下课时间边界重叠 Bug（8:45 不再同时匹配两节课）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 修复 JSON 配置文件损坏时静默丢失数据 → 备份+弹窗提示"/>
-                                        <LineBreak/>
-                                        <Run Text="• 修复颜色 Hex 值异常导致启动崩溃"/>
-                                        <LineBreak/>
-                                        <Run Text="• 修复签名密码硬编码泄露 → 环境变量"/>
-                                        <LineBreak/>
-                                        <Run Text="• 架构优化：WeatherService 独立共享类 / SettingWindow 拆分 Core+Schedule partial"/>
-                                        <LineBreak/>
-                                        <Run Text="• CI 产物文件名改为英文 StudyJourney-win-x64.zip"/>
-                                        <LineBreak/>
-                                        <Run Text="• 设置 Tab 再次精简：外观+内容 → ⏳ 倒计时，7 个 → 6 个"/>
                                     </TextBlock>
                                     <Separator Background="#15FFFFFF" Margin="0,8,0,4"/>
                                     <TextBlock Text="v1.3" FontSize="13" FontWeight="SemiBold"
                                                Foreground="#FF6688CC" Margin="0,0,0,4"/>
                                     <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
-                                        <Run Text="• 设置 Tab 合并精简：外观+内容 → 倒计时，7 个 → 6 个"/>
+                                        <Run Text="• 设置 Tab 合并精简：10 → 7（外观+显示+动画 / 内容=文本+日期）"/>
                                         <LineBreak/>
                                         <Run Text="• 全局快捷键：Ctrl+Shift+H 显隐主窗口 · B 切换课表栏 · E 考试模式"/>
                                         <LineBreak/>
