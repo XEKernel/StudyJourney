@@ -4,9 +4,24 @@ using System.Windows.Media;
 
 namespace GaokaoCountdown
 {
-    /// <summary>自定义对话框：使用全屏遮罩窗口，内容居中显示（暗色主题）</summary>
+    /// <summary>自定义对话框：居中于当前活动窗口，暗色主题</summary>
     public static class DialogHelper
     {
+        private static Window? GetOwner()
+        {
+            foreach (Window w in Application.Current.Windows)
+                if (w is SettingWindow && w.IsVisible) return w;
+            foreach (Window w in Application.Current.Windows)
+                if (w is MainWindow && w.IsVisible) return w;
+            return Application.Current.MainWindow;
+        }
+
+        private static void ShowDialogCore(DialogOverlayWindow overlay)
+        {
+            overlay.Owner = GetOwner();
+            overlay.ShowDialog();
+        }
+
         /// <summary>弹出颜色选择，返回选择结果</summary>
         public static Color? ShowColorPicker(string initialColor)
         {
@@ -19,7 +34,7 @@ namespace GaokaoCountdown
                 overlay.CloseWithFade();
             });
             overlay.SetContent(picker);
-            overlay.ShowDialog();
+            ShowDialogCore(overlay);
             return result;
         }
 
@@ -53,7 +68,7 @@ namespace GaokaoCountdown
                 overlay.CloseWithFade();
             });
             overlay.SetContent(mb);
-            overlay.ShowDialog();
+            ShowDialogCore(overlay);
             return res == true;
         }
 
@@ -62,7 +77,7 @@ namespace GaokaoCountdown
             var overlay = new DialogOverlayWindow();
             var mb = new MessageBoxControl(title, message, btns, icon, () => overlay.CloseWithFade());
             overlay.SetContent(mb);
-            overlay.ShowDialog();
+            ShowDialogCore(overlay);
         }
 
         // ── 兼容传统 MessageBox.Show 签名 ──
