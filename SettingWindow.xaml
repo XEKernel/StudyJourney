@@ -1323,7 +1323,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                                             <TextBlock Text="学程" FontSize="20" FontWeight="Bold"
                                                        Foreground="#FFFFFFFF"/>
-                                            <TextBlock Text="  v1.5" FontSize="13"
+                                            <TextBlock Text="  v1.6" FontSize="13"
                                                        Foreground="#6688CCAA" VerticalAlignment="Bottom"
                                                        Margin="4,0,0,3"/>
                                         </StackPanel>
@@ -1347,7 +1347,7 @@
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Text="版本" FontSize="12" Foreground="#66CCCCDD"/>
-                                            <TextBlock Grid.Column="1" Text="1.5"
+                                            <TextBlock Grid.Column="1" Text="1.6"
                                                        FontSize="13" Foreground="#AACCDDEE"/>
                                         </Grid>
 
@@ -1471,115 +1471,6 @@
                                         <Run Text="&#x1F4BE; JSON 配置持久化，关闭重启不丢失设置"/>
                                         <LineBreak/>
                                         <Run Text="&#x26A1; 性能优化：Brush 缓存 + 秒级仅更新状态 + Timer 生命周期规范化"/>
-                                    </TextBlock>
-                                </StackPanel>
-                            </Border>
-
-                            <!-- 更新日志卡片 -->
-                            <Border Style="{StaticResource CardPanel}">
-                                <StackPanel>
-                                    <TextBlock Text="&#x1F4CB;  更新日志" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
-                                    <TextBlock Text="v1.5" FontSize="13" FontWeight="SemiBold"
-                                               Foreground="#FF6688CC" Margin="0,0,0,4"/>
-                                    <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
-                                        <Run Text="• 自动检查更新：启动时查询 GitHub Releases，有新版弹窗提示下载"/>
-                                        <LineBreak/>
-                                        <Run Text="• 按科目隐藏窗口：指定老师的课自动隐藏，下课恢复"/>
-                                        <LineBreak/>
-                                        <Run Text="• 提前2分钟进入上课模式（预备铃适配）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 下课2分钟后再展开课表栏（给老师操作PPT时间）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 删除全部弹窗提醒（右下角+大字覆盖层），所有提示由课表栏承担"/>
-                                        <LineBreak/>
-                                        <Run Text="• 下课倒计时展开时间可设30秒或60秒 + 可选提示音 + 展开后10秒自动收缩"/>
-                                        <LineBreak/>
-                                        <Run Text="• Tab 切换动画横向→纵向滑动 + 0.5s 过渡 / 首次切换重影修复"/>
-                                        <LineBreak/>
-                                        <Run Text="• 外观+内容合并为 ⏳ 倒计时 Tab（7→6 个）"/>
-                                    </TextBlock>
-                                    <Separator Background="#15FFFFFF" Margin="0,8,0,4"/>
-                                    <TextBlock Text="v1.4" FontSize="13" FontWeight="SemiBold"
-                                               Foreground="#FF6688CC" Margin="0,0,0,4"/>
-                                    <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
-                                    </TextBlock>
-                                    <Separator Background="#15FFFFFF" Margin="0,8,0,4"/>
-                                    <TextBlock Text="v1.3" FontSize="13" FontWeight="SemiBold"
-                                               Foreground="#FF6688CC" Margin="0,0,0,4"/>
-                                    <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
-                                        <Run Text="• 设置 Tab 合并精简：10 → 7（外观+显示+动画 / 内容=文本+日期）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 全局快捷键：Ctrl+Shift+H 显隐主窗口 · B 切换课表栏 · E 考试模式"/>
-                                        <LineBreak/>
-                                        <Run Text="• 自定义倒计时目标，主窗口自动显示最近一个的剩余时间"/>
-                                        <LineBreak/>
-                                        <Run Text="• 数据备份/还原（设置→关于→一键导出/恢复所有配置）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 课表栏内容切换淡入淡出 + 状态文本脉冲动画 + 全项目非线性动画统一"/>
-                                        <LineBreak/>
-                                        <Run Text="• 考试模式入场缩放弹入动画 · Tab 切换 0.3s 淡入淡出消除重影"/>
-                                        <LineBreak/>
-                                        <Run Text="• GitHub Actions 自动构建发布到 Release / 非代码提交跳过构建"/>
-                                        <LineBreak/>
-                                        <Run Text="• 课表改为课程表网格视图（横向星期、纵向时段），支持时段模板管理"/>
-                                        <LineBreak/>
-                                        <Run Text="• 调休功能，一键复制某天课表到另一天"/>
-                                        <LineBreak/>
-                                        <Run Text="• 放学后/周末自动显示明天课程预览"/>
-                                        <LineBreak/>
-                                        <Run Text="• 考试模式最后5分钟蜂鸣提醒，15分钟警告蜂鸣一声"/>
-                                        <LineBreak/>
-                                        <Run Text="• 考试 ESC / 退出按钮在考试进行中弹确认防误触"/>
-                                        <LineBreak/>
-                                        <Run Text="• 最后一场考试结束自动退出，恢复正常上课状态"/>
-                                        <LineBreak/>
-                                        <Run Text="• 双击/F11 切换考试全屏↔窗口模式"/>
-                                        <LineBreak/>
-                                        <Run Text="• 批量添加课节弹窗，一键为多天填入课程"/>
-                                        <LineBreak/>
-                                        <Run Text="• 删除操作（课节/考试/科目）全部增加确认对话框"/>
-                                        <LineBreak/>
-                                        <Run Text="• 设置窗口按钮优化：「确定」→「保存并关闭」，「取消」→「关闭」"/>
-                                        <LineBreak/>
-                                        <Run Text="• 课表栏紧凑模式新增 ▲ 展开按钮，支持手动查看完整信息"/>
-                                        <LineBreak/>
-                                        <Run Text="• 性能优化：课程卡片缓存仅日期变更时重建，10+个 Brush 静态缓存"/>
-                                        <LineBreak/>
-                                        <Run Text="• 代码优化：ColorUtils 共享工具类，Timer 生命周期规范化"/>
-                                        <LineBreak/>
-                                        <Run Text="• 托盘菜单「课表栏」状态同步显示 ✓"/>
-                                        <LineBreak/>
-                                        <Run Text="• 共享暗色主题样式（ComboBox/ComboBoxItem 移至 Styles.xaml）"/>
-                                    </TextBlock>
-                                    <Separator Background="#15FFFFFF" Margin="0,8,0,4"/>
-                                    <TextBlock Text="v1.2" FontSize="13" FontWeight="SemiBold"
-                                               Foreground="#FF6688CC" Margin="0,0,0,4"/>
-                                    <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
-                                        <Run Text="• 考试全屏倒计时模式，科目/剩余时间/进度/下一场可视化"/>
-                                        <LineBreak/>
-                                        <Run Text="• 课表悬浮栏，吸附屏幕顶部，上课自动收缩+下课提醒"/>
-                                        <LineBreak/>
-                                        <Run Text="• 自定义提醒弹窗（右下角滑入+图标弹跳动画）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 23 项考试全屏样式可配置（字体/颜色/进度条/背景色）"/>
-                                        <LineBreak/>
-                                        <Run Text="• 全窗口动画完善：展开收起交叉淡入、进度条平滑过渡、按钮按压反馈"/>
-                                        <LineBreak/>
-                                        <Run Text="• 考试模式退出崩溃修复"/>
-                                    </TextBlock>
-                                    <Separator Background="#15FFFFFF" Margin="0,8,0,4"/>
-                                    <TextBlock Text="v1.1" FontSize="13" FontWeight="SemiBold"
-                                               Foreground="#FF6688CC" Margin="0,4,0,4"/>
-                                    <TextBlock FontSize="11" Foreground="#88CCCCDD" TextWrapping="Wrap" LineHeight="18">
-                                        <Run Text="• 实时天气模块，API 接口 + 窗口/文本双模式"/>
-                                        <LineBreak/>
-                                        <Run Text="• 每日一言 API 集成"/>
-                                        <LineBreak/>
-                                        <Run Text="• 窗口位置预设 + 拖动坐标实时跟踪"/>
-                                        <LineBreak/>
-                                        <Run Text="• 预设模式下点击穿透"/>
-                                        <LineBreak/>
-                                        <Run Text="• 自定义窗口图标与托盘图标"/>
                                     </TextBlock>
                                 </StackPanel>
                             </Border>

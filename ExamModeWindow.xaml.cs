@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using MessageBox = GaokaoCountdown.DialogHelper;
 
 namespace GaokaoCountdown
 {
@@ -158,7 +159,7 @@ namespace GaokaoCountdown
             {
                 if (!string.IsNullOrEmpty(_currentSubjectName))
                 {
-                    var r = System.Windows.MessageBox.Show(
+                    var r = MessageBox.Show(
                         "确定要退出考试模式吗？\n当前科目计时将被中断。",
                         "退出考试", System.Windows.MessageBoxButton.YesNo,
                         System.Windows.MessageBoxImage.Question);
@@ -197,7 +198,7 @@ namespace GaokaoCountdown
         {
             if (!string.IsNullOrEmpty(_currentSubjectName))
             {
-                var r = System.Windows.MessageBox.Show(
+                var r = MessageBox.Show(
                     "确定要退出考试模式吗？\n当前科目计时将被中断。",
                     "退出考试", System.Windows.MessageBoxButton.YesNo,
                     System.Windows.MessageBoxImage.Question);

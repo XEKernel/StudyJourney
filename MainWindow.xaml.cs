@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Net.Http;
 using System.Runtime.InteropServices;
@@ -300,7 +300,7 @@ namespace GaokaoCountdown
             {
                 settings = new AppSettings();
                 Dispatcher.BeginInvoke(new Action(() =>
-                    System.Windows.MessageBox.Show(ex.Message, "学程 — 配置恢复",
+                    MessageBox.Show(ex.Message, "学程 — 配置恢复",
                         System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning)));
             }
 
@@ -330,7 +330,7 @@ namespace GaokaoCountdown
             catch (Exception ex)
             {
                 _scheduleManager = new ScheduleManager(); // 重试（已自动备份，第二次不读文件）
-                System.Windows.MessageBox.Show(ex.Message, "学程 — 课表恢复",
+                MessageBox.Show(ex.Message, "学程 — 课表恢复",
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
             }
 
@@ -452,7 +452,7 @@ namespace GaokaoCountdown
             var todayExams = _scheduleManager.GetTodayExams();
             if (todayExams.Count == 0)
             {
-                System.Windows.MessageBox.Show("今天没有安排考试。", "考试模式",
+                MessageBox.Show("今天没有安排考试。", "考试模式",
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
                 return;
             }
@@ -463,7 +463,7 @@ namespace GaokaoCountdown
             var next = _scheduleManager.GetNextExamSubject(now);
             if (cur == null && next == null)
             {
-                System.Windows.MessageBox.Show("今天的考试已全部结束。", "考试模式",
+                MessageBox.Show("今天的考试已全部结束。", "考试模式",
                     System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
                 return;
             }

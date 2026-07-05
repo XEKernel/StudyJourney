@@ -8,6 +8,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
+using MessageBox = GaokaoCountdown.DialogHelper;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -262,7 +263,7 @@ namespace GaokaoCountdown
         private void DeleteTimeSlot_Click(object sender, RoutedEventArgs e)
         {
             if (TimeTemplateGrid.SelectedItem is not TimeTemplate t) return;
-            var r = WpfMessageBox.Show($"确定删除「{t.Label}」吗？", "删除时段", MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var r = MessageBox.Show($"确定删除「{t.Label}」吗？", "删除时段", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (r != MessageBoxResult.Yes) return;
             var sm = _mainWindow.GetScheduleManager();
             sm?.Data?.TimeTemplates.Remove(t);
@@ -285,7 +286,7 @@ namespace GaokaoCountdown
             int to   = AdjustToDay.SelectedIndex;
             if (from == to) return;
 
-            var r = WpfMessageBox.Show(
+            var r = MessageBox.Show(
                 $"确定将{_dayNames[from]}的课程复制到{_dayNames[to]}吗？",
                 "调休确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (r != MessageBoxResult.Yes) return;
@@ -369,7 +370,7 @@ namespace GaokaoCountdown
                 return;
             }
 
-            var r = WpfMessageBox.Show(
+            var r = MessageBox.Show(
                 $"交换「{_swapSource!.Display}」↔「{_swapTarget!.Display}」？",
                 "调课·交换", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (r != MessageBoxResult.Yes) return;
@@ -399,7 +400,7 @@ namespace GaokaoCountdown
                 ? $"\n\n目标「{_swapTarget.Display}」将被覆盖！"
                 : "";
 
-            var r = WpfMessageBox.Show(
+            var r = MessageBox.Show(
                 $"将「{_swapSource.Display}」移动到「{_swapTarget.Display}」？{warn}",
                 "调课·移动", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (r != MessageBoxResult.Yes) return;
@@ -428,7 +429,7 @@ namespace GaokaoCountdown
                 ? $"由「{_swapSource.Subject}」代课"
                 : $"「{_swapSource.Subject}」代课，原「{_swapTarget.Subject}」取消";
 
-            var r = WpfMessageBox.Show(
+            var r = MessageBox.Show(
                 $"{_swapSource.DayName} {_swapSource.TimeLabel} 的「{_swapSource.Subject}」老师\n到 {_swapTarget.DayName} {_swapTarget.TimeLabel} 代课？\n\n{info}",
                 "调课·代课", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (r != MessageBoxResult.Yes) return;
@@ -571,7 +572,7 @@ namespace GaokaoCountdown
             {
                 if (ExamDataGrid.SelectedItem is not ExamEntry exam) return;
 
-                var r = WpfMessageBox.Show(
+                var r = MessageBox.Show(
                     $"确定要删除考试「{exam.Name}」及其所有科目吗？",
                     "删除确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (r != MessageBoxResult.Yes) return;
@@ -614,7 +615,7 @@ namespace GaokaoCountdown
                 if (ExamDataGrid.SelectedItem is not ExamEntry exam) return;
                 if (ExamSubjectGrid.SelectedItem is not ExamSubject sub) return;
 
-                var r = WpfMessageBox.Show(
+                var r = MessageBox.Show(
                     $"确定要删除科目「{sub.Name}」吗？",
                     "删除确认", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (r != MessageBoxResult.Yes) return;
