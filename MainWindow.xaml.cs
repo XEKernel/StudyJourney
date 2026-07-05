@@ -87,6 +87,7 @@ namespace GaokaoCountdown
         // ── 最大化检测：记录上次隐藏状态，避免重复操作 ──
         private bool _hiddenByMaximize = false;
         private bool _hiddenByScheduleOrExam = false; // 因上课/考试而隐藏
+        private DispatcherTimer? _classEndRestoreTimer; // 下课后延迟恢复计时器
         private DispatcherTimer? _maximizeCheckTimer;
         private bool _isPositioning = false;   // 程序化定位中，抑制 LocationChanged 回写
         private bool _clickThroughEnabled = false;  // 当前点击穿透状态
@@ -716,28 +717,55 @@ namespace GaokaoCountdown
 
             if (shouldHide)
             {
+                // 进入隐藏模式
+                _classEndRestoreTimer?.Stop();
+                _classEndRestoreTimer = null;
+
                 if (Visibility == Visibility.Visible)
                 {
                     _hiddenByScheduleOrExam = true;
                     Hide();
                 }
+                // 隐藏科目时连课表栏进度条也不显示
+                if (isInClass && !string.IsNullOrWhiteSpace(settings.HideSubjects))
+                    _scheduleBarWindow?.Hide();
                 return; // 不更新 UI，不请求 API
             }
             else if (_hiddenByScheduleOrExam)
             {
+                // 退出隐藏模式 — 延迟 2 分钟恢复（给老师关 PPT 时间）
                 _hiddenByScheduleOrExam = false;
-                Opacity = 0;
-                Show();
-                var fadeIn = new DoubleAnimation(0, Math.Clamp(OverallOpacity, 0.1, 1.0),
-                    TimeSpan.FromMilliseconds(400))
+                if (_classEndRestoreTimer == null)
                 {
-                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-                };
-                fadeIn.Completed += (_, _) =>
-                {
-                    if (EnableAnimations) PlayIntroAnimation();
-                };
-                BeginAnimation(OpacityProperty, fadeIn);
+                    _classEndRestoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
+                    _classEndRestoreTimer.Tick += (_, _) =>
+                    {
+                        _classEndRestoreTimer?.Stop();
+                        _classEndRestoreTimer = null;
+                        Opacity = 0;
+                        Show();
+                        var fadeIn = new DoubleAnimation(0, Math.Clamp(OverallOpacity, 0.1, 1.0),
+                            TimeSpan.FromMilliseconds(400))
+                        {
+                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                        };
+                        fadeIn.Completed += (_, _) =>
+                        {
+                            if (EnableAnimations) PlayIntroAnimation();
+                        };
+                        BeginAnimation(OpacityProperty, fadeIn);
+                        _scheduleBarWindow?.Show();
+                        UpdateCountdownDisplay(); // 立即刷新倒计时显示
+                    };
+                    _classEndRestoreTimer.Start();
+                }
+                return;
+            }
+            else
+            {
+                // 正常显示模式，取消延迟
+                _classEndRestoreTimer?.Stop();
+                _classEndRestoreTimer = null;
             }
 
             // 如果是被最大化窗口压下去的，也不做 UI 更新
