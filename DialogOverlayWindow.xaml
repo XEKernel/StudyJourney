@@ -8,18 +8,39 @@
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner">
     <Window.Resources>
+        <!-- 圆角按钮样式 -->
         <Style TargetType="Button">
-            <Setter Property="Background" Value="#33FFFFFF"/>
+            <Setter Property="OverridesDefaultStyle" Value="True"/>
             <Setter Property="Foreground" Value="#FFFFFFFF"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="12,6"/>
-            <Setter Property="Margin" Value="3"/>
-            <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" Background="#33FFFFFF" CornerRadius="6"
+                                Padding="14,6" BorderThickness="0">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#55FFFFFF"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#22FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
     </Window.Resources>
-    <Border CornerRadius="10" Background="#FF1E1E3A" BorderBrush="#40FFFFFF" BorderThickness="1"
-            Padding="0">
+    <Border x:Name="RootBorder" CornerRadius="10"
+            Background="#FF1E1E3A" BorderBrush="#40FFFFFF" BorderThickness="1"
+            RenderTransformOrigin="0.5,0.5" Padding="0">
+        <Border.RenderTransform>
+            <ScaleTransform ScaleX="0.92" ScaleY="0.92"/>
+        </Border.RenderTransform>
         <Border.Effect>
             <DropShadowEffect Color="#000000" BlurRadius="25" ShadowDepth="4" Opacity="0.6"/>
         </Border.Effect>
