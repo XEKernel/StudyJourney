@@ -1936,6 +1936,7 @@
                                             <ColumnDefinition Width="90"/>
                                             <ColumnDefinition Width="110"/>
                                             <ColumnDefinition Width="24"/>
+                                            <ColumnDefinition Width="54"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="考试名称" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamNameColorBox" Width="110"/>
@@ -1943,12 +1944,14 @@
                                                    Width="18" Height="18" RadiusX="3" RadiusY="3"
                                                    Margin="4,0,0,0" VerticalAlignment="Center"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamNameColorBox" Width="46" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <!-- 倒计时正常色 -->
                                     <Grid Margin="0,0,0,3">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="90"/>
                                             <ColumnDefinition Width="110"/>
                                             <ColumnDefinition Width="24"/>
+                                            <ColumnDefinition Width="54"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="倒计时(正常)" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamCountdownNormalColorBox" Width="110"/>
@@ -1956,12 +1959,14 @@
                                                    Width="18" Height="18" RadiusX="3" RadiusY="3"
                                                    Margin="4,0,0,0" VerticalAlignment="Center"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamCountdownNormalColorBox" Width="46" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <!-- 倒计时警告色 -->
                                     <Grid Margin="0,0,0,3">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="90"/>
                                             <ColumnDefinition Width="110"/>
                                             <ColumnDefinition Width="24"/>
+                                            <ColumnDefinition Width="54"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="倒计时(警告)" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamCountdownWarningColorBox" Width="110"/>
@@ -1969,12 +1974,14 @@
                                                    Width="18" Height="18" RadiusX="3" RadiusY="3"
                                                    Margin="4,0,0,0" VerticalAlignment="Center"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamCountdownWarningColorBox" Width="46" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <!-- 倒计时紧迫色 -->
                                     <Grid Margin="0,0,0,3">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="90"/>
                                             <ColumnDefinition Width="110"/>
                                             <ColumnDefinition Width="24"/>
+                                            <ColumnDefinition Width="54"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="倒计时(紧迫)" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamCountdownCriticalColorBox" Width="110"/>
@@ -1982,12 +1989,14 @@
                                                    Width="18" Height="18" RadiusX="3" RadiusY="3"
                                                    Margin="4,0,0,0" VerticalAlignment="Center"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamCountdownCriticalColorBox" Width="46" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <!-- 距开考色 -->
                                     <Grid Margin="0,0,0,3">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="90"/>
                                             <ColumnDefinition Width="110"/>
                                             <ColumnDefinition Width="24"/>
+                                            <ColumnDefinition Width="54"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="距开考" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamDistanceColorBox" Width="110"/>
@@ -1995,12 +2004,14 @@
                                                    Width="18" Height="18" RadiusX="3" RadiusY="3"
                                                    Margin="4,0,0,0" VerticalAlignment="Center"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamDistanceColorBox" Width="46" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <!-- 信息文字色 -->
                                     <Grid Margin="0,0,0,3">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="90"/>
                                             <ColumnDefinition Width="110"/>
                                             <ColumnDefinition Width="24"/>
+                                            <ColumnDefinition Width="54"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="信息文字" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamInfoColorBox" Width="110"/>
@@ -2008,12 +2019,14 @@
                                                    Width="18" Height="18" RadiusX="3" RadiusY="3"
                                                    Margin="4,0,0,0" VerticalAlignment="Center"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamInfoColorBox" Width="46" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <!-- 进度条颜色 -->
                                     <Grid Margin="0,0,0,3">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="90"/>
                                             <ColumnDefinition Width="110"/>
                                             <ColumnDefinition Width="24"/>
+                                            <ColumnDefinition Width="54"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="进度条" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamProgressBarColorBox" Width="110"/>
@@ -2021,6 +2034,7 @@
                                                    Width="18" Height="18" RadiusX="3" RadiusY="3"
                                                    Margin="4,0,0,0" VerticalAlignment="Center"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamProgressBarColorBox" Width="46" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
 
                                     <TextBlock Text="进度条高度" FontWeight="SemiBold" Margin="0,12,0,4"/>
                                     <Grid>
@@ -2050,41 +2064,47 @@
                                     <TextBlock Text="更多外观" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
 
                                     <Grid Margin="0,0,0,8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="主窗口背景" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamBackgroundColorBox" Width="110"/>
                                         <Rectangle Grid.Column="2" x:Name="ExamBackgroundColorPreview" Style="{StaticResource ColorPreview}"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamBackgroundColorBox" Width="44" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <Grid Margin="0,0,0,8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="进度条背景" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamProgressBarBgColorBox" Width="110"/>
                                         <Rectangle Grid.Column="2" x:Name="ExamProgressBarBgColorPreview" Style="{StaticResource ColorPreview}"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamProgressBarBgColorBox" Width="44" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <Grid Margin="0,0,0,8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="下一场文字" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamNextSubjectColorBox" Width="110"/>
                                         <Rectangle Grid.Column="2" x:Name="ExamNextSubjectColorPreview" Style="{StaticResource ColorPreview}"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamNextSubjectColorBox" Width="44" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <Grid Margin="0,0,0,8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="警告文字" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamWarningColorBox" Width="110"/>
                                         <Rectangle Grid.Column="2" x:Name="ExamWarningColorPreview" Style="{StaticResource ColorPreview}"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamWarningColorBox" Width="44" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <Grid Margin="0,0,0,8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="百分比文字" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamProgressPctColorBox" Width="110"/>
                                         <Rectangle Grid.Column="2" x:Name="ExamProgressPctColorPreview" Style="{StaticResource ColorPreview}"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamProgressPctColorBox" Width="44" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     <Grid Margin="0,0,0,8">
-                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/><ColumnDefinition Width="50"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="标签半透明" VerticalAlignment="Center"/>
                                         <TextBox Grid.Column="1" x:Name="ExamInfoDimColorBox" Width="110"/>
                                         <Rectangle Grid.Column="2" x:Name="ExamInfoDimColorPreview" Style="{StaticResource ColorPreview}"/>
                                     </Grid>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click" Tag="ExamInfoDimColorBox" Width="44" Margin="3,0,0,0" FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
 
                                     <TextBlock Text="倒计时字体" Margin="0,6,0,2"/>
                                     <ComboBox x:Name="ExamCountdownFontFamilyBox"/>
