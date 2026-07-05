@@ -1560,6 +1560,24 @@ namespace GaokaoCountdown
             }
         }
 
+        /// <summary>通用考试颜色选择（通过 Button.Tag 指定 TextBox 名称）</summary>
+        private void SelectExamColor_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string boxName)
+            {
+                var box = FindName(boxName) as TextBox;
+                if (box == null) return;
+                if (PickColor(box.Text, out Color picked))
+                {
+                    box.Text = ColorToHex(picked);
+                    // 预览 Rectangle 名称为 XxxColorPreview（去掉 Box 后缀 + Preview）
+                    var prevName = boxName.Substring(0, boxName.Length - 3) + "Preview";
+                    var preview = FindName(prevName) as System.Windows.Shapes.Rectangle;
+                    if (preview != null) RefreshColorPreview(box, preview);
+                }
+            }
+        }
+
         // ── 拖动窗口 ──────────────────────────────────────────
 
         // ── 拖动窗口 ──────────────────────────────────────────

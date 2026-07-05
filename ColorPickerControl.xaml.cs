@@ -5,9 +5,10 @@ using System.Windows.Media;
 
 namespace GaokaoCountdown
 {
-    public partial class ColorPickerDialog : Window
+    public partial class ColorPickerControl : UserControl
     {
         public Color? SelectedColor { get; private set; }
+        private readonly Action? _close;
 
         private static readonly Color[] _palette = new[]
         {
@@ -25,24 +26,22 @@ namespace GaokaoCountdown
             Color.FromRgb(0xFF,0xFF,0xBB), Color.FromRgb(0xFF,0xBB,0xFF), Color.FromRgb(0xBB,0xFF,0xFF),
         };
 
-        public ColorPickerDialog(string initialHex)
+        public ColorPickerControl(string initialHex, Action close)
         {
             InitializeComponent();
+            _close = close;
 
             HexBox.Text = initialHex;
             HexBox.TextChanged += (_, _) =>
             {
-                try
-                {
-                    var c = (Color)ColorConverter.ConvertFromString(HexBox.Text);
-                    PreviewRect.Fill = new SolidColorBrush(c);
-                }
-                catch { }
+                try { PreviewRect.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(HexBox.Text)); } catch { }
             };
-            // 初始预览
             try { PreviewRect.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(initialHex)); } catch { }
 
-            int cols = 6;
+            int cols = 6, rows = (_palette.Length + cols - 1) / cols;
+            for (int r = 0; r < rows; r++) PaletteGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(32) });
+            for (int c = 0; c < cols; c++) PaletteGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(32) });
+
             for (int i = 0; i < _palette.Length; i++)
             {
                 int row = i / cols, col = i % cols;
@@ -50,40 +49,18 @@ namespace GaokaoCountdown
                 {
                     Fill = new SolidColorBrush(_palette[i]),
                     Stroke = new SolidColorBrush(Color.FromRgb(0x44, 0x44, 0x55)),
-                    StrokeThickness = 0.5,
-                    Width = 32, Height = 32,
-                    Cursor = Cursors.Hand,
-                    RadiusX = 3, RadiusY = 3,
-                    Margin = new Thickness(2)
+                    StrokeThickness = 0.5, Width = 30, Height = 30,
+                    Cursor = Cursors.Hand, RadiusX = 3, RadiusY = 3, Margin = new Thickness(1)
                 };
-                rect.MouseLeftButtonDown += (_, _) =>
-                {
-                    var c = _palette[i];
-                    SelectedColor = c;
-                    HexBox.Text = c.ToString();
-                    PreviewRect.Fill = new SolidColorBrush(c);
-                };
-                Grid.SetRow(rect, row);
-                Grid.SetColumn(rect, col);
+                var c = _palette[i];
+                rect.MouseLeftButtonDown += (_, _) => { SelectedColor = c; HexBox.Text = c.ToString(); PreviewRect.Fill = new SolidColorBrush(c); };
+                Grid.SetRow(rect, row); Grid.SetColumn(rect, col);
                 PaletteGrid.Children.Add(rect);
             }
 
-            BtnOk.Click += (_, _) =>
-            {
-                try
-                {
-                    SelectedColor = (Color)ColorConverter.ConvertFromString(HexBox.Text.Trim());
-                }
-                catch { SelectedColor = null; }
-                Close();
-            };
-            BtnCancel.Click += (_, _) => { SelectedColor = null; Close(); };
-            KeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
-        }
-
-        private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.LeftButton == MouseButtonState.Pressed) DragMove();
+            BtnOk.Click += (_, _) => { try { SelectedColor = (Color)ColorConverter.ConvertFromString(HexBox.Text.Trim()); } catch { } _close?.Invoke(); };
+            BtnCancel.Click += (_, _) => { SelectedColor = null; _close?.Invoke(); };
+            KeyDown += (_, e) => { if (e.Key == Key.Escape) { SelectedColor = null; _close?.Invoke(); } };
         }
     }
 }

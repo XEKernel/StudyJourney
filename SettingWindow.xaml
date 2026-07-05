@@ -2025,15 +2025,19 @@
                                     <!-- 科目名颜色 -->
                                     <Grid Margin="0,0,0,3">
                                         <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80"/>
                                             <ColumnDefinition Width="90"/>
-                                            <ColumnDefinition Width="110"/>
-                                            <ColumnDefinition Width="24"/>
+                                            <ColumnDefinition Width="18"/>
+                                            <ColumnDefinition Width="60"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="科目名称" Foreground="#88CCCCDD" FontSize="12" VerticalAlignment="Center"/>
-                                        <TextBox Grid.Column="1" x:Name="ExamSubjectColorBox" Width="110"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamSubjectColorBox" Width="90"/>
                                         <Rectangle Grid.Column="2" x:Name="ExamSubjectColorPreview"
-                                                   Width="18" Height="18" RadiusX="3" RadiusY="3"
-                                                   Margin="4,0,0,0" VerticalAlignment="Center"/>
+                                                   Width="16" Height="16" RadiusX="3" RadiusY="3"
+                                                   Margin="2,0,0,0" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="3" Content="选择…" Click="SelectExamColor_Click"
+                                                Tag="ExamSubjectColorBox" Width="50" Margin="4,0,0,0"
+                                                FontSize="10" Background="#22FFFFFF" Foreground="#FFCCCCDD"/>
                                     </Grid>
                                     <!-- 考试名颜色 -->
                                     <Grid Margin="0,0,0,3">
