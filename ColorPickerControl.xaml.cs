@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -9,6 +10,7 @@ namespace GaokaoCountdown
     {
         public Color? SelectedColor { get; private set; }
         private readonly Action? _close;
+        private bool _updating;
 
         private static readonly Color[] _palette = new[]
         {
@@ -31,7 +33,13 @@ namespace GaokaoCountdown
             InitializeComponent();
             _close = close;
 
-            // 解析初始颜色并设置滑块
+            // 绑定滑块事件（在 InitializeComponent 之后，避免构造时触发）
+            RSlider.ValueChanged += OnSliderChanged;
+            GSlider.ValueChanged += OnSliderChanged;
+            BSlider.ValueChanged += OnSliderChanged;
+
+            // 解析初始颜色
+            _updating = true;
             try
             {
                 var c = (Color)ColorConverter.ConvertFromString(initialHex);
@@ -39,25 +47,29 @@ namespace GaokaoCountdown
                 RVal.Text = c.R.ToString(); GVal.Text = c.G.ToString(); BVal.Text = c.B.ToString();
                 PreviewRect.Fill = new SolidColorBrush(c);
             }
-            catch { }
+            catch { PreviewRect.Fill = new SolidColorBrush(Colors.White); }
+            _updating = false;
 
             HexBox.Text = initialHex;
             HexBox.TextChanged += (_, _) =>
             {
+                if (_updating) return;
                 try
                 {
-                    var c = (Color)ColorConverter.ConvertFromString(HexBox.Text);
+                    var c = (Color)ColorConverter.ConvertFromString(HexBox.Text.Trim());
+                    _updating = true;
                     RSlider.Value = c.R; GSlider.Value = c.G; BSlider.Value = c.B;
                     RVal.Text = c.R.ToString(); GVal.Text = c.G.ToString(); BVal.Text = c.B.ToString();
                     PreviewRect.Fill = new SolidColorBrush(c);
+                    _updating = false;
                 }
                 catch { }
             };
 
-            // 预置色块网格
+            // 预置色块
             int cols = 6, rows = (_palette.Length + cols - 1) / cols;
-            for (int r = 0; r < rows; r++) PaletteGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(28) });
-            for (int c = 0; c < cols; c++) PaletteGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+            for (int r = 0; r < rows; r++) PaletteGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            for (int c = 0; c < cols; c++) PaletteGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             for (int i = 0; i < _palette.Length; i++)
             {
@@ -72,32 +84,39 @@ namespace GaokaoCountdown
                 var c = _palette[i];
                 rect.MouseLeftButtonDown += (_, _) =>
                 {
+                    _updating = true;
                     RSlider.Value = c.R; GSlider.Value = c.G; BSlider.Value = c.B;
-                    ApplyFromSliders();
+                    RVal.Text = c.R.ToString(); GVal.Text = c.G.ToString(); BVal.Text = c.B.ToString();
+                    HexBox.Text = c.ToString();
+                    PreviewRect.Fill = new SolidColorBrush(c);
+                    _updating = false;
                 };
                 Grid.SetRow(rect, row); Grid.SetColumn(rect, col);
                 PaletteGrid.Children.Add(rect);
             }
 
-            BtnOk.Click += (_, _) => { ApplyFromSliders(); try { SelectedColor = (Color)ColorConverter.ConvertFromString(HexBox.Text.Trim()); } catch { } _close?.Invoke(); };
+            BtnOk.Click += (_, _) =>
+            {
+                try { SelectedColor = (Color)ColorConverter.ConvertFromString(HexBox.Text.Trim()); }
+                catch { SelectedColor = null; }
+                _close?.Invoke();
+            };
             BtnCancel.Click += (_, _) => { SelectedColor = null; _close?.Invoke(); };
             KeyDown += (_, e) => { if (e.Key == Key.Escape) { SelectedColor = null; _close?.Invoke(); } };
         }
 
-        private void ApplyFromSliders()
-        {
-            var c = Color.FromRgb((byte)RSlider.Value, (byte)GSlider.Value, (byte)BSlider.Value);
-            HexBox.Text = c.ToString();
-            PreviewRect.Fill = new SolidColorBrush(c);
-        }
-
         private void OnSliderChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            var s = sender as Slider;
-            if (s == RSlider) RVal.Text = ((int)s!.Value).ToString();
-            else if (s == GSlider) GVal.Text = ((int)s!.Value).ToString();
-            else if (s == BSlider) BVal.Text = ((int)s!.Value).ToString();
-            ApplyFromSliders();
+            if (_updating) return;
+            var s = (Slider)sender;
+            _updating = true;
+            var c = Color.FromRgb((byte)RSlider.Value, (byte)GSlider.Value, (byte)BSlider.Value);
+            RVal.Text = ((int)RSlider.Value).ToString();
+            GVal.Text = ((int)GSlider.Value).ToString();
+            BVal.Text = ((int)BSlider.Value).ToString();
+            HexBox.Text = c.ToString();
+            PreviewRect.Fill = new SolidColorBrush(c);
+            _updating = false;
         }
     }
 }

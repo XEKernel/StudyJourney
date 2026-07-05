@@ -17,7 +17,6 @@
                            Foreground="#FFE0E0F0" VerticalAlignment="Center" Margin="14,0,0,0"/>
             </Border>
 
-            <!-- 预览 + HEX + RGB 滑块 -->
             <StackPanel Grid.Row="1" Margin="14,8,14,4">
                 <StackPanel Orientation="Horizontal">
                     <Border Width="40" Height="40" CornerRadius="4" BorderBrush="#30FFFFFF" BorderThickness="1"
@@ -28,7 +27,6 @@
                              FontSize="13" Background="#22FFFFFF" Foreground="White"
                              BorderBrush="#30FFFFFF" BorderThickness="1" Padding="6,3"/>
                 </StackPanel>
-                <!-- RGB 滑块 -->
                 <Grid Margin="0,6,0,0">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="22"/><RowDefinition Height="22"/><RowDefinition Height="22"/>
@@ -38,24 +36,20 @@
                         <ColumnDefinition Width="36"/>
                     </Grid.ColumnDefinitions>
                     <TextBlock Text="R" Foreground="#FF8888" VerticalAlignment="Center" FontSize="11"/>
-                    <Slider Grid.Column="1" x:Name="RSlider" Minimum="0" Maximum="255" Value="255"
-                            TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="OnSliderChanged"/>
+                    <Slider Grid.Column="1" x:Name="RSlider" Minimum="0" Maximum="255" Value="255"/>
                     <TextBlock Grid.Column="2" x:Name="RVal" Text="255" Foreground="#FF8888"
                                VerticalAlignment="Center" HorizontalAlignment="Right" FontSize="11" Margin="0,0,4,0"/>
                     <TextBlock Grid.Row="1" Text="G" Foreground="#88FF88" VerticalAlignment="Center" FontSize="11"/>
-                    <Slider Grid.Row="1" Grid.Column="1" x:Name="GSlider" Minimum="0" Maximum="255" Value="255"
-                            TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="OnSliderChanged"/>
+                    <Slider Grid.Row="1" Grid.Column="1" x:Name="GSlider" Minimum="0" Maximum="255" Value="255"/>
                     <TextBlock Grid.Row="1" Grid.Column="2" x:Name="GVal" Text="255" Foreground="#88FF88"
                                VerticalAlignment="Center" HorizontalAlignment="Right" FontSize="11" Margin="0,0,4,0"/>
                     <TextBlock Grid.Row="2" Text="B" Foreground="#8888FF" VerticalAlignment="Center" FontSize="11"/>
-                    <Slider Grid.Row="2" Grid.Column="1" x:Name="BSlider" Minimum="0" Maximum="255" Value="255"
-                            TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="OnSliderChanged"/>
+                    <Slider Grid.Row="2" Grid.Column="1" x:Name="BSlider" Minimum="0" Maximum="255" Value="255"/>
                     <TextBlock Grid.Row="2" Grid.Column="2" x:Name="BVal" Text="255" Foreground="#8888FF"
                                VerticalAlignment="Center" HorizontalAlignment="Right" FontSize="11" Margin="0,0,4,0"/>
                 </Grid>
             </StackPanel>
 
-            <!-- 预置色块 -->
             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="12,4,6,0">
                 <Grid x:Name="PaletteGrid" Margin="0,2"/>
             </ScrollViewer>
