@@ -12,7 +12,7 @@ using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
-using WpfMessageBox = System.Windows.MessageBox;
+using MessageBox = GaokaoCountdown.DialogHelper; // 自定义主题对话框，替代 Win32 样式
 
 namespace GaokaoCountdown
 {
@@ -609,19 +609,19 @@ namespace GaokaoCountdown
             // ── 颜色 ──────────────────────────────────────────
             if (!TryParseColor(NumberColorBox.Text, out Color nc))
             {
-                WpfMessageBox.Show("数字颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                MessageBox.Show("数字颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (!TryParseColor(TextColorBox.Text, out Color tc))
             {
-                WpfMessageBox.Show("文字颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                MessageBox.Show("文字颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (!TryParseColor(ProgressBarColorBox.Text, out Color pc))
             {
-                WpfMessageBox.Show("进度条颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                MessageBox.Show("进度条颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -693,31 +693,31 @@ namespace GaokaoCountdown
             // 天气文字颜色
             if (!TryParseColor(WeatherCityColorBox.Text, out Color wcc))
             {
-                WpfMessageBox.Show("城市名颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                MessageBox.Show("城市名颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (!TryParseColor(WeatherInfoColorBox.Text, out Color wic))
             {
-                WpfMessageBox.Show("天气信息颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                MessageBox.Show("天气信息颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (!TryParseColor(WeatherTempColorBox.Text, out Color wtc))
             {
-                WpfMessageBox.Show("温度颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                MessageBox.Show("温度颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (!TryParseColor(WeatherTimeColorBox.Text, out Color wtc2))
             {
-                WpfMessageBox.Show("更新时间颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                MessageBox.Show("更新时间颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (!TryParseColor(WeatherIconColorBox.Text, out Color wico))
             {
-                WpfMessageBox.Show("天气图标颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+                MessageBox.Show("天气图标颜色格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -731,13 +731,13 @@ namespace GaokaoCountdown
             // ── 日期 ──────────────────────────────────────────
             if (!DateTime.TryParse(GaokaoDateBox.Text, out _))
             {
-                WpfMessageBox.Show("高考日期格式不正确，请使用 yyyy-MM-dd HH:mm:ss 格式。",
+                MessageBox.Show("高考日期格式不正确，请使用 yyyy-MM-dd HH:mm:ss 格式。",
                                    "日期格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             if (!DateTime.TryParse(StartDateBox.Text, out _))
             {
-                WpfMessageBox.Show("起算日期格式不正确，请使用 yyyy-MM-dd 格式。",
+                MessageBox.Show("起算日期格式不正确，请使用 yyyy-MM-dd 格式。",
                                    "日期格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
@@ -874,7 +874,7 @@ namespace GaokaoCountdown
 
         private void ResetButton_Click(object sender, RoutedEventArgs e)
         {
-            var result = WpfMessageBox.Show(
+            var result = MessageBox.Show(
                 "确定要将所有设置恢复为默认值吗？",
                 "重置确认",
                 MessageBoxButton.YesNo,
@@ -1616,7 +1616,7 @@ namespace GaokaoCountdown
                 var info = await UpdateService.CheckAsync("XEKernel", "StudyJourney");
                 if (info.HasUpdate)
                 {
-                    var r = WpfMessageBox.Show(
+                    var r = MessageBox.Show(
                         $"发现新版本 v{info.LatestVersion}！（当前 v{UpdateService.CurrentVersion}）\n\n是否前往下载？",
                         "检查更新", MessageBoxButton.YesNo, MessageBoxImage.Information);
                     if (r == MessageBoxResult.Yes)
@@ -1625,13 +1625,13 @@ namespace GaokaoCountdown
                 }
                 else
                 {
-                    WpfMessageBox.Show($"已是最新版本 v{UpdateService.CurrentVersion}。",
+                    MessageBox.Show($"已是最新版本 v{UpdateService.CurrentVersion}。",
                         "检查更新", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch
             {
-                WpfMessageBox.Show("检查更新失败，请检查网络连接。", "检查更新",
+                MessageBox.Show("检查更新失败，请检查网络连接。", "检查更新",
                     MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             if (btn != null) btn.IsEnabled = true;
@@ -1662,12 +1662,12 @@ namespace GaokaoCountdown
                     if (System.IO.File.Exists(src))
                         System.IO.File.Copy(src, System.IO.Path.Combine(destDir, file), true);
                 }
-                WpfMessageBox.Show($"数据已备份到：\n{destDir}", "备份成功",
+                MessageBox.Show($"数据已备份到：\n{destDir}", "备份成功",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                WpfMessageBox.Show($"备份失败：{ex.Message}", "错误",
+                MessageBox.Show($"备份失败：{ex.Message}", "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -1680,7 +1680,7 @@ namespace GaokaoCountdown
             };
             if (dlg.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
 
-            var r = WpfMessageBox.Show(
+            var r = MessageBox.Show(
                 "将用备份文件覆盖当前所有配置和课表数据，确定继续吗？",
                 "还原确认", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             if (r != MessageBoxResult.Yes) return;
@@ -1694,12 +1694,12 @@ namespace GaokaoCountdown
                     if (System.IO.File.Exists(src))
                         System.IO.File.Copy(src, System.IO.Path.Combine(baseDir, file), true);
                 }
-                WpfMessageBox.Show("数据已还原，请重启应用使设置生效。", "还原成功",
+                MessageBox.Show("数据已还原，请重启应用使设置生效。", "还原成功",
                     MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                WpfMessageBox.Show($"还原失败：{ex.Message}", "错误",
+                MessageBox.Show($"还原失败：{ex.Message}", "错误",
                     MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
@@ -1726,7 +1726,7 @@ namespace GaokaoCountdown
         private bool ValidateExamColor(string hex, string label)
         {
             if (TryParseColor(hex, out _)) return true;
-            WpfMessageBox.Show($"{label}格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
+            MessageBox.Show($"{label}格式不正确，请使用 #RRGGBB 或 #AARRGGBB 格式。",
                                "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
             return false;
         }
@@ -1745,15 +1745,8 @@ namespace GaokaoCountdown
         private static bool PickColor(string initial, out Color picked)
         {
             picked = Colors.White;
-            var dlg = new Forms.ColorDialog();
-            if (TryParseColor(initial, out Color init))
-                dlg.Color = System.Drawing.Color.FromArgb(init.R, init.G, init.B);
-
-            if (dlg.ShowDialog() == Forms.DialogResult.OK)
-            {
-                picked = Color.FromRgb(dlg.Color.R, dlg.Color.G, dlg.Color.B);
-                return true;
-            }
+            var result = DialogHelper.ShowColorPicker(initial);
+            if (result.HasValue) { picked = result.Value; return true; }
             return false;
         }
 

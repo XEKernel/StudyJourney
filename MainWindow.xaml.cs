@@ -15,6 +15,7 @@ using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Application = System.Windows.Application;
+using MessageBox = GaokaoCountdown.DialogHelper; // 自定义主题对话框
 using Hardcodet.Wpf.TaskbarNotification;
 namespace GaokaoCountdown
 {
