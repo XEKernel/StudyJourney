@@ -176,6 +176,7 @@ namespace GaokaoCountdown
         // ── 定时刷新 ──────────────────────────────────────────
         private DispatcherTimer? _expandTimer;
         private bool _isCompact = false;
+        private bool _countdownExpanded = false; // 防止每秒重复展开
 
         // ── "快上课"闪烁状态 ──────────────────────────────────
         private bool _flashVisible = true;
@@ -594,6 +595,7 @@ namespace GaokaoCountdown
                 {
                     if (Countdown60Panel.Visibility != Visibility.Visible)
                     {
+                        _countdownExpanded = false; // 新倒计时周期，重置标志
                         Countdown60Panel.Visibility = Visibility.Visible;
                         Countdown60Panel.Opacity = 0;
                         if (Countdown60Panel.RenderTransform is not ScaleTransform)
@@ -620,8 +622,9 @@ namespace GaokaoCountdown
                     // 倒计时展开秒数（可设 30s 或 60s），展开时高亮+可选提示音
                     int expandAt = _settings.CountdownExpandSeconds;
                     if (expandAt <= 0 || expandAt > 60) expandAt = 30;
-                    if (remaining <= expandAt && remaining >= expandAt - 2 && _isCompact)
+                    if (remaining <= expandAt && _isCompact && !_countdownExpanded)
                     {
+                        _countdownExpanded = true;
                         SetExpanded();
                         _expandTimer?.Stop();
                         _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
@@ -643,6 +646,7 @@ namespace GaokaoCountdown
                 }
                 else
                 {
+                    _countdownExpanded = false; // 倒计时结束，重置标志
                     if (Countdown60Panel.Visibility == Visibility.Visible)
                     {
                         var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(200))
@@ -661,10 +665,14 @@ namespace GaokaoCountdown
 
         private void AutoCompact(object? sender, EventArgs e)
         {
-            _expandTimer?.Stop();
-            _expandTimer = null;
-            var cur = _manager.GetCurrentEntry(DateTime.Now);
-            if (cur != null) SetCompact();
+            try
+            {
+                _expandTimer?.Stop();
+                _expandTimer = null;
+                var cur = _manager.GetCurrentEntry(DateTime.Now);
+                if (cur != null) SetCompact();
+            }
+            catch { /* 窗口已关闭，忽略 */ }
         }
 
         // ── 紧凑/展开模式（带动画过渡）───────────────────────
@@ -764,13 +772,16 @@ namespace GaokaoCountdown
                 _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(2) };
                 _expandTimer.Tick += (_, _) =>
                 {
-                    _expandTimer?.Stop();
-                    _expandTimer = null;
-                    SetExpanded();
-                    // 展开 10 秒后若仍无课则自动收缩
-                    _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
-                    _expandTimer.Tick += AutoCompact;
-                    _expandTimer.Start();
+                    try
+                    {
+                        _expandTimer?.Stop();
+                        _expandTimer = null;
+                        SetExpanded();
+                        _expandTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+                        _expandTimer.Tick += AutoCompact;
+                        _expandTimer.Start();
+                    }
+                    catch { }
                 };
                 _expandTimer.Start();
                 return;

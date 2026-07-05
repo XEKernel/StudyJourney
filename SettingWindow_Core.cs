@@ -90,6 +90,12 @@ namespace GaokaoCountdown
                     ExamDistanceColorBox.TextChanged += ExamDistanceColorBox_TextChanged;
                     ExamInfoColorBox.TextChanged += ExamInfoColorBox_TextChanged;
                     ExamProgressBarColorBox.TextChanged += ExamProgressBarColorBox_TextChanged;
+                    ExamBackgroundColorBox.TextChanged += ExamBackgroundColorBox_TextChanged;
+                    ExamProgressBarBgColorBox.TextChanged += ExamProgressBarBgColorBox_TextChanged;
+                    ExamNextSubjectColorBox.TextChanged += ExamNextSubjectColorBox_TextChanged;
+                    ExamWarningColorBox.TextChanged += ExamWarningColorBox_TextChanged;
+                    ExamProgressPctColorBox.TextChanged += ExamProgressPctColorBox_TextChanged;
+                    ExamInfoDimColorBox.TextChanged += ExamInfoDimColorBox_TextChanged;
 
                     // 窗口入场动画
                     if (_enableSettingsAnimations)
@@ -516,6 +522,31 @@ namespace GaokaoCountdown
             RefreshColorPreview(ExamInfoColorBox,             ExamInfoColorPreview);
             RefreshColorPreview(ExamProgressBarColorBox,      ExamProgressBarColorPreview);
 
+            ExamBackgroundColorBox.Text        = _mainWindow.ExamBackgroundColor;
+            ExamProgressBarBgColorBox.Text     = _mainWindow.ExamProgressBarBgColor;
+            ExamNextSubjectColorBox.Text       = _mainWindow.ExamNextSubjectColor;
+            ExamWarningColorBox.Text           = _mainWindow.ExamWarningColor;
+            ExamProgressPctColorBox.Text       = _mainWindow.ExamProgressPctColor;
+            ExamInfoDimColorBox.Text           = _mainWindow.ExamInfoDimColor;
+            RefreshColorPreview(ExamBackgroundColorBox,    ExamBackgroundColorPreview);
+            RefreshColorPreview(ExamProgressBarBgColorBox, ExamProgressBarBgColorPreview);
+            RefreshColorPreview(ExamNextSubjectColorBox,   ExamNextSubjectColorPreview);
+            RefreshColorPreview(ExamWarningColorBox,       ExamWarningColorPreview);
+            RefreshColorPreview(ExamProgressPctColorBox,   ExamProgressPctColorPreview);
+            RefreshColorPreview(ExamInfoDimColorBox,       ExamInfoDimColorPreview);
+
+            // 填充考试倒计时字体
+            foreach (FontFamily ff in Fonts.SystemFontFamilies)
+                ExamCountdownFontFamilyBox.Items.Add(new FontFamilyItem(ff));
+            foreach (FontFamilyItem item in ExamCountdownFontFamilyBox.Items)
+            {
+                if (item.FontFamily.Source.Equals(_mainWindow.ExamCountdownFontFamily, StringComparison.OrdinalIgnoreCase))
+                {
+                    ExamCountdownFontFamilyBox.SelectedItem = item;
+                    break;
+                }
+            }
+
             // 填充课表 DataGrid
             var sm = _mainWindow.GetScheduleManager();
             if (sm != null)
@@ -768,6 +799,12 @@ namespace GaokaoCountdown
             if (!ValidateExamColor(ExamDistanceColorBox.Text,         "距开考倒计时颜色")) return;
             if (!ValidateExamColor(ExamInfoColorBox.Text,             "信息文字颜色")) return;
             if (!ValidateExamColor(ExamProgressBarColorBox.Text,      "进度条颜色")) return;
+            if (!ValidateExamColor(ExamBackgroundColorBox.Text,       "主窗口背景")) return;
+            if (!ValidateExamColor(ExamProgressBarBgColorBox.Text,    "进度条背景")) return;
+            if (!ValidateExamColor(ExamNextSubjectColorBox.Text,      "下一场文字")) return;
+            if (!ValidateExamColor(ExamWarningColorBox.Text,          "警告文字")) return;
+            if (!ValidateExamColor(ExamProgressPctColorBox.Text,      "百分比文字")) return;
+            if (!ValidateExamColor(ExamInfoDimColorBox.Text,          "标签半透明")) return;
 
             _mainWindow.ExamSubjectColor          = ExamSubjectColorBox.Text.Trim();
             _mainWindow.ExamNameColor             = ExamNameColorBox.Text.Trim();
@@ -777,6 +814,17 @@ namespace GaokaoCountdown
             _mainWindow.ExamDistanceColor         = ExamDistanceColorBox.Text.Trim();
             _mainWindow.ExamInfoColor             = ExamInfoColorBox.Text.Trim();
             _mainWindow.ExamProgressBarColor      = ExamProgressBarColorBox.Text.Trim();
+            _mainWindow.ExamBackgroundColor       = ExamBackgroundColorBox.Text.Trim();
+            _mainWindow.ExamProgressBarBgColor    = ExamProgressBarBgColorBox.Text.Trim();
+            _mainWindow.ExamNextSubjectColor      = ExamNextSubjectColorBox.Text.Trim();
+            _mainWindow.ExamWarningColor          = ExamWarningColorBox.Text.Trim();
+            _mainWindow.ExamProgressPctColor      = ExamProgressPctColorBox.Text.Trim();
+            _mainWindow.ExamInfoDimColor          = ExamInfoDimColorBox.Text.Trim();
+
+            // 考试字体
+            var ffItem = ExamCountdownFontFamilyBox.SelectedItem as FontFamilyItem;
+            if (ffItem != null)
+                _mainWindow.ExamCountdownFontFamily = ffItem.FontFamily.Source;
 
             // 应用考试模式窗口样式（若已打开）
             _mainWindow.ApplyExamModeStyle();
@@ -1417,6 +1465,18 @@ namespace GaokaoCountdown
             => RefreshColorPreview(ExamInfoColorBox, ExamInfoColorPreview);
         private void ExamProgressBarColorBox_TextChanged(object sender, TextChangedEventArgs e)
             => RefreshColorPreview(ExamProgressBarColorBox, ExamProgressBarColorPreview);
+        private void ExamBackgroundColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamBackgroundColorBox, ExamBackgroundColorPreview);
+        private void ExamProgressBarBgColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamProgressBarBgColorBox, ExamProgressBarBgColorPreview);
+        private void ExamNextSubjectColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamNextSubjectColorBox, ExamNextSubjectColorPreview);
+        private void ExamWarningColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamWarningColorBox, ExamWarningColorPreview);
+        private void ExamProgressPctColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamProgressPctColorBox, ExamProgressPctColorPreview);
+        private void ExamInfoDimColorBox_TextChanged(object sender, TextChangedEventArgs e)
+            => RefreshColorPreview(ExamInfoDimColorBox, ExamInfoDimColorPreview);
 
         // ── 颜色选择对话框 ────────────────────────────────────
         private void SelectNumberColor_Click(object sender, RoutedEventArgs e)

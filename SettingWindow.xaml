@@ -2149,6 +2149,53 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- 更多外观设置卡片 -->
+                            <Border Style="{StaticResource CardPanel}">
+                                <StackPanel>
+                                    <TextBlock Text="更多外观" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="主窗口背景" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamBackgroundColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamBackgroundColorPreview" Style="{StaticResource ColorPreview}"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="进度条背景" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamProgressBarBgColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamProgressBarBgColorPreview" Style="{StaticResource ColorPreview}"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="下一场文字" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamNextSubjectColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamNextSubjectColorPreview" Style="{StaticResource ColorPreview}"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="警告文字" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamWarningColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamWarningColorPreview" Style="{StaticResource ColorPreview}"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="百分比文字" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamProgressPctColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamProgressPctColorPreview" Style="{StaticResource ColorPreview}"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="90"/><ColumnDefinition Width="*"/><ColumnDefinition Width="40"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="标签半透明" VerticalAlignment="Center"/>
+                                        <TextBox Grid.Column="1" x:Name="ExamInfoDimColorBox" Width="110"/>
+                                        <Rectangle Grid.Column="2" x:Name="ExamInfoDimColorPreview" Style="{StaticResource ColorPreview}"/>
+                                    </Grid>
+
+                                    <TextBlock Text="倒计时字体" Margin="0,6,0,2"/>
+                                    <ComboBox x:Name="ExamCountdownFontFamilyBox"/>
+                                </StackPanel>
+                            </Border>
+
                             <!-- 考试列表编辑卡片 -->
                             <Border Style="{StaticResource CardPanel}">
                                 <StackPanel>
