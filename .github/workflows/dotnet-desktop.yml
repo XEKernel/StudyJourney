@@ -37,16 +37,31 @@ jobs:
         with:
           dotnet-version: 8.0.x
 
+      - name: Read version from csproj
+        id: version
+        run: |
+          $xml = [xml](Get-Content "${{ env.Project_Name }}")
+          $ver = $xml.Project.PropertyGroup.AssemblyVersion
+          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = $xml.Project.PropertyGroup.Version }
+          if ($ver -match '(\d+\.\d+\.\d+)') { $ver = $matches[1] } else { $ver = "1.6.0" }
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $ver"
+        shell: pwsh
+
       - name: Restore
         run: dotnet restore ${{ env.Solution_Name }}
 
       - name: Build (Debug)
         run: dotnet build ${{ env.Solution_Name }} -c Debug --no-restore
 
-      - name: Publish (Release x64)
-        run: dotnet publish ${{ env.Project_Name }} -c Release -r win-x64 --self-contained true -o publish
+      # ── 发布两个版本 ──
+      - name: Publish (Self-contained, x64)
+        run: dotnet publish ${{ env.Project_Name }} -c Release -r win-x64 --self-contained true -o publish/sc
 
-      # ── 代码签名 ──
+      - name: Publish (Framework-dependent, x64)
+        run: dotnet publish ${{ env.Project_Name }} -c Release -r win-x64 --self-contained false -o publish/fd
+
+      # ── 代码签名（两个版本） ──
       - name: Import signing certificate
         if: github.event_name == 'push'
         run: |
@@ -64,20 +79,30 @@ jobs:
           Write-Host "signtool: $signtool"
         shell: pwsh
 
-      - name: Sign binaries
+      - name: Sign SC binaries
         if: github.event_name == 'push'
         run: |
-          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\学程.exe"
-          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\学程.dll"
+          $tool = "${{ steps.find_signtool.outputs.signtool_path }}"
+          & $tool sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\sc\学程.exe"
+          & $tool sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\sc\学程.dll"
         shell: pwsh
 
-      - name: Verify signatures
+      - name: Sign FD binaries
         if: github.event_name == 'push'
         run: |
-          # 导入自签名根证书到受信存储（仅本次会话）
+          $tool = "${{ steps.find_signtool.outputs.signtool_path }}"
+          & $tool sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\fd\学程.exe"
+          & $tool sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\fd\学程.dll"
+        shell: pwsh
+
+      - name: Verify SC signatures
+        if: github.event_name == 'push'
+        run: |
           Import-PfxCertificate -FilePath "${{ env.Project_Directory }}\StudyJourney.pfx" -CertStoreLocation Cert:\LocalMachine\Root -Password (ConvertTo-SecureString -String "${{ secrets.PFX_PASSWORD }}" -AsPlainText -Force) -Exportable
-          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\学程.exe"
-          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\学程.dll"
+          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\sc\学程.exe"
+          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\sc\学程.dll"
+          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\fd\学程.exe"
+          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\fd\学程.dll"
         shell: pwsh
 
       - name: Remove from trusted root
@@ -92,26 +117,50 @@ jobs:
         run: Remove-Item -Path "${{ env.Project_Directory }}\StudyJourney.pfx" -Force -ErrorAction SilentlyContinue
         shell: pwsh
 
-      - name: Pack zip
-        run: powershell Compress-Archive -Path publish\* -DestinationPath StudyJourney-win-x64.zip
+      # ── 打包（带版本号） ──
+      - name: Pack SC zip
+        run: |
+          cd publish\sc
+          powershell Compress-Archive -Path * -DestinationPath ..\..\StudyJourney-v${{ steps.version.outputs.version }}-win-x64.zip
+        shell: pwsh
+
+      - name: Pack FD zip
+        run: |
+          cd publish\fd
+          powershell Compress-Archive -Path * -DestinationPath ..\..\StudyJourney-v${{ steps.version.outputs.version }}-win-x64-fd.zip
+        shell: pwsh
 
       - name: Create Release & Upload
         if: github.event_name == 'push'
         uses: softprops/action-gh-release@v2
         with:
-          name: 学程 Latest
-          tag_name: latest
+          name: 学程 v${{ steps.version.outputs.version }}
+          tag_name: v${{ steps.version.outputs.version }}
           body: |
-            自动构建 · `${{ github.sha }}`
-            ${{ github.event.head_commit.message }}
-          files: StudyJourney-win-x64.zip
+            ## 学程 v${{ steps.version.outputs.version }}
+
+            **自包含版** (`-win-x64.zip`)：无需安装 .NET，直接运行。体积较大。
+            **框架依赖版** (`-win-x64-fd.zip`)：需安装 [.NET 8 桌面运行时](https://dotnet.microsoft.com/download/dotnet/8.0)。体积较小。
+
+            > 自动构建 · `${{ github.sha }}`
+            > ${{ github.event.head_commit.message }}
+          files: |
+            StudyJourney-v${{ steps.version.outputs.version }}-win-x64.zip
+            StudyJourney-v${{ steps.version.outputs.version }}-win-x64-fd.zip
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload artifact
+      - name: Upload SC artifact
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
-          name: StudyJourney-win-x64
-          path: publish/
+          name: StudyJourney-v${{ steps.version.outputs.version }}-win-x64
+          path: publish/sc/
+
+      - name: Upload FD artifact
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: StudyJourney-v${{ steps.version.outputs.version }}-win-x64-fd
+          path: publish/fd/
