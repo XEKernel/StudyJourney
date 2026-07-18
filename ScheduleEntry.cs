@@ -56,7 +56,8 @@ namespace GaokaoCountdown
         {
             get
             {
-                if (TimeSpan.TryParse(EndTimeStr, out var t)) return t;
+                if (TimeSpan.TryParseExact(EndTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t;
+                if (TimeSpan.TryParse(EndTimeStr, out t)) return t;
                 return TimeSpan.FromMinutes(45);
             }
         }
@@ -94,7 +95,7 @@ namespace GaokaoCountdown
         [JsonIgnore]
         public TimeSpan EndTime
         {
-            get { if (TimeSpan.TryParse(EndTimeStr, out var t)) return t; return TimeSpan.FromHours(2.5); }
+            get { if (TimeSpan.TryParseExact(EndTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t; return TimeSpan.FromHours(2.5); }
         }
 
         [JsonIgnore]

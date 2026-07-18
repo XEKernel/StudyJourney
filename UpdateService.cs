@@ -24,19 +24,18 @@ namespace GaokaoCountdown
             DefaultRequestHeaders = { { "User-Agent", "StudyJourney-UpdateCheck" } }
         };
 
-        /// <summary>获取当前应用版本号（从 Assembly 读取）</summary>
-        public static string CurrentVersion
+        /// <summary>获取当前应用版本号（从 Assembly 读取，缓存为 Lazy）</summary>
+        private static readonly Lazy<string> _currentVersion = new(() =>
         {
-            get
+            try
             {
-                try
-                {
-                    var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-                    return ver != null ? $"{ver.Major}.{ver.Minor}" : "1.5";
-                }
-                catch { return "1.5"; }
+                var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+                return ver != null ? $"{ver.Major}.{ver.Minor}" : "1.5";
             }
-        }
+            catch { return "1.5"; }
+        });
+
+        public static string CurrentVersion => _currentVersion.Value;
 
         /// <summary>检查 GitHub Release 最新版本</summary>
         public static async Task<UpdateInfo> CheckAsync(string owner, string repo)

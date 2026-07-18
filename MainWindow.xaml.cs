@@ -93,6 +93,8 @@ namespace GaokaoCountdown
         private string? _lastFontFamily; // 缓存字体族，避免每秒重复设置
         private List<TextBlock>? _cachedChineseTextBlocks; // 缓存中文面板 TextBlock 列表
         private List<TextBlock>? _cachedEnglishTextBlocks; // 缓存英文面板 TextBlock 列表
+        private DateTime _lastCountdownComputeDay = DateTime.MinValue; // 缓存自定义倒计时计算日期
+        private (DateTime Date, string Name)? _cachedNearestCountdown; // 缓存最近自定义倒计时
         private DispatcherTimer? _classEndRestoreTimer; // 下课后延迟恢复计时器
         private DispatcherTimer? _maximizeCheckTimer;
         private bool _isPositioning = false;   // 程序化定位中，抑制 LocationChanged 回写
@@ -1075,18 +1077,34 @@ namespace GaokaoCountdown
             }
 
             var now = DateTime.Now;
-            DateTime? nearestDate = null;
-            string nearestName = "";
-            foreach (var cc in list)
+            var todayDate = now.Date;
+            DateTime? nearestDate;
+            string nearestName;
+
+            // 缓存：仅当日期变化或缓存无效时重新计算最近倒计时
+            if (_cachedNearestCountdown != null && _lastCountdownComputeDay == todayDate)
             {
-                if (DateTime.TryParse(cc.DateStr, out var dt))
+                var (cachedDate, cachedName) = _cachedNearestCountdown.Value;
+                nearestDate = cachedDate;
+                nearestName = cachedName;
+            }
+            else
+            {
+                nearestDate = null;
+                nearestName = "";
+                foreach (var cc in list)
                 {
-                    if (dt > now && (nearestDate == null || dt < nearestDate))
+                    if (DateTime.TryParse(cc.DateStr, out var dt))
                     {
-                        nearestDate = dt;
-                        nearestName = cc.Name;
+                        if (dt > now && (nearestDate == null || dt < nearestDate))
+                        {
+                            nearestDate = dt;
+                            nearestName = cc.Name;
+                        }
                     }
                 }
+                _lastCountdownComputeDay = todayDate;
+                _cachedNearestCountdown = nearestDate != null ? (nearestDate.Value, nearestName) : null;
             }
 
             if (nearestDate == null)
