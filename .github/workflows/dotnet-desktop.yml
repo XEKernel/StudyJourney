@@ -71,8 +71,8 @@ jobs:
 
       - name: Copy Updater to both outputs
         run: |
-          copy publish\updater\StudyJourney.Updater.exe publish\sc\ /Y
-          copy publish\updater\StudyJourney.Updater.exe publish\fd\ /Y
+          Copy-Item -Path publish\updater\StudyJourney.Updater.exe -Destination publish\sc\ -Force
+          Copy-Item -Path publish\updater\StudyJourney.Updater.exe -Destination publish\fd\ -Force
         shell: pwsh
 
       # ── 代码签名（两个版本） ──
