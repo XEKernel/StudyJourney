@@ -378,14 +378,22 @@ namespace GaokaoCountdown
                         {
                             Dispatcher.Invoke(() =>
                             {
+                                var mode = info.IsSelfContained ? "自包含版" : "框架依赖版";
                                 var r = MessageBox.Show(
-                                    $"新版本 v{info.LatestVersion} 可用！（当前 v{UpdateService.CurrentVersion}）\n\n" +
-                                    $"是否前往 GitHub 下载？",
+                                    $"新版本 v{info.LatestVersion} 可用！（当前 v{UpdateService.CurrentVersion}）\n" +
+                                    $"将自动下载 {mode}\n\n是否立即更新？",
                                     "学程 — 发现新版本",
                                     MessageBoxButton.YesNo,
                                     MessageBoxImage.Information);
                                 if (r == MessageBoxResult.Yes)
-                                    Process.Start(new ProcessStartInfo(info.DownloadUrl) { UseShellExecute = true });
+                                {
+                                    _ = Task.Run(async () =>
+                                    {
+                                        var result = await UpdateService.StartUpdateAsync(info.DownloadUrl,
+                                            Environment.ProcessId);
+                                        if (result) Environment.Exit(0);
+                                    });
+                                }
                             });
                         }
                     }

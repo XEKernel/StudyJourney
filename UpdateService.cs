@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -97,25 +98,48 @@ namespace GaokaoCountdown
             };
         }
 
-        /// <summary>后台下载更新 zip 到临时目录，返回文件路径（null=失败）</summary>
-        public static async Task<string?> DownloadAsync(string downloadUrl, IProgress<int>? progress = null)
+        /// <summary>启动更新程序：下载→退出→替换→重启</summary>
+        public static async Task<bool> StartUpdateAsync(string downloadUrl, int currentPid)
         {
             try
             {
-                var response = await _http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
-                response.EnsureSuccessStatusCode();
-
+                // 下载到临时目录
                 string tmpDir = Path.Combine(Path.GetTempPath(), "StudyJourneyUpdate");
                 Directory.CreateDirectory(tmpDir);
-                string outPath = Path.Combine(tmpDir, "StudyJourney-update.zip");
+                string zipPath = Path.Combine(tmpDir, "update.zip");
 
+                using var response = await _http.GetAsync(downloadUrl, HttpCompletionOption.ResponseHeadersRead);
+                response.EnsureSuccessStatusCode();
                 using var stream = await response.Content.ReadAsStreamAsync();
-                using var file = File.Create(outPath);
+                using var file = File.Create(zipPath);
                 await stream.CopyToAsync(file);
 
-                return outPath;
+                // 启动更新程序
+                string updaterPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "StudyJourney.Updater.exe");
+                string targetDir = AppDomain.CurrentDomain.BaseDirectory;
+                string exePath = Path.Combine(targetDir, "学程.exe");
+
+                if (!File.Exists(updaterPath))
+                {
+                    System.Diagnostics.Debug.WriteLine("[Updater] 更新程序未找到: " + updaterPath);
+                    return false;
+                }
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = updaterPath,
+                    Arguments = $"--pid {currentPid} --zip \"{zipPath}\" --target \"{targetDir}\" --exe \"{exePath}\"",
+                    UseShellExecute = true,
+                    WindowStyle = ProcessWindowStyle.Hidden
+                });
+
+                return true;
             }
-            catch { return null; }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Updater] 启动失败: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>简易版本比较（支持 1.6 > 1.5 > 1.10）</summary>

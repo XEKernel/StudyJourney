@@ -1624,12 +1624,29 @@ namespace GaokaoCountdown
                 var info = await UpdateService.CheckAsync("XEKernel", "StudyJourney");
                 if (info.HasUpdate)
                 {
+                    var modeText = info.IsSelfContained ? "自包含版" : "框架依赖版";
                     var r = MessageBox.Show(
-                        $"发现新版本 v{info.LatestVersion}！（当前 v{UpdateService.CurrentVersion}）\n\n是否前往下载？",
+                        $"发现新版本 v{info.LatestVersion}！（当前 v{UpdateService.CurrentVersion}）\n" +
+                        $"将自动下载 {modeText}\n\n是否立即更新？",
                         "检查更新", MessageBoxButton.YesNo, MessageBoxImage.Information);
                     if (r == MessageBoxResult.Yes)
-                        System.Diagnostics.Process.Start(
-                            new System.Diagnostics.ProcessStartInfo(info.DownloadUrl) { UseShellExecute = true });
+                    {
+                        btn.IsEnabled = false;
+                        var result = await UpdateService.StartUpdateAsync(info.DownloadUrl,
+                            Environment.ProcessId);
+                        if (result)
+                        {
+                            // 更新程序已启动，退出应用
+                            Environment.Exit(0);
+                        }
+                        else
+                        {
+                            MessageBox.Show("更新程序启动失败，请手动下载。\n" + info.DownloadUrl,
+                                "检查更新", MessageBoxButton.OK, MessageBoxImage.Warning);
+                            System.Diagnostics.Process.Start(
+                                new System.Diagnostics.ProcessStartInfo(info.DownloadUrl) { UseShellExecute = true });
+                        }
+                    }
                 }
                 else
                 {

@@ -54,12 +54,21 @@ jobs:
       - name: Build (Debug)
         run: dotnet build ${{ env.Solution_Name }} -c Debug --no-restore
 
-      # ── 发布两个版本 ──
+      # ── 发布三个项目 ──
       - name: Publish (Self-contained, x64)
         run: dotnet publish ${{ env.Project_Name }} -c Release -r win-x64 --self-contained true -o publish/sc
 
       - name: Publish (Framework-dependent, x64)
         run: dotnet publish ${{ env.Project_Name }} -c Release -r win-x64 --self-contained false -o publish/fd
+
+      - name: Publish Updater (SC)
+        run: dotnet publish Updater/StudyJourney.Updater.csproj -c Release -r win-x64 --self-contained true -o publish/updater
+
+      - name: Copy Updater to both outputs
+        run: |
+          copy publish\updater\StudyJourney.Updater.exe publish\sc\ /Y
+          copy publish\updater\StudyJourney.Updater.exe publish\fd\ /Y
+        shell: pwsh
 
       # ── 代码签名（两个版本） ──
       - name: Import signing certificate

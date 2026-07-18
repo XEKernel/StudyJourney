@@ -26,6 +26,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Remove="Updater\**" />
 		<Content Include="icon.ico">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>

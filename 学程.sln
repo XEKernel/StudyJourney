@@ -10,6 +10,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "解决方案项", "解决�
 		Settings.cs = Settings.cs
 	EndProjectSection
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StudyJourney.Updater", "Updater\StudyJourney.Updater.csproj", "{73A8969F-754D-4209-9046-19C5D9714C75}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +22,10 @@ Global
 		{AD25BD16-4238-49E7-9303-AEF7124364E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AD25BD16-4238-49E7-9303-AEF7124364E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AD25BD16-4238-49E7-9303-AEF7124364E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73A8969F-754D-4209-9046-19C5D9714C75}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73A8969F-754D-4209-9046-19C5D9714C75}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73A8969F-754D-4209-9046-19C5D9714C75}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73A8969F-754D-4209-9046-19C5D9714C75}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
