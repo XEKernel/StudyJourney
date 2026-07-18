@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Media;
 
@@ -91,7 +91,32 @@ namespace GaokaoCountdown
         {
             if (button == MessageBoxButton.YesNo)
                 return ShowYesNo(message, caption) ? MessageBoxResult.Yes : MessageBoxResult.No;
-            ShowInfo(message, caption);
+            if (button == MessageBoxButton.OKCancel)
+            {
+                // OKCancel map to YesNo — Cancel = null/close returns No
+                bool? okRes = null;
+                MessageBoxControl mb = null!;
+                var overlay = new DialogOverlayWindow();
+                var themeIcon = ThemeMessageBoxIcon.Question;
+                if (image == MessageBoxImage.Error) themeIcon = ThemeMessageBoxIcon.Error;
+                else if (image == MessageBoxImage.Warning) themeIcon = ThemeMessageBoxIcon.Warning;
+                else if (image == MessageBoxImage.Question) themeIcon = ThemeMessageBoxIcon.Question;
+                else if (image == MessageBoxImage.Information) themeIcon = ThemeMessageBoxIcon.Info;
+                mb = new MessageBoxControl(caption, message, ThemeMessageBoxButton.YesNo, themeIcon, () =>
+                {
+                    okRes = mb.Result;
+                    overlay.CloseWithFade();
+                });
+                overlay.SetContent(mb);
+                ShowDialogCore(overlay);
+                return okRes == true ? MessageBoxResult.OK : MessageBoxResult.Cancel;
+            }
+            // Map image to themed icon
+            var icon = ThemeMessageBoxIcon.Info;
+            if (image == MessageBoxImage.Error) icon = ThemeMessageBoxIcon.Error;
+            else if (image == MessageBoxImage.Warning) icon = ThemeMessageBoxIcon.Warning;
+            else if (image == MessageBoxImage.Question) icon = ThemeMessageBoxIcon.Question;
+            ShowMsg(caption, message, ThemeMessageBoxButton.OK, icon);
             return MessageBoxResult.OK;
         }
     }

@@ -979,16 +979,6 @@ namespace GaokaoCountdown
             // 主窗口动画开关，在 Apply 时生效
         }
 
-        private void EnableSettingsAnimationsCheck_Changed(object sender, RoutedEventArgs e)
-        {
-            _enableSettingsAnimations = EnableSettingsAnimationsCheck.IsChecked == true;
-            if (_isInitializing) return;
-            if (_enableSettingsAnimations)
-                ApplyControlAnimations();
-            else
-                RemoveControlAnimations();
-        }
-
         private void AutoStartCheck_Changed(object sender, RoutedEventArgs e)
         {
             bool enable = AutoStartCheck.IsChecked == true;

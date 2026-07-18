@@ -217,7 +217,7 @@ namespace GaokaoCountdown
         public string ExamCountdownFontFamily    { get; set; } = "Consolas";
 
         // ── 持久化 ────────────────────────────────────────────
-        private static readonly string SettingsPath = "settings.json";
+        private static readonly string SettingsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json");
 
         public static AppSettings Load()
         {
@@ -239,7 +239,8 @@ namespace GaokaoCountdown
                         System.Diagnostics.Debug.WriteLine($"[AppSettings] 已备份损坏文件: {bak}");
                     }
                     catch { }
-                    throw new InvalidOperationException("设置文件已损坏。\n原文件已备份为 settings.json.corrupted.*，当前使用默认设置。\n" + ex.Message, ex);
+                    System.Diagnostics.Debug.WriteLine($"[AppSettings] 设置文件加载失败，使用默认设置: {ex.Message}");
+                    return new AppSettings();
                 }
             }
             return new AppSettings();

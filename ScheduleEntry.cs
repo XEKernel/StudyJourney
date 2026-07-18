@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -46,7 +46,7 @@ namespace GaokaoCountdown
         {
             get
             {
-                if (TimeSpan.TryParse(StartTimeStr, out var t)) return t;
+                if (TimeSpan.TryParseExact(StartTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t;
                 return TimeSpan.Zero;
             }
         }
@@ -88,7 +88,7 @@ namespace GaokaoCountdown
         [JsonIgnore]
         public TimeSpan StartTime
         {
-            get { if (TimeSpan.TryParse(StartTimeStr, out var t)) return t; return TimeSpan.Zero; }
+            get { if (TimeSpan.TryParseExact(StartTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t; return TimeSpan.Zero; }
         }
 
         [JsonIgnore]
@@ -208,7 +208,8 @@ namespace GaokaoCountdown
                     System.Diagnostics.Debug.WriteLine($"[ScheduleData] 已备份损坏文件: {bak}");
                 }
                 catch { }
-                throw new InvalidOperationException("课表文件已损坏。\n原文件已备份为 schedule.json.corrupted.*，当前使用空课表。\n" + ex.Message, ex);
+                System.Diagnostics.Debug.WriteLine($"[ScheduleData] 课表文件加载失败，使用空课表: {ex.Message}");
+                return new ScheduleData();
             }
             return new ScheduleData();
         }

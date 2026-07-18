@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -47,7 +47,13 @@ namespace GaokaoCountdown
                 RVal.Text = c.R.ToString(); GVal.Text = c.G.ToString(); BVal.Text = c.B.ToString();
                 PreviewRect.Fill = new SolidColorBrush(c);
             }
-            catch { PreviewRect.Fill = new SolidColorBrush(Colors.White); }
+            catch
+            {
+                RSlider.Value = 255; GSlider.Value = 255; BSlider.Value = 255;
+                RVal.Text = "255"; GVal.Text = "255"; BVal.Text = "255";
+                HexBox.Text = "#FFFFFFFF";
+                PreviewRect.Fill = new SolidColorBrush(Colors.White);
+            }
             _updating = false;
 
             HexBox.Text = initialHex;

@@ -24,12 +24,6 @@ namespace GaokaoCountdown
         //  课表 Tab 事件处理
         // ══════════════════════════════════════════════════════
 
-        private void ScheduleBarOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            if (ScheduleBarOpacityLabel != null)
-                ScheduleBarOpacityLabel.Text = $"{e.NewValue * 100:F0}%";
-        }
-
         private void BrowseReminderSound_Click(object sender, RoutedEventArgs e)
         {
             var dlg = new Microsoft.Win32.OpenFileDialog
@@ -85,22 +79,6 @@ namespace GaokaoCountdown
             var json = System.Text.Json.JsonSerializer.Serialize(sm.Data, opts);
             System.IO.File.WriteAllText(dlg.FileName, json);
             ScheduleStatusTb.Text = $"已导出到 {dlg.FileName}";
-        }
-
-        private void OpenScheduleJson_Click(object sender, RoutedEventArgs e)
-        {
-            var path = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "schedule.json");
-            if (!System.IO.File.Exists(path))
-            {
-                // 创建默认空课表
-                var empty = new ScheduleData();
-                empty.Save();
-            }
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-            {
-                FileName = path,
-                UseShellExecute = true
-            });
         }
 
         // ══════════════════════════════════════════════════════
@@ -473,8 +451,6 @@ namespace GaokaoCountdown
             RefreshTimetableStatus();
             ScheduleStatusTb.Text += "  ✅ 已保存";
         }
-
-        private void DeleteScheduleEntry_Click(object sender, RoutedEventArgs e) { /* 课程表网格不再需要 */ }
 
         // ══════════════════════════════════════════════════════
         //  考试 DataGrid 直编辑

@@ -20,6 +20,7 @@ namespace GaokaoCountdown
         private string _currentSubjectName = string.Empty;
         private bool   _warnShown          = false;
         private bool   _autoExited         = false;  // 防止重复自动退出
+        private int    _lastBeepSecond     = -1;     // 防止重复蜂鸣
 
         public ExamModeWindow(ScheduleManager manager, AppSettings settings)
         {
@@ -47,7 +48,13 @@ namespace GaokaoCountdown
             };
             var fadeAnim = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(350))
             {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut },
+                FillBehavior = FillBehavior.Stop
+            };
+            fadeAnim.Completed += (_, _) =>
+            {
+                MainGrid.BeginAnimation(UIElement.OpacityProperty, null);
+                MainGrid.Opacity = 1;
             };
             scaleAnim.Completed += (_, _) => MainGrid.RenderTransform = Transform.Identity;
             MainGrid.RenderTransform.BeginAnimation(ScaleTransform.ScaleXProperty, scaleAnim);
@@ -332,10 +339,15 @@ namespace GaokaoCountdown
                 WarningTb.Visibility = Visibility.Visible;
                 System.Media.SystemSounds.Beep.Play();
             }
-            // 5 分钟临界提醒（每秒蜂鸣）
-            if (remaining.TotalMinutes <= 5 && remaining.TotalSeconds % 2 == 0)
+            // 5 分钟临界提醒（每秒蜂鸣，避免重复）
+            if (remaining.TotalMinutes <= 5)
             {
-                System.Media.SystemSounds.Beep.Play();
+                int currentSecond = (int)remaining.TotalSeconds;
+                if (currentSecond != _lastBeepSecond)
+                {
+                    _lastBeepSecond = currentSecond;
+                    System.Media.SystemSounds.Beep.Play();
+                }
             }
             // 科目切换后重置警告
             if (subject.Name != _currentSubjectName)

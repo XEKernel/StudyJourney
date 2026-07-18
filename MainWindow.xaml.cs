@@ -88,6 +88,11 @@ namespace GaokaoCountdown
         // ── 最大化检测：记录上次隐藏状态，避免重复操作 ──
         private bool _hiddenByMaximize = false;
         private bool _hiddenByScheduleOrExam = false; // 因上课/考试而隐藏
+        private string? _cachedHideSubjects; // 缓存 HideSubjects 字符串
+        private HashSet<string> _cachedHiddenSet = new(StringComparer.OrdinalIgnoreCase); // 缓存解析结果
+        private string? _lastFontFamily; // 缓存字体族，避免每秒重复设置
+        private List<TextBlock>? _cachedChineseTextBlocks; // 缓存中文面板 TextBlock 列表
+        private List<TextBlock>? _cachedEnglishTextBlocks; // 缓存英文面板 TextBlock 列表
         private DispatcherTimer? _classEndRestoreTimer; // 下课后延迟恢复计时器
         private DispatcherTimer? _maximizeCheckTimer;
         private bool _isPositioning = false;   // 程序化定位中，抑制 LocationChanged 回写
@@ -270,7 +275,7 @@ namespace GaokaoCountdown
                 if (enable)
                 {
                     // 使用当前程序路径，带引号防止路径含空格
-                    string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule!.FileName;
+                    string exePath = Environment.ProcessPath ?? System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
                     key.SetValue(AutoStartKeyName, $"\"{exePath}\"");
                 }
                 else
@@ -641,8 +646,7 @@ namespace GaokaoCountdown
         /// <summary>让进度条宽度匹配中文倒计时文字的实际渲染宽度</summary>
         private void SyncProgressBarWidth()
         {
-            ChinesePanel.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-            ProgressBar.Width = ChinesePanel.DesiredSize.Width;
+            ProgressBar.Width = ChinesePanel.ActualWidth;
         }
 
         // ── 定时器 ─────────────────────────────────────────────
@@ -708,10 +712,14 @@ namespace GaokaoCountdown
             // HideSubjects 非空时只隐藏匹配科目，为空则所有科目都隐藏
             if (isInClass && !string.IsNullOrWhiteSpace(settings.HideSubjects))
             {
-                var hiddenSet = settings.HideSubjects
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-                isInClass = curEntry != null && hiddenSet.Contains(curEntry.Subject);
+                if (settings.HideSubjects != _cachedHideSubjects)
+                {
+                    _cachedHideSubjects = settings.HideSubjects;
+                    _cachedHiddenSet = settings.HideSubjects
+                        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                }
+                isInClass = curEntry != null && _cachedHiddenSet.Contains(curEntry.Subject);
             }
             bool isInExam    = _examModeWindow != null;
             bool shouldHide  = isInClass || isInExam;
@@ -959,11 +967,15 @@ namespace GaokaoCountdown
             if (ProgressBar.Effect is DropShadowEffect pg)
                 pg.Color = ProgressBarColor;
 
-            // ── 字体族（统一设置）─────────────────────────────────
-            ChinesePanel.Children.OfType<TextBlock>().ToList().ForEach(tb =>
-                tb.FontFamily = CountdownFontFamily);
-            EnglishPanel.Children.OfType<TextBlock>().ToList().ForEach(tb =>
-                tb.FontFamily = CountdownFontFamily);
+            // ── 字体族（仅在变更时设置）─────────────────────
+            if (_lastFontFamily != CountdownFontFamily.Source)
+            {
+                _lastFontFamily = CountdownFontFamily.Source;
+                _cachedChineseTextBlocks ??= ChinesePanel.Children.OfType<TextBlock>().ToList();
+                _cachedEnglishTextBlocks ??= EnglishPanel.Children.OfType<TextBlock>().ToList();
+                _cachedChineseTextBlocks.ForEach(tb => tb.FontFamily = CountdownFontFamily);
+                _cachedEnglishTextBlocks.ForEach(tb => tb.FontFamily = CountdownFontFamily);
+            }
             // 直接设置数字块字号（中文行）
             DaysTb.FontSize    = CountdownFontSize;
             HoursTb.FontSize   = CountdownFontSize;

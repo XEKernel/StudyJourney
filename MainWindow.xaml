@@ -110,7 +110,7 @@
                      Background="#33000000"
                      Foreground="#FFFFFF">
             <ProgressBar.Effect>
-                <DropShadowEffect x:Name="ProgressBarGlow" Color="#FFFFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.6"/>
+                <DropShadowEffect Color="#FFFFFF" BlurRadius="8" ShadowDepth="0" Opacity="0.6"/>
             </ProgressBar.Effect>
         </ProgressBar>
 

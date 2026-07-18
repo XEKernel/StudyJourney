@@ -6,6 +6,8 @@ namespace GaokaoCountdown
 {
     public partial class DialogOverlayWindow : Window
     {
+        private bool _isClosing;
+
         public DialogOverlayWindow()
         {
             InitializeComponent();
@@ -37,6 +39,8 @@ namespace GaokaoCountdown
 
         public void CloseWithFade()
         {
+            if (_isClosing) return;
+            _isClosing = true;
             var fadeOut = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(150))
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }

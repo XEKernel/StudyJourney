@@ -52,6 +52,11 @@ namespace GaokaoCountdown
         private DispatcherTimer? _countdown60Timer;
         private int _countdown60Remaining;
 
+        // ── 提示音播放器（保持引用防止 GC 回收）───────────
+        private System.Media.SoundPlayer? _reminderPlayer;
+
+        // ── 60s 倒计时去重（防止 ExamMode 500ms 定时器重复蜂鸣）───
+        private int _lastBeepSecond = -1;
         // ── 事件 ──────────────────────────────────────────
         public event EventHandler<ReminderEventArgs>? Reminder;
         /// <summary>60 秒倒计时每秒更新（参数=剩余秒数），倒计时结束时参数=0</summary>
@@ -203,8 +208,17 @@ namespace GaokaoCountdown
             if (type != ReminderType.ClassEndSoon && type != ReminderType.ClassEnd && type != ReminderType.ExamEndSoon)
                 PlaySound();
 
-            // 发出事件（UI 订阅者通过 ReminderWindow 显示自定义通知）
-            Reminder?.Invoke(this, new ReminderEventArgs(type, title, message));
+            // 发出事件 — 遍历调用列表，单个订阅者异常不影响其他
+            var handler = Reminder;
+            if (handler != null)
+            {
+                var args = new ReminderEventArgs(type, title, message);
+                foreach (EventHandler<ReminderEventArgs> d in handler.GetInvocationList())
+                {
+                    try { d(this, args); }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[ReminderService] 事件订阅者异常: {ex.Message}"); }
+                }
+            }
         }
 
         private void PlaySound()
@@ -215,8 +229,9 @@ namespace GaokaoCountdown
                 var path = _settings.ReminderSoundPath;
                 if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
                 {
-                    var player = new SoundPlayer(path);
-                    player.Play();
+                    _reminderPlayer?.Dispose();
+                    _reminderPlayer = new System.Media.SoundPlayer(path);
+                    _reminderPlayer.Play();
                 }
                 else
                 {
@@ -249,9 +264,12 @@ namespace GaokaoCountdown
 
         public void Dispose()
         {
+            _timer.Tick -= OnTick;
             _timer.Stop();
             _countdown60Timer?.Stop();
             _countdown60Timer = null;
+            _reminderPlayer?.Dispose();
+            _reminderPlayer = null;
         }
     }
 }
