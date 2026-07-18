@@ -40,9 +40,7 @@ namespace GaokaoCountdown
         /// <summary>检查 GitHub Release 最新版本</summary>
         public static async Task<UpdateInfo> CheckAsync(string owner, string repo)
         {
-            try
-            {
-                string url = $"https://api.github.com/repos/{owner}/{repo}/releases/latest";
+            string url = $"https://api.github.com/repos/{owner}/{repo}/releases/latest";
                 var json = await _http.GetStringAsync(url);
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
@@ -66,11 +64,6 @@ namespace GaokaoCountdown
                         : htmlUrl,
                     ReleaseNotes = body.Length > 500 ? body[..500] + "…" : body
                 };
-            }
-            catch
-            {
-                return new UpdateInfo { HasUpdate = false };
-            }
         }
 
         /// <summary>简易版本比较（支持 1.5 > 1.4 > 1.10）</summary>
