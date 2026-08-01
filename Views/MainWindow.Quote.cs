@@ -34,18 +34,18 @@ namespace GaokaoCountdown.Views
         private async Task LoadDailyQuoteAsync()
         {
             // 窗口隐藏时（上课/考试中）不请求 API
-            if (Visibility != Visibility.Visible || !ShowDailyQuote) return;
+            if (Visibility != Visibility.Visible || !settings.ShowDailyQuote) return;
             try
             {
-                string url = string.IsNullOrWhiteSpace(QuoteApiUrl)
-                    ? "https://uapis.cn/api/v1/saying" : QuoteApiUrl;
+                string url = string.IsNullOrWhiteSpace(settings.QuoteApiUrl)
+                    ? "https://uapis.cn/api/v1/saying" : settings.QuoteApiUrl;
                 var json = await _httpClient.GetStringAsync(url);
 
                 // 使用动态字段名解析 JSON（支持自定义 API）
                 using var doc = JsonDocument.Parse(json);
                 var root = doc.RootElement;
-                string fieldName = string.IsNullOrWhiteSpace(QuoteTextFieldName)
-                    ? "text" : QuoteTextFieldName.Trim();
+                string fieldName = string.IsNullOrWhiteSpace(settings.QuoteTextFieldName)
+                    ? "text" : settings.QuoteTextFieldName.Trim();
                 string? quoteText = root.TryGetProperty(fieldName, out var prop) && prop.ValueKind == JsonValueKind.String
                     ? prop.GetString() : null;
                 if (string.IsNullOrWhiteSpace(quoteText)) return;
@@ -75,11 +75,11 @@ namespace GaokaoCountdown.Views
         /// <summary>将当前设置中的字体大小、颜色、斜体应用到 DailyQuoteTb</summary>
         public void ApplyQuoteStyle()
         {
-            DailyQuoteTb.FontSize = QuoteFontSize;
-            DailyQuoteTb.FontStyle = QuoteItalic ? FontStyles.Italic : FontStyles.Normal;
+            DailyQuoteTb.FontSize = settings.QuoteFontSize;
+            DailyQuoteTb.FontStyle = settings.QuoteItalic ? FontStyles.Italic : FontStyles.Normal;
             try
             {
-                var c = (Color)ColorConverter.ConvertFromString(QuoteForegroundHex);
+                var c = (Color)ColorConverter.ConvertFromString(settings.QuoteForegroundHex);
                 DailyQuoteTb.Foreground = new SolidColorBrush(c);
             }
             catch { }
@@ -91,8 +91,8 @@ namespace GaokaoCountdown.Views
             _quoteRefreshTimer?.Stop();
             _quoteRefreshTimer = null;
 
-            if (!ShowDailyQuote) return;
-            int intervalSec = QuoteAutoRefreshInterval;
+            if (!settings.ShowDailyQuote) return;
+            int intervalSec = settings.QuoteAutoRefreshInterval;
             if (intervalSec <= 0) return;
 
             _quoteRefreshTimer = new DispatcherTimer

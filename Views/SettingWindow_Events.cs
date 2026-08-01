@@ -302,12 +302,12 @@ namespace GaokaoCountdown.Views
         private void RefreshCustomCountdownGrid()
         {
             CustomCountdownGrid.ItemsSource = null;
-            CustomCountdownGrid.ItemsSource = _mainWindow.CustomCountdowns;
+            CustomCountdownGrid.ItemsSource = _settings.CustomCountdowns;
         }
 
         private void AddCustomCountdown_Click(object sender, RoutedEventArgs e)
         {
-            _mainWindow.CustomCountdowns.Add(new CustomCountdown { Name = "新目标", DateStr = "2027-01-01" });
+            _settings.CustomCountdowns.Add(new CustomCountdown { Name = "新目标", DateStr = "2027-01-01" });
             _mainWindow.SaveSettings();
             RefreshCustomCountdownGrid();
         }
@@ -315,7 +315,7 @@ namespace GaokaoCountdown.Views
         private void DeleteCustomCountdown_Click(object sender, RoutedEventArgs e)
         {
             if (CustomCountdownGrid.SelectedItem is not CustomCountdown cc) return;
-            _mainWindow.CustomCountdowns.Remove(cc);
+            _settings.CustomCountdowns.Remove(cc);
             _mainWindow.SaveSettings();
             RefreshCustomCountdownGrid();
         }

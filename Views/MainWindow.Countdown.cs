@@ -41,7 +41,7 @@ namespace GaokaoCountdown.Views
 
         private void MaximizeCheckTimer_Tick(object? sender, EventArgs e)
         {
-            if (!HideWhenMaximized) return;
+            if (!settings.HideWhenMaximized) return;
 
             IntPtr foreground = GetForegroundWindow();
             // 排除本程序自身的窗口
@@ -62,8 +62,8 @@ namespace GaokaoCountdown.Views
                 _hiddenByMaximize = false;
                 Show();
                 ApplyWindowLayer();
-                FadeHelper.FadeIn(this, 0, Math.Clamp(OverallOpacity, 0.1, 1.0), 350,
-                    () => { if (EnableAnimations) PlayIntroAnimation(); });
+                FadeHelper.FadeIn(this, 0, Math.Clamp(settings.OverallOpacity, 0.1, 1.0), 350,
+                    () => { if (settings.EnableAnimations) PlayIntroAnimation(); });
             }
         }
 
@@ -75,7 +75,7 @@ namespace GaokaoCountdown.Views
             // ── 上课期间隐藏主窗口（可设置科目白名单）──
             var curEntry = _scheduleManager?.GetCurrentEntry(DateTime.Now);
             bool isInClass = settings.HideDuringClass && curEntry != null;
-            // HideSubjects 非空时只隐藏匹配科目，为空则所有科目都隐藏
+            // settings.HideSubjects 非空时只隐藏匹配科目，为空则所有科目都隐藏
             if (isInClass && !string.IsNullOrWhiteSpace(settings.HideSubjects))
             {
                 if (settings.HideSubjects != _cachedHideSubjects)
@@ -118,8 +118,8 @@ namespace GaokaoCountdown.Views
                         _classEndRestoreTimer?.Stop();
                         _classEndRestoreTimer = null;
                         Show();
-                        FadeHelper.FadeIn(this, 0, Math.Clamp(OverallOpacity, 0.1, 1.0), 400,
-                            () => { if (EnableAnimations) PlayIntroAnimation(); });
+                        FadeHelper.FadeIn(this, 0, Math.Clamp(settings.OverallOpacity, 0.1, 1.0), 400,
+                            () => { if (settings.EnableAnimations) PlayIntroAnimation(); });
                         _scheduleBarWindow?.Show();
                         UpdateCountdownDisplay(); // 立即刷新倒计时显示
                     };
@@ -164,17 +164,17 @@ namespace GaokaoCountdown.Views
             }
 
             // ── 脉冲动画：仅当值变化时触发（入场动画期间跳过）──
-            if (EnableAnimations && !introRunning)
+            if (settings.EnableAnimations && !introRunning)
             {
-                if (days != _lastDays && ShowDays)       PulseNumber(DaysTb,    true);
-                if (hours != _lastHours && ShowHours)    PulseNumber(HoursTb,   true);
-                if (minutes != _lastMinutes && ShowMinutes) PulseNumber(MinutesTb, true);
-                if (ShowSeconds) PulseNumber(SecondsTb, false);
+                if (days != _lastDays && settings.ShowDays)       PulseNumber(DaysTb,    true);
+                if (hours != _lastHours && settings.ShowHours)    PulseNumber(HoursTb,   true);
+                if (minutes != _lastMinutes && settings.ShowMinutes) PulseNumber(MinutesTb, true);
+                if (settings.ShowSeconds) PulseNumber(SecondsTb, false);
 
-                if (days != _lastDays && ShowDays)       PulseNumber(DaysEnTb,    false);
-                if (hours != _lastHours && ShowHours)    PulseNumber(HoursEnTb,   false);
-                if (minutes != _lastMinutes && ShowMinutes) PulseNumber(MinutesEnTb, false);
-                if (ShowSeconds) PulseNumber(SecondsEnTb, false);
+                if (days != _lastDays && settings.ShowDays)       PulseNumber(DaysEnTb,    false);
+                if (hours != _lastHours && settings.ShowHours)    PulseNumber(HoursEnTb,   false);
+                if (minutes != _lastMinutes && settings.ShowMinutes) PulseNumber(MinutesEnTb, false);
+                if (settings.ShowSeconds) PulseNumber(SecondsEnTb, false);
             }
 
             _lastDays    = days;
@@ -193,7 +193,7 @@ namespace GaokaoCountdown.Views
             if (!introRunning)
             {
                 // 平滑过渡（仅在启用动画时）
-                if (EnableAnimations)
+                if (settings.EnableAnimations)
                 {
                     var pbAnim = new DoubleAnimation(progress * 100, TimeSpan.FromMilliseconds(600))
                     {
@@ -207,7 +207,7 @@ namespace GaokaoCountdown.Views
                 }
             }
 
-            string fmt = "F" + ProgressDecimalDigits;
+            string fmt = "F" + settings.ProgressDecimalDigits;
             double pct = progress * 100.0;
             ProgressText.Text   = $"高中生活已过去 {pct.ToString(fmt)}%";
             ProgressTextEn.Text = $"High school life has passed {pct.ToString(fmt)}%.";
@@ -264,23 +264,23 @@ namespace GaokaoCountdown.Views
         public void UpdateCountdownDisplay()
         {
             // ── 文本内容 ──────────────────────────────────────────
-            ChinesePrefixTb.Text = ChinesePrefix;
-            ChineseDaysTb.Text   = ChineseDaysText;
-            ChineseHoursTb.Text  = ChineseHoursText;
-            ChineseMinutesTb.Text = ChineseMinutesText;
-            ChineseSecondsTb.Text = ChineseSecondsText;
+            ChinesePrefixTb.Text = settings.ChinesePrefix;
+            ChineseDaysTb.Text   = settings.ChineseDaysText;
+            ChineseHoursTb.Text  = settings.ChineseHoursText;
+            ChineseMinutesTb.Text = settings.ChineseMinutesText;
+            ChineseSecondsTb.Text = settings.ChineseSecondsText;
 
-            EnglishPrefixTb.Text  = EnglishPrefix;
-            EnglishDaysTb.Text    = EnglishDaysText;
-            EnglishHoursTb.Text   = EnglishHoursText;
-            EnglishMinutesTb.Text = EnglishMinutesText;
-            EnglishSecondsTb.Text = EnglishSecondsText;
+            EnglishPrefixTb.Text  = settings.EnglishPrefix;
+            EnglishDaysTb.Text    = settings.EnglishDaysText;
+            EnglishHoursTb.Text   = settings.EnglishHoursText;
+            EnglishMinutesTb.Text = settings.EnglishMinutesText;
+            EnglishSecondsTb.Text = settings.EnglishSecondsText;
 
             // ── 颜色刷（仅颜色变更时重建）─────────────────────────
-            if (_textBrushCache.Color != TextColor)
-                _textBrushCache = new SolidColorBrush(TextColor);
-            if (_numberBrushCache.Color != NumberColor)
-                _numberBrushCache = new SolidColorBrush(NumberColor);
+            if (_textBrushCache.Color != settings.TextColor)
+                _textBrushCache = new SolidColorBrush(settings.TextColor);
+            if (_numberBrushCache.Color != settings.NumberColor)
+                _numberBrushCache = new SolidColorBrush(settings.NumberColor);
 
             ChinesePrefixTb.Foreground  = _textBrushCache;
             ChineseDaysTb.Foreground    = _textBrushCache;
@@ -305,20 +305,20 @@ namespace GaokaoCountdown.Views
             SecondsEnTb.Foreground = _numberBrushCache;
 
             // 发光颜色同步
-            if (DaysTb.Effect is DropShadowEffect g1)     g1.Color = NumberColor;
-            if (HoursTb.Effect is DropShadowEffect g2)    g2.Color = NumberColor;
-            if (MinutesTb.Effect is DropShadowEffect g3)  g3.Color = NumberColor;
-            if (SecondsTb.Effect is DropShadowEffect g4)  g4.Color = NumberColor;
+            if (DaysTb.Effect is DropShadowEffect g1)     g1.Color = settings.NumberColor;
+            if (HoursTb.Effect is DropShadowEffect g2)    g2.Color = settings.NumberColor;
+            if (MinutesTb.Effect is DropShadowEffect g3)  g3.Color = settings.NumberColor;
+            if (SecondsTb.Effect is DropShadowEffect g4)  g4.Color = settings.NumberColor;
 
             ProgressText.Foreground   = _textBrushCache;
             ProgressTextEn.Foreground = _textBrushCache;
 
             // ── 进度条颜色 & 发光 ──────────────────────────────
-            if (_progressBrushCache.Color != ProgressBarColor)
-                _progressBrushCache = new SolidColorBrush(ProgressBarColor);
+            if (_progressBrushCache.Color != settings.ProgressBarColor)
+                _progressBrushCache = new SolidColorBrush(settings.ProgressBarColor);
             ProgressBar.Foreground = _progressBrushCache;
             if (ProgressBar.Effect is DropShadowEffect pg)
-                pg.Color = ProgressBarColor;
+                pg.Color = settings.ProgressBarColor;
 
             // ── 字体族（仅在变更时设置）─────────────────────
             if (_lastFontFamily != CountdownFontFamily.Source)
@@ -330,19 +330,19 @@ namespace GaokaoCountdown.Views
                 _cachedEnglishTextBlocks.ForEach(tb => tb.FontFamily = CountdownFontFamily);
             }
             // 直接设置数字块字号（中文行）
-            DaysTb.FontSize    = CountdownFontSize;
-            HoursTb.FontSize   = CountdownFontSize;
-            MinutesTb.FontSize = CountdownFontSize;
-            SecondsTb.FontSize = CountdownFontSize;
+            DaysTb.FontSize    = settings.FontSize;
+            HoursTb.FontSize   = settings.FontSize;
+            MinutesTb.FontSize = settings.FontSize;
+            SecondsTb.FontSize = settings.FontSize;
             // 文字块字号（中文行）
-            ChinesePrefixTb.FontSize = CountdownFontSize;
-            ChineseDaysTb.FontSize   = CountdownFontSize;
-            ChineseHoursTb.FontSize  = CountdownFontSize;
-            ChineseMinutesTb.FontSize = CountdownFontSize;
-            ChineseSecondsTb.FontSize = CountdownFontSize;
+            ChinesePrefixTb.FontSize = settings.FontSize;
+            ChineseDaysTb.FontSize   = settings.FontSize;
+            ChineseHoursTb.FontSize  = settings.FontSize;
+            ChineseMinutesTb.FontSize = settings.FontSize;
+            ChineseSecondsTb.FontSize = settings.FontSize;
 
             // 英文行字号
-            double enSize = CountdownFontSize * 0.4;
+            double enSize = settings.FontSize * 0.4;
             DaysEnTb.FontSize    = enSize;
             HoursEnTb.FontSize   = enSize;
             MinutesEnTb.FontSize = enSize;
@@ -353,7 +353,7 @@ namespace GaokaoCountdown.Views
             EnglishMinutesTb.FontSize = enSize;
             EnglishSecondsTb.FontSize = enSize;
 
-            ProgressText.FontSize   = CountdownFontSize * 0.25;
+            ProgressText.FontSize   = settings.FontSize * 0.25;
             ProgressTextEn.FontSize = ProgressText.FontSize * 0.9;
             ProgressText.FontFamily   = CountdownFontFamily;
             ProgressTextEn.FontFamily = CountdownFontFamily;
@@ -365,17 +365,17 @@ namespace GaokaoCountdown.Views
 
             // ── 显示 / 隐藏行 ──────────────────────────────────
             ChinesePanel.Visibility = Visibility.Visible;  // 中文行始终可见（现在是用户主要信息）
-            EnglishPanel.Visibility = ShowEnglishLine ? Visibility.Visible : Visibility.Collapsed;
-            ProgressBar.Visibility = ShowProgressBar  ? Visibility.Visible : Visibility.Collapsed;
-            ProgressText.Visibility    = ShowProgressText ? Visibility.Visible : Visibility.Collapsed;
-            ProgressTextEn.Visibility = (ShowProgressText && ShowEnglishLine) ? Visibility.Visible : Visibility.Collapsed;
+            EnglishPanel.Visibility = settings.ShowEnglishLine ? Visibility.Visible : Visibility.Collapsed;
+            ProgressBar.Visibility = settings.ShowProgressBar  ? Visibility.Visible : Visibility.Collapsed;
+            ProgressText.Visibility    = settings.ShowProgressText ? Visibility.Visible : Visibility.Collapsed;
+            ProgressTextEn.Visibility = (settings.ShowProgressText && settings.ShowEnglishLine) ? Visibility.Visible : Visibility.Collapsed;
 
             // ── 时间部分（天/时/分/秒）可见性 ──────────────────
             // 中文行：数字 + 标签 同步
-            var daysVis    = ShowDays    ? Visibility.Visible : Visibility.Collapsed;
-            var hoursVis   = ShowHours   ? Visibility.Visible : Visibility.Collapsed;
-            var minutesVis = ShowMinutes ? Visibility.Visible : Visibility.Collapsed;
-            var secondsVis = ShowSeconds ? Visibility.Visible : Visibility.Collapsed;
+            var daysVis    = settings.ShowDays    ? Visibility.Visible : Visibility.Collapsed;
+            var hoursVis   = settings.ShowHours   ? Visibility.Visible : Visibility.Collapsed;
+            var minutesVis = settings.ShowMinutes ? Visibility.Visible : Visibility.Collapsed;
+            var secondsVis = settings.ShowSeconds ? Visibility.Visible : Visibility.Collapsed;
 
             DaysTb.Visibility         = daysVis;
             ChineseDaysTb.Visibility  = daysVis;
@@ -397,10 +397,10 @@ namespace GaokaoCountdown.Views
             EnglishSecondsTb.Visibility  = secondsVis;
 
             // ── 透明度 ──────────────────────────────────────────
-            this.Opacity = Math.Clamp(OverallOpacity, 0.1, 1.0);
+            this.Opacity = Math.Clamp(settings.OverallOpacity, 0.1, 1.0);
 
             // ── 窗口尺寸自适应 ──────────────────────────────────
-            double scaleFactor = (double)CountdownFontSize / BaseFontSize;
+            double scaleFactor = (double)settings.FontSize / BaseFontSize;
             this.Width  = BaseWindowWidth  * scaleFactor;
             this.Height = BaseWindowHeight * scaleFactor * 1.4;
             ProgressBar.Height = 9 * scaleFactor;

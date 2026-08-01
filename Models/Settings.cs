@@ -80,8 +80,8 @@ namespace GaokaoCountdown.Models
         public double OverallOpacity { get; set; } = 1.0;
 
         // ── 窗口位置 ─────────────────────────────────────────
-        // 0=顶部, 1=中上, 2=居中, 3=中下, 4=底部, 5=自定义
-        public int PositionPreset { get; set; } = 1;
+        /// <summary>位置预设：0=顶部, 1=中上, 2=居中, 3=中下, 4=底部, 5=自定义（JSON 持久化保持 int）</summary>
+        public int PositionPreset { get; set; } = PositionPresetValues.UpperCenter;
         public double CustomPositionX { get; set; } = -1;   // -1 表示居中
         public double CustomPositionY { get; set; } = -1;   // -1 表示自动
         public double PositionOffsetY { get; set; } = 0;    // 垂直偏移（像素）
@@ -282,5 +282,16 @@ namespace GaokaoCountdown.Models
                 Helpers.AppLogger.Error("保存设置失败", ex);
             }
         }
+    }
+
+    /// <summary>窗口位置预设常量（消除魔法数字；JSON 中保持 int 存储以兼容旧配置）</summary>
+    public static class PositionPresetValues
+    {
+        public const int Top          = 0;   // 顶部
+        public const int UpperCenter  = 1;   // 中上（默认）
+        public const int Center       = 2;   // 居中
+        public const int LowerCenter  = 3;   // 中下
+        public const int Bottom       = 4;   // 底部
+        public const int Custom       = 5;   // 自定义坐标
     }
 }

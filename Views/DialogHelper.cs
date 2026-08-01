@@ -29,11 +29,11 @@ namespace GaokaoCountdown.Views
         public static Color? ShowColorPicker(string initialColor)
         {
             Color? result = null;
-            ColorPickerControl picker = null!;
             var overlay = new DialogOverlayWindow();
-            picker = new ColorPickerControl(initialColor, () =>
+            var picker = new ColorPickerControl(initialColor, () =>
             {
-                result = picker.SelectedColor;
+                // 闭包延迟执行：点击确定时才读取（此时控件已挂载到 overlay）
+                result = (overlay.ContentHost.Content as ColorPickerControl)?.SelectedColor;
                 overlay.CloseWithFade();
             });
             overlay.SetContent(picker);
@@ -63,11 +63,10 @@ namespace GaokaoCountdown.Views
         public static bool ShowYesNo(string message, string title = "学程")
         {
             bool? res = null;
-            MessageBoxControl mb = null!;
             var overlay = new DialogOverlayWindow();
-            mb = new MessageBoxControl(title, message, ThemeMessageBoxButton.YesNo, ThemeMessageBoxIcon.Question, () =>
+            var mb = new MessageBoxControl(title, message, ThemeMessageBoxButton.YesNo, ThemeMessageBoxIcon.Question, () =>
             {
-                res = mb.Result;
+                res = (overlay.ContentHost.Content as MessageBoxControl)?.Result;
                 overlay.CloseWithFade();
             });
             overlay.SetContent(mb);
@@ -98,16 +97,15 @@ namespace GaokaoCountdown.Views
             {
                 // OKCancel map to YesNo — Cancel = null/close returns No
                 bool? okRes = null;
-                MessageBoxControl mb = null!;
                 var overlay = new DialogOverlayWindow();
                 var themeIcon = ThemeMessageBoxIcon.Question;
                 if (image == MessageBoxImage.Error) themeIcon = ThemeMessageBoxIcon.Error;
                 else if (image == MessageBoxImage.Warning) themeIcon = ThemeMessageBoxIcon.Warning;
                 else if (image == MessageBoxImage.Question) themeIcon = ThemeMessageBoxIcon.Question;
                 else if (image == MessageBoxImage.Information) themeIcon = ThemeMessageBoxIcon.Info;
-                mb = new MessageBoxControl(caption, message, ThemeMessageBoxButton.YesNo, themeIcon, () =>
+                var mb = new MessageBoxControl(caption, message, ThemeMessageBoxButton.YesNo, themeIcon, () =>
                 {
-                    okRes = mb.Result;
+                    okRes = (overlay.ContentHost.Content as MessageBoxControl)?.Result;
                     overlay.CloseWithFade();
                 });
                 overlay.SetContent(mb);

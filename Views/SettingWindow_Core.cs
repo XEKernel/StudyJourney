@@ -21,6 +21,7 @@ namespace GaokaoCountdown.Views
     public partial class SettingWindow : Window
     {
         private readonly MainWindow _mainWindow;
+        private readonly AppSettings _settings;   // 直接引用设置模型，替代 _mainWindow 代理属性
 
         // 运行时动画状态
         private bool _enableSettingsAnimations = true;
@@ -32,6 +33,7 @@ namespace GaokaoCountdown.Views
         {
             InitializeComponent();
             _mainWindow = window;
+            _settings = window.GetSettings();
             ContentRendered += SettingWindow_ContentRendered;
             Closed += SettingWindow_Closed;
         }
@@ -361,28 +363,28 @@ namespace GaokaoCountdown.Views
         private void LoadSettings()
         {
             // ── 文本 ──────────────────────────────────────────
-            ChinesePrefixText.Text  = _mainWindow.ChinesePrefix;
-            ChineseDaysText.Text    = _mainWindow.ChineseDaysText;
-            ChineseHoursText.Text   = _mainWindow.ChineseHoursText;
-            ChineseMinutesText.Text = _mainWindow.ChineseMinutesText;
-            ChineseSecondsText.Text = _mainWindow.ChineseSecondsText;
+            ChinesePrefixText.Text  = _settings.ChinesePrefix;
+            ChineseDaysText.Text    = _settings.ChineseDaysText;
+            ChineseHoursText.Text   = _settings.ChineseHoursText;
+            ChineseMinutesText.Text = _settings.ChineseMinutesText;
+            ChineseSecondsText.Text = _settings.ChineseSecondsText;
 
-            EnglishPrefixText.Text  = _mainWindow.EnglishPrefix;
-            EnglishDaysText.Text    = _mainWindow.EnglishDaysText;
-            EnglishHoursText.Text   = _mainWindow.EnglishHoursText;
-            EnglishMinutesText.Text = _mainWindow.EnglishMinutesText;
-            EnglishSecondsText.Text = _mainWindow.EnglishSecondsText;
+            EnglishPrefixText.Text  = _settings.EnglishPrefix;
+            EnglishDaysText.Text    = _settings.EnglishDaysText;
+            EnglishHoursText.Text   = _settings.EnglishHoursText;
+            EnglishMinutesText.Text = _settings.EnglishMinutesText;
+            EnglishSecondsText.Text = _settings.EnglishSecondsText;
 
             // ── 外观 ──────────────────────────────────────────
-            FontSizeSlider.Value = _mainWindow.CountdownFontSize;
-            FontSizeText.Text    = _mainWindow.CountdownFontSize.ToString();
+            FontSizeSlider.Value = _settings.FontSize;
+            FontSizeText.Text    = _settings.FontSize.ToString();
 
-            OpacitySlider.Value = _mainWindow.OverallOpacity;
-            OpacityText.Text    = $"{_mainWindow.OverallOpacity * 100:F0}%";
+            OpacitySlider.Value = _settings.OverallOpacity;
+            OpacityText.Text    = $"{_settings.OverallOpacity * 100:F0}%";
 
-            NumberColorBox.Text      = ColorToHex(_mainWindow.NumberColor);
-            TextColorBox.Text        = ColorToHex(_mainWindow.TextColor);
-            ProgressBarColorBox.Text = ColorToHex(_mainWindow.ProgressBarColor);
+            NumberColorBox.Text      = ColorToHex(_settings.NumberColor);
+            TextColorBox.Text        = ColorToHex(_settings.TextColor);
+            ProgressBarColorBox.Text = ColorToHex(_settings.ProgressBarColor);
             RefreshColorPreview(NumberColorBox,      NumberColorPreview);
             RefreshColorPreview(TextColorBox,        TextColorPreview);
             RefreshColorPreview(ProgressBarColorBox, ProgressBarColorPreview);
@@ -399,122 +401,122 @@ namespace GaokaoCountdown.Views
             // ── 位置 ──────────────────────────────────────────
             switch (_mainWindow.PositionPreset)
             {
-                case 0: PosTop.IsChecked         = true; break;
-                case 1: PosUpperCenter.IsChecked = true; break;
-                case 2: PosCenter.IsChecked      = true; break;
-                case 3: PosLowerCenter.IsChecked = true; break;
-                case 4: PosBottom.IsChecked      = true; break;
-                case 5: PosCustom.IsChecked      = true; break;
+                case PositionPresetValues.Top:         PosTop.IsChecked         = true; break;
+                case PositionPresetValues.UpperCenter: PosUpperCenter.IsChecked = true; break;
+                case PositionPresetValues.Center:      PosCenter.IsChecked      = true; break;
+                case PositionPresetValues.LowerCenter: PosLowerCenter.IsChecked = true; break;
+                case PositionPresetValues.Bottom:      PosBottom.IsChecked      = true; break;
+                case PositionPresetValues.Custom:      PosCustom.IsChecked      = true; break;
                 default: PosUpperCenter.IsChecked = true; break;
             }
 
-            CustomXBox.Text = _mainWindow.CustomPositionX.ToString("F0");
-            CustomYBox.Text = _mainWindow.CustomPositionY.ToString("F0");
-            OffsetYBox.Text = _mainWindow.PositionOffsetY.ToString("F0");
-            AlwaysOnTopCheck.IsChecked = _mainWindow.AlwaysOnTop;
+            CustomXBox.Text = _settings.CustomPositionX.ToString("F0");
+            CustomYBox.Text = _settings.CustomPositionY.ToString("F0");
+            OffsetYBox.Text = _settings.PositionOffsetY.ToString("F0");
+            AlwaysOnTopCheck.IsChecked = _settings.AlwaysOnTop;
             AutoStartCheck.IsChecked   = MainWindow.GetAutoStartFromRegistry();
-            HideWhenMaximizedCheck.IsChecked = _mainWindow.HideWhenMaximized;
-            HideDuringClassCheck.IsChecked = _mainWindow.HideDuringClass;
-            HideSubjectsBox.Text = _mainWindow.HideSubjects;
+            HideWhenMaximizedCheck.IsChecked = _settings.HideWhenMaximized;
+            HideDuringClassCheck.IsChecked = _settings.HideDuringClass;
+            HideSubjectsBox.Text = _settings.HideSubjects;
 
             // ── 显示 ──────────────────────────────────────────
-            ShowEnglishCheck.IsChecked      = _mainWindow.ShowEnglishLine;
-            ShowProgressBarCheck.IsChecked  = _mainWindow.ShowProgressBar;
-            ShowProgressTextCheck.IsChecked = _mainWindow.ShowProgressText;
-            ShowDaysCheck.IsChecked         = _mainWindow.ShowDays;
-            ShowHoursCheck.IsChecked        = _mainWindow.ShowHours;
-            ShowMinutesCheck.IsChecked      = _mainWindow.ShowMinutes;
-            ShowSecondsCheck.IsChecked      = _mainWindow.ShowSeconds;
-            DecimalSlider.Value = _mainWindow.ProgressDecimalDigits;
-            DecimalText.Text    = _mainWindow.ProgressDecimalDigits.ToString();
+            ShowEnglishCheck.IsChecked      = _settings.ShowEnglishLine;
+            ShowProgressBarCheck.IsChecked  = _settings.ShowProgressBar;
+            ShowProgressTextCheck.IsChecked = _settings.ShowProgressText;
+            ShowDaysCheck.IsChecked         = _settings.ShowDays;
+            ShowHoursCheck.IsChecked        = _settings.ShowHours;
+            ShowMinutesCheck.IsChecked      = _settings.ShowMinutes;
+            ShowSecondsCheck.IsChecked      = _settings.ShowSeconds;
+            DecimalSlider.Value = _settings.ProgressDecimalDigits;
+            DecimalText.Text    = _settings.ProgressDecimalDigits.ToString();
 
             // ── 日期 ──────────────────────────────────────────
-            GaokaoDateBox.Text = _mainWindow.GaokaoDateStr;
-            StartDateBox.Text  = _mainWindow.StartDateStr;
+            GaokaoDateBox.Text = _settings.GaokaoDateStr;
+            StartDateBox.Text  = _settings.StartDateStr;
             RefreshCustomCountdownGrid();
 
             // ── 动画 ──────────────────────────────────────────
-            EnableAnimationsCheck.IsChecked = _mainWindow.EnableAnimations;
-            var settingsAnim = _mainWindow.EnableAnimations;
+            EnableAnimationsCheck.IsChecked = _settings.EnableAnimations;
+            var settingsAnim = _settings.EnableAnimations;
             _enableSettingsAnimations = settingsAnim;
             EnableSettingsAnimationsCheck.IsChecked = settingsAnim;
 
             // ── 每日一言 ──────────────────────────────────────
-            ShowDailyQuoteCheck.IsChecked      = _mainWindow.ShowDailyQuote;
-            QuoteFontSizeSlider.Value          = _mainWindow.QuoteFontSize;
-            QuoteFontSizeText.Text             = _mainWindow.QuoteFontSize.ToString("F0");
-            QuoteForegroundBox.Text            = _mainWindow.QuoteForegroundHex;
-            QuoteItalicCheck.IsChecked         = _mainWindow.QuoteItalic;
-            QuoteApiUrlBox.Text                = _mainWindow.QuoteApiUrl;
-            QuoteTextFieldNameBox.Text          = _mainWindow.QuoteTextFieldName;
-            QuoteRefreshIntervalSlider.Value   = _mainWindow.QuoteAutoRefreshInterval;
-            QuoteRefreshIntervalText.Text      = _mainWindow.QuoteAutoRefreshInterval == 0
-                ? "关" : $"{_mainWindow.QuoteAutoRefreshInterval}s";
+            ShowDailyQuoteCheck.IsChecked      = _settings.ShowDailyQuote;
+            QuoteFontSizeSlider.Value          = _settings.QuoteFontSize;
+            QuoteFontSizeText.Text             = _settings.QuoteFontSize.ToString("F0");
+            QuoteForegroundBox.Text            = _settings.QuoteForegroundHex;
+            QuoteItalicCheck.IsChecked         = _settings.QuoteItalic;
+            QuoteApiUrlBox.Text                = _settings.QuoteApiUrl;
+            QuoteTextFieldNameBox.Text          = _settings.QuoteTextFieldName;
+            QuoteRefreshIntervalSlider.Value   = _settings.QuoteAutoRefreshInterval;
+            QuoteRefreshIntervalText.Text      = _settings.QuoteAutoRefreshInterval == 0
+                ? "关" : $"{_settings.QuoteAutoRefreshInterval}s";
 
             // ── 课表栏 ────────────────────────────────────────
-            ShowScheduleBarCheck.IsChecked         = _mainWindow.ShowScheduleBar;
-            ScheduleBarAlwaysOnTopCheck.IsChecked  = _mainWindow.ScheduleBarAlwaysOnTop;
-            ScheduleBarClickThroughCheck.IsChecked = _mainWindow.ScheduleBarClickThrough;
-            ScheduleBarAutoCollapseCheck.IsChecked = _mainWindow.ScheduleBarAutoCollapse;
-            ScheduleBarOpacitySlider.Value         = _mainWindow.ScheduleBarOpacity;
-            ScheduleBarOpacityLabel.Text           = $"{_mainWindow.ScheduleBarOpacity * 100:F0}%";
-            ScheduleBarWidthBox.Text               = _mainWindow.ScheduleBarWidth.ToString("F0");
-            ScheduleBarFontSizeSlider.Value       = _mainWindow.ScheduleBarFontSize;
-            ScheduleBarFontSizeText.Text          = _mainWindow.ScheduleBarFontSize.ToString("F0");
+            ShowScheduleBarCheck.IsChecked         = _settings.ShowScheduleBar;
+            ScheduleBarAlwaysOnTopCheck.IsChecked  = _settings.ScheduleBarAlwaysOnTop;
+            ScheduleBarClickThroughCheck.IsChecked = _settings.ScheduleBarClickThrough;
+            ScheduleBarAutoCollapseCheck.IsChecked = _settings.ScheduleBarAutoCollapse;
+            ScheduleBarOpacitySlider.Value         = _settings.ScheduleBarOpacity;
+            ScheduleBarOpacityLabel.Text           = $"{_settings.ScheduleBarOpacity * 100:F0}%";
+            ScheduleBarWidthBox.Text               = _settings.ScheduleBarWidth.ToString("F0");
+            ScheduleBarFontSizeSlider.Value       = _settings.ScheduleBarFontSize;
+            ScheduleBarFontSizeText.Text          = _settings.ScheduleBarFontSize.ToString("F0");
 
             // 下课倒计时
             for (int i = 0; i < CountdownExpandCb.Items.Count; i++)
             {
-                if (CountdownExpandCb.Items[i] is ComboBoxItem item && item.Tag?.ToString() == _mainWindow.CountdownExpandSeconds.ToString())
+                if (CountdownExpandCb.Items[i] is ComboBoxItem item && item.Tag?.ToString() == _settings.CountdownExpandSeconds.ToString())
                 {
                     CountdownExpandCb.SelectedIndex = i;
                     break;
                 }
             }
-            EnableCountdownSoundCheck.IsChecked = _mainWindow.EnableCountdownSound;
-            EnableReminderSoundCheck.IsChecked     = _mainWindow.EnableReminderSound;
-            ReminderSoundPathBox.Text              = _mainWindow.ReminderSoundPath;
-            RemindClassStartCheck.IsChecked        = _mainWindow.RemindClassStart;
-            RemindClassMidCheck.IsChecked          = _mainWindow.RemindClassMid;
-            RemindClassEndSoonCheck.IsChecked      = _mainWindow.RemindClassEndSoon;
-            RemindClassEndCheck.IsChecked          = _mainWindow.RemindClassEnd;
-            RemindNextClassSoonCheck.IsChecked     = _mainWindow.RemindNextClassSoon;
-            RemindDayEndCheck.IsChecked            = _mainWindow.RemindDayEnd;
-            RemindSpecialPeriodCheck.IsChecked     = _mainWindow.RemindSpecialPeriod;
-            AutoCheckUpdateCheck.IsChecked        = _mainWindow.AutoCheckUpdate;
+            EnableCountdownSoundCheck.IsChecked = _settings.EnableCountdownSound;
+            EnableReminderSoundCheck.IsChecked     = _settings.EnableReminderSound;
+            ReminderSoundPathBox.Text              = _settings.ReminderSoundPath;
+            RemindClassStartCheck.IsChecked        = _settings.RemindClassStart;
+            RemindClassMidCheck.IsChecked          = _settings.RemindClassMid;
+            RemindClassEndSoonCheck.IsChecked      = _settings.RemindClassEndSoon;
+            RemindClassEndCheck.IsChecked          = _settings.RemindClassEnd;
+            RemindNextClassSoonCheck.IsChecked     = _settings.RemindNextClassSoon;
+            RemindDayEndCheck.IsChecked            = _settings.RemindDayEnd;
+            RemindSpecialPeriodCheck.IsChecked     = _settings.RemindSpecialPeriod;
+            AutoCheckUpdateCheck.IsChecked        = _settings.AutoCheckUpdate;
 
             // ── 考试模式 ──────────────────────────────────────
-            EnableExamModeCheck.IsChecked   = _mainWindow.EnableExamMode;
-            AutoEnterExamModeCheck.IsChecked = _mainWindow.AutoEnterExamMode;
-            ExamModeFontSizeSlider.Value     = _mainWindow.ExamModeFontSize;
-            ExamModeFontSizeText.Text        = _mainWindow.ExamModeFontSize.ToString("F0");
+            EnableExamModeCheck.IsChecked   = _settings.EnableExamMode;
+            AutoEnterExamModeCheck.IsChecked = _settings.AutoEnterExamMode;
+            ExamModeFontSizeSlider.Value     = _settings.ExamModeFontSize;
+            ExamModeFontSizeText.Text        = _settings.ExamModeFontSize.ToString("F0");
 
             // ── 考试模式样式 ──────────────────────────────────
-            ExamSubjectFontSizeSlider.Value     = _mainWindow.ExamSubjectFontSize;
-            ExamSubjectFontSizeText.Text        = _mainWindow.ExamSubjectFontSize.ToString("F0");
-            ExamNameFontSizeSlider.Value        = _mainWindow.ExamNameFontSize;
-            ExamNameFontSizeText.Text           = _mainWindow.ExamNameFontSize.ToString("F0");
-            ExamCountdownFontSizeSlider.Value   = _mainWindow.ExamCountdownFontSize;
-            ExamCountdownFontSizeText.Text      = _mainWindow.ExamCountdownFontSize.ToString("F0");
-            ExamTimeInfoFontSizeSlider.Value    = _mainWindow.ExamTimeInfoFontSize;
-            ExamTimeInfoFontSizeText.Text       = _mainWindow.ExamTimeInfoFontSize.ToString("F0");
-            ExamNextSubjectFontSizeSlider.Value = _mainWindow.ExamNextSubjectFontSize;
-            ExamNextSubjectFontSizeText.Text    = _mainWindow.ExamNextSubjectFontSize.ToString("F0");
-            ExamWarningFontSizeSlider.Value     = _mainWindow.ExamWarningFontSize;
-            ExamWarningFontSizeText.Text        = _mainWindow.ExamWarningFontSize.ToString("F0");
-            ExamEscHintFontSizeSlider.Value     = _mainWindow.ExamEscHintFontSize;
-            ExamEscHintFontSizeText.Text        = _mainWindow.ExamEscHintFontSize.ToString("F0");
-            ExamProgressBarHeightSlider.Value   = _mainWindow.ExamProgressBarHeight;
-            ExamProgressBarHeightText.Text      = _mainWindow.ExamProgressBarHeight.ToString("F0");
+            ExamSubjectFontSizeSlider.Value     = _settings.ExamSubjectFontSize;
+            ExamSubjectFontSizeText.Text        = _settings.ExamSubjectFontSize.ToString("F0");
+            ExamNameFontSizeSlider.Value        = _settings.ExamNameFontSize;
+            ExamNameFontSizeText.Text           = _settings.ExamNameFontSize.ToString("F0");
+            ExamCountdownFontSizeSlider.Value   = _settings.ExamCountdownFontSize;
+            ExamCountdownFontSizeText.Text      = _settings.ExamCountdownFontSize.ToString("F0");
+            ExamTimeInfoFontSizeSlider.Value    = _settings.ExamTimeInfoFontSize;
+            ExamTimeInfoFontSizeText.Text       = _settings.ExamTimeInfoFontSize.ToString("F0");
+            ExamNextSubjectFontSizeSlider.Value = _settings.ExamNextSubjectFontSize;
+            ExamNextSubjectFontSizeText.Text    = _settings.ExamNextSubjectFontSize.ToString("F0");
+            ExamWarningFontSizeSlider.Value     = _settings.ExamWarningFontSize;
+            ExamWarningFontSizeText.Text        = _settings.ExamWarningFontSize.ToString("F0");
+            ExamEscHintFontSizeSlider.Value     = _settings.ExamEscHintFontSize;
+            ExamEscHintFontSizeText.Text        = _settings.ExamEscHintFontSize.ToString("F0");
+            ExamProgressBarHeightSlider.Value   = _settings.ExamProgressBarHeight;
+            ExamProgressBarHeightText.Text      = _settings.ExamProgressBarHeight.ToString("F0");
 
-            ExamSubjectColorBox.Text           = _mainWindow.ExamSubjectColor;
-            ExamNameColorBox.Text              = _mainWindow.ExamNameColor;
-            ExamCountdownNormalColorBox.Text   = _mainWindow.ExamCountdownNormalColor;
-            ExamCountdownWarningColorBox.Text  = _mainWindow.ExamCountdownWarningColor;
-            ExamCountdownCriticalColorBox.Text = _mainWindow.ExamCountdownCriticalColor;
-            ExamDistanceColorBox.Text          = _mainWindow.ExamDistanceColor;
-            ExamInfoColorBox.Text              = _mainWindow.ExamInfoColor;
-            ExamProgressBarColorBox.Text       = _mainWindow.ExamProgressBarColor;
+            ExamSubjectColorBox.Text           = _settings.ExamSubjectColor;
+            ExamNameColorBox.Text              = _settings.ExamNameColor;
+            ExamCountdownNormalColorBox.Text   = _settings.ExamCountdownNormalColor;
+            ExamCountdownWarningColorBox.Text  = _settings.ExamCountdownWarningColor;
+            ExamCountdownCriticalColorBox.Text = _settings.ExamCountdownCriticalColor;
+            ExamDistanceColorBox.Text          = _settings.ExamDistanceColor;
+            ExamInfoColorBox.Text              = _settings.ExamInfoColor;
+            ExamProgressBarColorBox.Text       = _settings.ExamProgressBarColor;
             RefreshColorPreview(ExamSubjectColorBox,          ExamSubjectColorPreview);
             RefreshColorPreview(ExamNameColorBox,             ExamNameColorPreview);
             RefreshColorPreview(ExamCountdownNormalColorBox,  ExamCountdownNormalColorPreview);
@@ -524,12 +526,12 @@ namespace GaokaoCountdown.Views
             RefreshColorPreview(ExamInfoColorBox,             ExamInfoColorPreview);
             RefreshColorPreview(ExamProgressBarColorBox,      ExamProgressBarColorPreview);
 
-            ExamBackgroundColorBox.Text        = _mainWindow.ExamBackgroundColor;
-            ExamProgressBarBgColorBox.Text     = _mainWindow.ExamProgressBarBgColor;
-            ExamNextSubjectColorBox.Text       = _mainWindow.ExamNextSubjectColor;
-            ExamWarningColorBox.Text           = _mainWindow.ExamWarningColor;
-            ExamProgressPctColorBox.Text       = _mainWindow.ExamProgressPctColor;
-            ExamInfoDimColorBox.Text           = _mainWindow.ExamInfoDimColor;
+            ExamBackgroundColorBox.Text        = _settings.ExamBackgroundColor;
+            ExamProgressBarBgColorBox.Text     = _settings.ExamProgressBarBgColor;
+            ExamNextSubjectColorBox.Text       = _settings.ExamNextSubjectColor;
+            ExamWarningColorBox.Text           = _settings.ExamWarningColor;
+            ExamProgressPctColorBox.Text       = _settings.ExamProgressPctColor;
+            ExamInfoDimColorBox.Text           = _settings.ExamInfoDimColor;
             RefreshColorPreview(ExamBackgroundColorBox,    ExamBackgroundColorPreview);
             RefreshColorPreview(ExamProgressBarBgColorBox, ExamProgressBarBgColorPreview);
             RefreshColorPreview(ExamNextSubjectColorBox,   ExamNextSubjectColorPreview);
@@ -542,7 +544,7 @@ namespace GaokaoCountdown.Views
                 ExamCountdownFontFamilyBox.Items.Add(new FontFamilyItem(ff));
             foreach (FontFamilyItem item in ExamCountdownFontFamilyBox.Items)
             {
-                if (item.FontFamily.Source.Equals(_mainWindow.ExamCountdownFontFamily, StringComparison.OrdinalIgnoreCase))
+                if (item.FontFamily.Source.Equals(_settings.ExamCountdownFontFamily, StringComparison.OrdinalIgnoreCase))
                 {
                     ExamCountdownFontFamilyBox.SelectedItem = item;
                     break;
@@ -560,20 +562,20 @@ namespace GaokaoCountdown.Views
             }
 
             // ── 天气 ──────────────────────────────────────────
-            WeatherCityBox.Text                 = _mainWindow.WeatherCity;
-            WeatherAdcodeBox.Text               = _mainWindow.WeatherAdcode;
-            WeatherFontSizeSlider.Value         = _mainWindow.WeatherFontSize;
-            WeatherFontSizeText.Text            = _mainWindow.WeatherFontSize.ToString("F0");
-            WeatherRefreshIntervalSlider.Value  = _mainWindow.WeatherRefreshInterval;
-            WeatherRefreshIntervalText.Text     = _mainWindow.WeatherRefreshInterval == 0
-                ? "关" : $"{_mainWindow.WeatherRefreshInterval}min";
+            WeatherCityBox.Text                 = _settings.WeatherCity;
+            WeatherAdcodeBox.Text               = _settings.WeatherAdcode;
+            WeatherFontSizeSlider.Value         = _settings.WeatherFontSize;
+            WeatherFontSizeText.Text            = _settings.WeatherFontSize.ToString("F0");
+            WeatherRefreshIntervalSlider.Value  = _settings.WeatherRefreshInterval;
+            WeatherRefreshIntervalText.Text     = _settings.WeatherRefreshInterval == 0
+                ? "关" : $"{_settings.WeatherRefreshInterval}min";
 
             // 天气文字颜色
-            WeatherCityColorBox.Text      = _mainWindow.WeatherCityColor;
-            WeatherInfoColorBox.Text      = _mainWindow.WeatherInfoColor;
-            WeatherTempColorBox.Text      = _mainWindow.WeatherTempColor;
-            WeatherTimeColorBox.Text      = _mainWindow.WeatherTimeColor;
-            WeatherIconColorBox.Text      = _mainWindow.WeatherIconColor;
+            WeatherCityColorBox.Text      = _settings.WeatherCityColor;
+            WeatherInfoColorBox.Text      = _settings.WeatherInfoColor;
+            WeatherTempColorBox.Text      = _settings.WeatherTempColor;
+            WeatherTimeColorBox.Text      = _settings.WeatherTimeColor;
+            WeatherIconColorBox.Text      = _settings.WeatherIconColor;
             RefreshColorPreview(WeatherCityColorBox,      WeatherCityColorPreview);
             RefreshColorPreview(WeatherInfoColorBox,      WeatherInfoColorPreview);
             RefreshColorPreview(WeatherTempColorBox,      WeatherTempColorPreview);
@@ -588,25 +590,25 @@ namespace GaokaoCountdown.Views
         private void ApplySettings()
         {
             // ── 文本 ──────────────────────────────────────────
-            _mainWindow.ChinesePrefix      = ChinesePrefixText.Text;
-            _mainWindow.ChineseDaysText    = ChineseDaysText.Text;
-            _mainWindow.ChineseHoursText   = ChineseHoursText.Text;
-            _mainWindow.ChineseMinutesText = ChineseMinutesText.Text;
-            _mainWindow.ChineseSecondsText = ChineseSecondsText.Text;
+            _settings.ChinesePrefix      = ChinesePrefixText.Text;
+            _settings.ChineseDaysText    = ChineseDaysText.Text;
+            _settings.ChineseHoursText   = ChineseHoursText.Text;
+            _settings.ChineseMinutesText = ChineseMinutesText.Text;
+            _settings.ChineseSecondsText = ChineseSecondsText.Text;
 
-            _mainWindow.EnglishPrefix      = EnglishPrefixText.Text;
-            _mainWindow.EnglishDaysText    = EnglishDaysText.Text;
-            _mainWindow.EnglishHoursText   = EnglishHoursText.Text;
-            _mainWindow.EnglishMinutesText = EnglishMinutesText.Text;
-            _mainWindow.EnglishSecondsText = EnglishSecondsText.Text;
+            _settings.EnglishPrefix      = EnglishPrefixText.Text;
+            _settings.EnglishDaysText    = EnglishDaysText.Text;
+            _settings.EnglishHoursText   = EnglishHoursText.Text;
+            _settings.EnglishMinutesText = EnglishMinutesText.Text;
+            _settings.EnglishSecondsText = EnglishSecondsText.Text;
 
             // ── 字体 ──────────────────────────────────────────
-            _mainWindow.CountdownFontSize = (int)FontSizeSlider.Value;
+            _settings.FontSize = (int)FontSizeSlider.Value;
             if (FontFamilyComboBox.SelectedItem is FontFamilyItem selectedFont)
                 _mainWindow.CountdownFontFamily = selectedFont.FontFamily;
 
             // ── 透明度 ────────────────────────────────────────
-            _mainWindow.OverallOpacity = OpacitySlider.Value;
+            _settings.OverallOpacity = OpacitySlider.Value;
 
             // ── 颜色 ──────────────────────────────────────────
             if (!TryParseColor(NumberColorBox.Text, out Color nc))
@@ -627,70 +629,70 @@ namespace GaokaoCountdown.Views
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            _mainWindow.NumberColor      = nc;
-            _mainWindow.TextColor        = tc;
-            _mainWindow.ProgressBarColor = pc;
+            _settings.NumberColor      = nc;
+            _settings.TextColor        = tc;
+            _settings.ProgressBarColor = pc;
 
             // ── 位置 ──────────────────────────────────────────
             _mainWindow.PositionPreset =
-                PosTop.IsChecked == true         ? 0 :
-                PosUpperCenter.IsChecked == true ? 1 :
-                PosCenter.IsChecked == true      ? 2 :
-                PosLowerCenter.IsChecked == true ? 3 :
-                PosBottom.IsChecked == true      ? 4 :
-                PosCustom.IsChecked == true      ? 5 : 1;
+                PosTop.IsChecked == true         ? PositionPresetValues.Top :
+                PosUpperCenter.IsChecked == true ? PositionPresetValues.UpperCenter :
+                PosCenter.IsChecked == true      ? PositionPresetValues.Center :
+                PosLowerCenter.IsChecked == true ? PositionPresetValues.LowerCenter :
+                PosBottom.IsChecked == true      ? PositionPresetValues.Bottom :
+                PosCustom.IsChecked == true      ? PositionPresetValues.Custom : PositionPresetValues.UpperCenter;
 
-            if (double.TryParse(CustomXBox.Text, out double cx)) _mainWindow.CustomPositionX = cx;
-            if (double.TryParse(CustomYBox.Text, out double cy)) _mainWindow.CustomPositionY = cy;
-            if (double.TryParse(OffsetYBox.Text, out double oy)) _mainWindow.PositionOffsetY = oy;
+            if (double.TryParse(CustomXBox.Text, out double cx)) _settings.CustomPositionX = cx;
+            if (double.TryParse(CustomYBox.Text, out double cy)) _settings.CustomPositionY = cy;
+            if (double.TryParse(OffsetYBox.Text, out double oy)) _settings.PositionOffsetY = oy;
 
-            _mainWindow.AlwaysOnTop = AlwaysOnTopCheck.IsChecked == true;
+            _settings.AlwaysOnTop = AlwaysOnTopCheck.IsChecked == true;
             // AutoStart 在 CheckBox 事件中实时写注册表，此处同步 settings 字段即可
             _mainWindow.AutoStart   = AutoStartCheck.IsChecked == true;
             // HideWhenMaximized 在 CheckBox 事件中实时生效，此处同步 settings 字段
-            _mainWindow.HideWhenMaximized = HideWhenMaximizedCheck.IsChecked == true;
-            _mainWindow.HideDuringClass = HideDuringClassCheck.IsChecked == true;
-            _mainWindow.HideSubjects    = HideSubjectsBox.Text.Trim();
+            _settings.HideWhenMaximized = HideWhenMaximizedCheck.IsChecked == true;
+            _settings.HideDuringClass = HideDuringClassCheck.IsChecked == true;
+            _settings.HideSubjects    = HideSubjectsBox.Text.Trim();
 
             // ── 显示 ──────────────────────────────────────────
-            _mainWindow.ShowEnglishLine       = ShowEnglishCheck.IsChecked == true;
-            _mainWindow.ShowProgressBar       = ShowProgressBarCheck.IsChecked == true;
-            _mainWindow.ShowProgressText      = ShowProgressTextCheck.IsChecked == true;
-            _mainWindow.ShowDays              = ShowDaysCheck.IsChecked == true;
-            _mainWindow.ShowHours             = ShowHoursCheck.IsChecked == true;
-            _mainWindow.ShowMinutes           = ShowMinutesCheck.IsChecked == true;
-            _mainWindow.ShowSeconds           = ShowSecondsCheck.IsChecked == true;
-            _mainWindow.ProgressDecimalDigits = (int)DecimalSlider.Value;
+            _settings.ShowEnglishLine       = ShowEnglishCheck.IsChecked == true;
+            _settings.ShowProgressBar       = ShowProgressBarCheck.IsChecked == true;
+            _settings.ShowProgressText      = ShowProgressTextCheck.IsChecked == true;
+            _settings.ShowDays              = ShowDaysCheck.IsChecked == true;
+            _settings.ShowHours             = ShowHoursCheck.IsChecked == true;
+            _settings.ShowMinutes           = ShowMinutesCheck.IsChecked == true;
+            _settings.ShowSeconds           = ShowSecondsCheck.IsChecked == true;
+            _settings.ProgressDecimalDigits = (int)DecimalSlider.Value;
 
             // ── 动画 ──────────────────────────────────────────
-            _mainWindow.EnableAnimations = EnableAnimationsCheck.IsChecked == true;
+            _settings.EnableAnimations = EnableAnimationsCheck.IsChecked == true;
             _enableSettingsAnimations    = EnableSettingsAnimationsCheck.IsChecked == true;
 
             // ── 每日一言 ──────────────────────────────────────
-            _mainWindow.ShowDailyQuote          = ShowDailyQuoteCheck.IsChecked == true;
-            _mainWindow.QuoteFontSize           = QuoteFontSizeSlider.Value;
-            _mainWindow.QuoteForegroundHex       = QuoteForegroundBox.Text.Trim();
-            _mainWindow.QuoteItalic             = QuoteItalicCheck.IsChecked == true;
-            _mainWindow.QuoteApiUrl             = QuoteApiUrlBox.Text.Trim();
-            _mainWindow.QuoteTextFieldName      = QuoteTextFieldNameBox.Text.Trim();
-            _mainWindow.QuoteAutoRefreshInterval = (int)QuoteRefreshIntervalSlider.Value;
+            _settings.ShowDailyQuote          = ShowDailyQuoteCheck.IsChecked == true;
+            _settings.QuoteFontSize           = QuoteFontSizeSlider.Value;
+            _settings.QuoteForegroundHex       = QuoteForegroundBox.Text.Trim();
+            _settings.QuoteItalic             = QuoteItalicCheck.IsChecked == true;
+            _settings.QuoteApiUrl             = QuoteApiUrlBox.Text.Trim();
+            _settings.QuoteTextFieldName      = QuoteTextFieldNameBox.Text.Trim();
+            _settings.QuoteAutoRefreshInterval = (int)QuoteRefreshIntervalSlider.Value;
 
             // 应用样式到主窗口
             _mainWindow.ApplyQuoteStyle();
             // 更新自动切换定时器
             _mainWindow.StartQuoteRefreshTimer();
             // 如果开关打开，立即加载一条
-            if (_mainWindow.ShowDailyQuote)
+            if (_settings.ShowDailyQuote)
                 _ = _mainWindow.RefreshQuoteAsync();
 
             // ── 天气 ──────────────────────────────────────────
-            _mainWindow.WeatherCity          = WeatherCityBox.Text.Trim();
-            _mainWindow.WeatherAdcode        = WeatherAdcodeBox.Text.Trim();
+            _settings.WeatherCity          = WeatherCityBox.Text.Trim();
+            _settings.WeatherAdcode        = WeatherAdcodeBox.Text.Trim();
 
 
-            _mainWindow.WeatherFontSize     = WeatherFontSizeSlider.Value;
+            _settings.WeatherFontSize     = WeatherFontSizeSlider.Value;
 
-            _mainWindow.WeatherRefreshInterval = (int)WeatherRefreshIntervalSlider.Value;
+            _settings.WeatherRefreshInterval = (int)WeatherRefreshIntervalSlider.Value;
 
             // 天气文字颜色
             if (!TryParseColor(WeatherCityColorBox.Text, out Color wcc))
@@ -723,11 +725,11 @@ namespace GaokaoCountdown.Views
                                    "颜色格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            _mainWindow.WeatherCityColor  = WeatherCityColorBox.Text.Trim();
-            _mainWindow.WeatherInfoColor  = WeatherInfoColorBox.Text.Trim();
-            _mainWindow.WeatherTempColor  = WeatherTempColorBox.Text.Trim();
-            _mainWindow.WeatherTimeColor  = WeatherTimeColorBox.Text.Trim();
-            _mainWindow.WeatherIconColor  = WeatherIconColorBox.Text.Trim();
+            _settings.WeatherCityColor  = WeatherCityColorBox.Text.Trim();
+            _settings.WeatherInfoColor  = WeatherInfoColorBox.Text.Trim();
+            _settings.WeatherTempColor  = WeatherTempColorBox.Text.Trim();
+            _settings.WeatherTimeColor  = WeatherTimeColorBox.Text.Trim();
+            _settings.WeatherIconColor  = WeatherIconColorBox.Text.Trim();
 
 
             // ── 日期 ──────────────────────────────────────────
@@ -743,8 +745,8 @@ namespace GaokaoCountdown.Views
                                    "日期格式错误", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            _mainWindow.GaokaoDateStr = GaokaoDateBox.Text.Trim();
-            _mainWindow.StartDateStr  = StartDateBox.Text.Trim();
+            _settings.GaokaoDateStr = GaokaoDateBox.Text.Trim();
+            _settings.StartDateStr  = StartDateBox.Text.Trim();
             _mainWindow.RefreshDateFields();
 
             // ── 应用窗口层级 ──────────────────────────────────
@@ -754,43 +756,43 @@ namespace GaokaoCountdown.Views
             _mainWindow.UpdateCountdownDisplay();
 
             // ── 课表栏设置 ────────────────────────────────────
-            _mainWindow.ShowScheduleBar         = ShowScheduleBarCheck.IsChecked == true;
-            _mainWindow.ScheduleBarAlwaysOnTop  = ScheduleBarAlwaysOnTopCheck.IsChecked == true;
-            _mainWindow.ScheduleBarClickThrough = ScheduleBarClickThroughCheck.IsChecked == true;
-            _mainWindow.ScheduleBarAutoCollapse = ScheduleBarAutoCollapseCheck.IsChecked == true;
-            _mainWindow.ScheduleBarOpacity      = ScheduleBarOpacitySlider.Value;
-            if (double.TryParse(ScheduleBarWidthBox.Text, out double sbw)) _mainWindow.ScheduleBarWidth = sbw;
-            _mainWindow.ScheduleBarFontSize     = ScheduleBarFontSizeSlider.Value;
-            _mainWindow.EnableReminderSound     = EnableReminderSoundCheck.IsChecked == true;
-            _mainWindow.ReminderSoundPath       = ReminderSoundPathBox.Text.Trim();
-            _mainWindow.RemindClassStart        = RemindClassStartCheck.IsChecked == true;
-            _mainWindow.RemindClassMid          = RemindClassMidCheck.IsChecked == true;
-            _mainWindow.RemindClassEndSoon      = RemindClassEndSoonCheck.IsChecked == true;
-            _mainWindow.RemindClassEnd          = RemindClassEndCheck.IsChecked == true;
-            _mainWindow.RemindNextClassSoon     = RemindNextClassSoonCheck.IsChecked == true;
+            _settings.ShowScheduleBar         = ShowScheduleBarCheck.IsChecked == true;
+            _settings.ScheduleBarAlwaysOnTop  = ScheduleBarAlwaysOnTopCheck.IsChecked == true;
+            _settings.ScheduleBarClickThrough = ScheduleBarClickThroughCheck.IsChecked == true;
+            _settings.ScheduleBarAutoCollapse = ScheduleBarAutoCollapseCheck.IsChecked == true;
+            _settings.ScheduleBarOpacity      = ScheduleBarOpacitySlider.Value;
+            if (double.TryParse(ScheduleBarWidthBox.Text, out double sbw)) _settings.ScheduleBarWidth = sbw;
+            _settings.ScheduleBarFontSize     = ScheduleBarFontSizeSlider.Value;
+            _settings.EnableReminderSound     = EnableReminderSoundCheck.IsChecked == true;
+            _settings.ReminderSoundPath       = ReminderSoundPathBox.Text.Trim();
+            _settings.RemindClassStart        = RemindClassStartCheck.IsChecked == true;
+            _settings.RemindClassMid          = RemindClassMidCheck.IsChecked == true;
+            _settings.RemindClassEndSoon      = RemindClassEndSoonCheck.IsChecked == true;
+            _settings.RemindClassEnd          = RemindClassEndCheck.IsChecked == true;
+            _settings.RemindNextClassSoon     = RemindNextClassSoonCheck.IsChecked == true;
 
             // 下课倒计时
             if (CountdownExpandCb.SelectedItem is ComboBoxItem item && int.TryParse(item.Tag?.ToString(), out int sec))
-                _mainWindow.CountdownExpandSeconds = sec;
-            _mainWindow.EnableCountdownSound = EnableCountdownSoundCheck.IsChecked == true;
-            _mainWindow.RemindDayEnd            = RemindDayEndCheck.IsChecked == true;
-            _mainWindow.RemindSpecialPeriod     = RemindSpecialPeriodCheck.IsChecked == true;
-            _mainWindow.AutoCheckUpdate          = AutoCheckUpdateCheck.IsChecked == true;
+                _settings.CountdownExpandSeconds = sec;
+            _settings.EnableCountdownSound = EnableCountdownSoundCheck.IsChecked == true;
+            _settings.RemindDayEnd            = RemindDayEndCheck.IsChecked == true;
+            _settings.RemindSpecialPeriod     = RemindSpecialPeriodCheck.IsChecked == true;
+            _settings.AutoCheckUpdate          = AutoCheckUpdateCheck.IsChecked == true;
 
             // ── 考试模式 ──────────────────────────────────────
-            _mainWindow.EnableExamMode    = EnableExamModeCheck.IsChecked == true;
-            _mainWindow.AutoEnterExamMode = AutoEnterExamModeCheck.IsChecked == true;
-            _mainWindow.ExamModeFontSize  = ExamModeFontSizeSlider.Value;
+            _settings.EnableExamMode    = EnableExamModeCheck.IsChecked == true;
+            _settings.AutoEnterExamMode = AutoEnterExamModeCheck.IsChecked == true;
+            _settings.ExamModeFontSize  = ExamModeFontSizeSlider.Value;
 
             // ── 考试模式样式 ──────────────────────────────────
-            _mainWindow.ExamSubjectFontSize       = ExamSubjectFontSizeSlider.Value;
-            _mainWindow.ExamNameFontSize          = ExamNameFontSizeSlider.Value;
-            _mainWindow.ExamCountdownFontSize     = ExamCountdownFontSizeSlider.Value;
-            _mainWindow.ExamTimeInfoFontSize      = ExamTimeInfoFontSizeSlider.Value;
-            _mainWindow.ExamNextSubjectFontSize   = ExamNextSubjectFontSizeSlider.Value;
-            _mainWindow.ExamWarningFontSize       = ExamWarningFontSizeSlider.Value;
-            _mainWindow.ExamEscHintFontSize       = ExamEscHintFontSizeSlider.Value;
-            _mainWindow.ExamProgressBarHeight     = ExamProgressBarHeightSlider.Value;
+            _settings.ExamSubjectFontSize       = ExamSubjectFontSizeSlider.Value;
+            _settings.ExamNameFontSize          = ExamNameFontSizeSlider.Value;
+            _settings.ExamCountdownFontSize     = ExamCountdownFontSizeSlider.Value;
+            _settings.ExamTimeInfoFontSize      = ExamTimeInfoFontSizeSlider.Value;
+            _settings.ExamNextSubjectFontSize   = ExamNextSubjectFontSizeSlider.Value;
+            _settings.ExamWarningFontSize       = ExamWarningFontSizeSlider.Value;
+            _settings.ExamEscHintFontSize       = ExamEscHintFontSizeSlider.Value;
+            _settings.ExamProgressBarHeight     = ExamProgressBarHeightSlider.Value;
 
             // 考试模式颜色 — 保存前验证格式
             if (!ValidateExamColor(ExamSubjectColorBox.Text,          "科目文字颜色")) return;
@@ -808,25 +810,25 @@ namespace GaokaoCountdown.Views
             if (!ValidateExamColor(ExamProgressPctColorBox.Text,      "百分比文字")) return;
             if (!ValidateExamColor(ExamInfoDimColorBox.Text,          "标签半透明")) return;
 
-            _mainWindow.ExamSubjectColor          = ExamSubjectColorBox.Text.Trim();
-            _mainWindow.ExamNameColor             = ExamNameColorBox.Text.Trim();
-            _mainWindow.ExamCountdownNormalColor  = ExamCountdownNormalColorBox.Text.Trim();
-            _mainWindow.ExamCountdownWarningColor = ExamCountdownWarningColorBox.Text.Trim();
-            _mainWindow.ExamCountdownCriticalColor= ExamCountdownCriticalColorBox.Text.Trim();
-            _mainWindow.ExamDistanceColor         = ExamDistanceColorBox.Text.Trim();
-            _mainWindow.ExamInfoColor             = ExamInfoColorBox.Text.Trim();
-            _mainWindow.ExamProgressBarColor      = ExamProgressBarColorBox.Text.Trim();
-            _mainWindow.ExamBackgroundColor       = ExamBackgroundColorBox.Text.Trim();
-            _mainWindow.ExamProgressBarBgColor    = ExamProgressBarBgColorBox.Text.Trim();
-            _mainWindow.ExamNextSubjectColor      = ExamNextSubjectColorBox.Text.Trim();
-            _mainWindow.ExamWarningColor          = ExamWarningColorBox.Text.Trim();
-            _mainWindow.ExamProgressPctColor      = ExamProgressPctColorBox.Text.Trim();
-            _mainWindow.ExamInfoDimColor          = ExamInfoDimColorBox.Text.Trim();
+            _settings.ExamSubjectColor          = ExamSubjectColorBox.Text.Trim();
+            _settings.ExamNameColor             = ExamNameColorBox.Text.Trim();
+            _settings.ExamCountdownNormalColor  = ExamCountdownNormalColorBox.Text.Trim();
+            _settings.ExamCountdownWarningColor = ExamCountdownWarningColorBox.Text.Trim();
+            _settings.ExamCountdownCriticalColor= ExamCountdownCriticalColorBox.Text.Trim();
+            _settings.ExamDistanceColor         = ExamDistanceColorBox.Text.Trim();
+            _settings.ExamInfoColor             = ExamInfoColorBox.Text.Trim();
+            _settings.ExamProgressBarColor      = ExamProgressBarColorBox.Text.Trim();
+            _settings.ExamBackgroundColor       = ExamBackgroundColorBox.Text.Trim();
+            _settings.ExamProgressBarBgColor    = ExamProgressBarBgColorBox.Text.Trim();
+            _settings.ExamNextSubjectColor      = ExamNextSubjectColorBox.Text.Trim();
+            _settings.ExamWarningColor          = ExamWarningColorBox.Text.Trim();
+            _settings.ExamProgressPctColor      = ExamProgressPctColorBox.Text.Trim();
+            _settings.ExamInfoDimColor          = ExamInfoDimColorBox.Text.Trim();
 
             // 考试字体
             var ffItem = ExamCountdownFontFamilyBox.SelectedItem as FontFamilyItem;
             if (ffItem != null)
-                _mainWindow.ExamCountdownFontFamily = ffItem.FontFamily.Source;
+                _settings.ExamCountdownFontFamily = ffItem.FontFamily.Source;
 
             // 应用考试模式窗口样式（若已打开）
             _mainWindow.ApplyExamModeStyle();
@@ -885,84 +887,84 @@ namespace GaokaoCountdown.Views
             if (result != MessageBoxResult.Yes) return;
 
             var defaults = new AppSettings();
-            _mainWindow.ChinesePrefix      = defaults.ChinesePrefix;
-            _mainWindow.ChineseDaysText    = defaults.ChineseDaysText;
-            _mainWindow.ChineseHoursText   = defaults.ChineseHoursText;
-            _mainWindow.ChineseMinutesText = defaults.ChineseMinutesText;
-            _mainWindow.ChineseSecondsText = defaults.ChineseSecondsText;
-            _mainWindow.EnglishPrefix      = defaults.EnglishPrefix;
-            _mainWindow.EnglishDaysText    = defaults.EnglishDaysText;
-            _mainWindow.EnglishHoursText   = defaults.EnglishHoursText;
-            _mainWindow.EnglishMinutesText = defaults.EnglishMinutesText;
-            _mainWindow.EnglishSecondsText = defaults.EnglishSecondsText;
+            _settings.ChinesePrefix      = defaults.ChinesePrefix;
+            _settings.ChineseDaysText    = defaults.ChineseDaysText;
+            _settings.ChineseHoursText   = defaults.ChineseHoursText;
+            _settings.ChineseMinutesText = defaults.ChineseMinutesText;
+            _settings.ChineseSecondsText = defaults.ChineseSecondsText;
+            _settings.EnglishPrefix      = defaults.EnglishPrefix;
+            _settings.EnglishDaysText    = defaults.EnglishDaysText;
+            _settings.EnglishHoursText   = defaults.EnglishHoursText;
+            _settings.EnglishMinutesText = defaults.EnglishMinutesText;
+            _settings.EnglishSecondsText = defaults.EnglishSecondsText;
             _mainWindow.CountdownFontFamily = new FontFamily(defaults.FontFamily);
-            _mainWindow.CountdownFontSize   = defaults.FontSize;
-            _mainWindow.NumberColor         = defaults.NumberColor;
-            _mainWindow.TextColor           = defaults.TextColor;
-            _mainWindow.ProgressBarColor    = defaults.ProgressBarColor;
-            _mainWindow.OverallOpacity      = defaults.OverallOpacity;
-            _mainWindow.ShowEnglishLine     = defaults.ShowEnglishLine;
-            _mainWindow.ShowProgressBar     = defaults.ShowProgressBar;
-            _mainWindow.ShowProgressText    = defaults.ShowProgressText;
-            _mainWindow.ShowDays            = defaults.ShowDays;
-            _mainWindow.ShowHours           = defaults.ShowHours;
-            _mainWindow.ShowMinutes         = defaults.ShowMinutes;
-            _mainWindow.ShowSeconds         = defaults.ShowSeconds;
+            _settings.FontSize   = defaults.FontSize;
+            _settings.NumberColor         = defaults.NumberColor;
+            _settings.TextColor           = defaults.TextColor;
+            _settings.ProgressBarColor    = defaults.ProgressBarColor;
+            _settings.OverallOpacity      = defaults.OverallOpacity;
+            _settings.ShowEnglishLine     = defaults.ShowEnglishLine;
+            _settings.ShowProgressBar     = defaults.ShowProgressBar;
+            _settings.ShowProgressText    = defaults.ShowProgressText;
+            _settings.ShowDays            = defaults.ShowDays;
+            _settings.ShowHours           = defaults.ShowHours;
+            _settings.ShowMinutes         = defaults.ShowMinutes;
+            _settings.ShowSeconds         = defaults.ShowSeconds;
             _mainWindow.PositionPreset      = defaults.PositionPreset;
-            _mainWindow.CustomPositionX     = defaults.CustomPositionX;
-            _mainWindow.CustomPositionY     = defaults.CustomPositionY;
-            _mainWindow.PositionOffsetY     = defaults.PositionOffsetY;
-            _mainWindow.AlwaysOnTop         = defaults.AlwaysOnTop;
+            _settings.CustomPositionX     = defaults.CustomPositionX;
+            _settings.CustomPositionY     = defaults.CustomPositionY;
+            _settings.PositionOffsetY     = defaults.PositionOffsetY;
+            _settings.AlwaysOnTop         = defaults.AlwaysOnTop;
             _mainWindow.AutoStart           = defaults.AutoStart;  // 默认 false → 删除注册表项
-            _mainWindow.HideWhenMaximized   = defaults.HideWhenMaximized;
-            _mainWindow.HideDuringClass     = defaults.HideDuringClass;
-            _mainWindow.GaokaoDateStr       = defaults.GaokaoDateStr;
-            _mainWindow.StartDateStr        = defaults.StartDateStr;
-            _mainWindow.ProgressDecimalDigits = defaults.ProgressDecimalDigits;
-            _mainWindow.EnableAnimations    = defaults.EnableAnimations;
+            _settings.HideWhenMaximized   = defaults.HideWhenMaximized;
+            _settings.HideDuringClass     = defaults.HideDuringClass;
+            _settings.GaokaoDateStr       = defaults.GaokaoDateStr;
+            _settings.StartDateStr        = defaults.StartDateStr;
+            _settings.ProgressDecimalDigits = defaults.ProgressDecimalDigits;
+            _settings.EnableAnimations    = defaults.EnableAnimations;
             _enableSettingsAnimations       = true;
-            _mainWindow.ShowDailyQuote            = defaults.ShowDailyQuote;
-            _mainWindow.QuoteFontSize             = defaults.QuoteFontSize;
-            _mainWindow.QuoteForegroundHex        = defaults.QuoteForegroundHex;
-            _mainWindow.QuoteItalic               = defaults.QuoteItalic;
-            _mainWindow.QuoteApiUrl               = defaults.QuoteApiUrl;
-            _mainWindow.QuoteTextFieldName        = defaults.QuoteTextFieldName;
-            _mainWindow.QuoteAutoRefreshInterval   = defaults.QuoteAutoRefreshInterval;
-            _mainWindow.WeatherCity              = defaults.WeatherCity;
-            _mainWindow.WeatherAdcode            = defaults.WeatherAdcode;
-            _mainWindow.WeatherFontSize          = defaults.WeatherFontSize;
-            _mainWindow.WeatherRefreshInterval   = defaults.WeatherRefreshInterval;
-            _mainWindow.WeatherCityColor        = defaults.WeatherCityColor;
-            _mainWindow.WeatherInfoColor        = defaults.WeatherInfoColor;
-            _mainWindow.WeatherTempColor        = defaults.WeatherTempColor;
-            _mainWindow.WeatherTimeColor        = defaults.WeatherTimeColor;
-            _mainWindow.WeatherIconColor        = defaults.WeatherIconColor;
-            _mainWindow.ScheduleBarFontSize     = defaults.ScheduleBarFontSize;
-            _mainWindow.ScheduleBarAutoCollapse = defaults.ScheduleBarAutoCollapse;
-            _mainWindow.ExamModeFontSize        = defaults.ExamModeFontSize;
-            _mainWindow.ExamSubjectFontSize       = defaults.ExamSubjectFontSize;
-            _mainWindow.ExamNameFontSize          = defaults.ExamNameFontSize;
-            _mainWindow.ExamCountdownFontSize     = defaults.ExamCountdownFontSize;
-            _mainWindow.ExamTimeInfoFontSize      = defaults.ExamTimeInfoFontSize;
-            _mainWindow.ExamNextSubjectFontSize   = defaults.ExamNextSubjectFontSize;
-            _mainWindow.ExamWarningFontSize       = defaults.ExamWarningFontSize;
-            _mainWindow.ExamEscHintFontSize       = defaults.ExamEscHintFontSize;
-            _mainWindow.ExamProgressBarHeight     = defaults.ExamProgressBarHeight;
-            _mainWindow.ExamSubjectColor          = defaults.ExamSubjectColor;
-            _mainWindow.ExamNameColor             = defaults.ExamNameColor;
-            _mainWindow.ExamCountdownNormalColor  = defaults.ExamCountdownNormalColor;
-            _mainWindow.ExamCountdownWarningColor = defaults.ExamCountdownWarningColor;
-            _mainWindow.ExamCountdownCriticalColor= defaults.ExamCountdownCriticalColor;
-            _mainWindow.ExamDistanceColor         = defaults.ExamDistanceColor;
-            _mainWindow.ExamInfoColor             = defaults.ExamInfoColor;
-            _mainWindow.ExamProgressBarColor      = defaults.ExamProgressBarColor;
-            _mainWindow.ExamProgressBarBgColor    = defaults.ExamProgressBarBgColor;
-            _mainWindow.ExamBackgroundColor       = defaults.ExamBackgroundColor;
-            _mainWindow.ExamNextSubjectColor      = defaults.ExamNextSubjectColor;
-            _mainWindow.ExamWarningColor          = defaults.ExamWarningColor;
-            _mainWindow.ExamProgressPctColor      = defaults.ExamProgressPctColor;
-            _mainWindow.ExamCountdownFontFamily   = defaults.ExamCountdownFontFamily;
-            _mainWindow.ExamInfoDimColor          = defaults.ExamInfoDimColor;
+            _settings.ShowDailyQuote            = defaults.ShowDailyQuote;
+            _settings.QuoteFontSize             = defaults.QuoteFontSize;
+            _settings.QuoteForegroundHex        = defaults.QuoteForegroundHex;
+            _settings.QuoteItalic               = defaults.QuoteItalic;
+            _settings.QuoteApiUrl               = defaults.QuoteApiUrl;
+            _settings.QuoteTextFieldName        = defaults.QuoteTextFieldName;
+            _settings.QuoteAutoRefreshInterval   = defaults.QuoteAutoRefreshInterval;
+            _settings.WeatherCity              = defaults.WeatherCity;
+            _settings.WeatherAdcode            = defaults.WeatherAdcode;
+            _settings.WeatherFontSize          = defaults.WeatherFontSize;
+            _settings.WeatherRefreshInterval   = defaults.WeatherRefreshInterval;
+            _settings.WeatherCityColor        = defaults.WeatherCityColor;
+            _settings.WeatherInfoColor        = defaults.WeatherInfoColor;
+            _settings.WeatherTempColor        = defaults.WeatherTempColor;
+            _settings.WeatherTimeColor        = defaults.WeatherTimeColor;
+            _settings.WeatherIconColor        = defaults.WeatherIconColor;
+            _settings.ScheduleBarFontSize     = defaults.ScheduleBarFontSize;
+            _settings.ScheduleBarAutoCollapse = defaults.ScheduleBarAutoCollapse;
+            _settings.ExamModeFontSize        = defaults.ExamModeFontSize;
+            _settings.ExamSubjectFontSize       = defaults.ExamSubjectFontSize;
+            _settings.ExamNameFontSize          = defaults.ExamNameFontSize;
+            _settings.ExamCountdownFontSize     = defaults.ExamCountdownFontSize;
+            _settings.ExamTimeInfoFontSize      = defaults.ExamTimeInfoFontSize;
+            _settings.ExamNextSubjectFontSize   = defaults.ExamNextSubjectFontSize;
+            _settings.ExamWarningFontSize       = defaults.ExamWarningFontSize;
+            _settings.ExamEscHintFontSize       = defaults.ExamEscHintFontSize;
+            _settings.ExamProgressBarHeight     = defaults.ExamProgressBarHeight;
+            _settings.ExamSubjectColor          = defaults.ExamSubjectColor;
+            _settings.ExamNameColor             = defaults.ExamNameColor;
+            _settings.ExamCountdownNormalColor  = defaults.ExamCountdownNormalColor;
+            _settings.ExamCountdownWarningColor = defaults.ExamCountdownWarningColor;
+            _settings.ExamCountdownCriticalColor= defaults.ExamCountdownCriticalColor;
+            _settings.ExamDistanceColor         = defaults.ExamDistanceColor;
+            _settings.ExamInfoColor             = defaults.ExamInfoColor;
+            _settings.ExamProgressBarColor      = defaults.ExamProgressBarColor;
+            _settings.ExamProgressBarBgColor    = defaults.ExamProgressBarBgColor;
+            _settings.ExamBackgroundColor       = defaults.ExamBackgroundColor;
+            _settings.ExamNextSubjectColor      = defaults.ExamNextSubjectColor;
+            _settings.ExamWarningColor          = defaults.ExamWarningColor;
+            _settings.ExamProgressPctColor      = defaults.ExamProgressPctColor;
+            _settings.ExamCountdownFontFamily   = defaults.ExamCountdownFontFamily;
+            _settings.ExamInfoDimColor          = defaults.ExamInfoDimColor;
             _mainWindow.ApplyExamModeStyle();
             _mainWindow.RefreshDateFields();
             _mainWindow.ApplyWindowLayer();
@@ -990,7 +992,7 @@ namespace GaokaoCountdown.Views
 
         private void HideWhenMaximizedCheck_Changed(object sender, RoutedEventArgs e)
         {
-            _mainWindow.HideWhenMaximized = HideWhenMaximizedCheck.IsChecked == true;
+            _settings.HideWhenMaximized = HideWhenMaximizedCheck.IsChecked == true;
         }
 
         // ── 控件动画开关 ────────────────────────────────────
