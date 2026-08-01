@@ -36,9 +36,9 @@ namespace GaokaoCountdown.Services
             try
             {
                 var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-                return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "1.6.0";
+                return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "1.7.0";
             }
-            catch { return "1.6.0"; }
+            catch { return "1.7.0"; }
         });
 
         public static string CurrentVersion => _currentVersion.Value;
@@ -144,7 +144,7 @@ namespace GaokaoCountdown.Services
             }
         }
 
-        /// <summary>版本比较：支持 v1.6.0 / 1.6.0-beta / 1.10 等格式</summary>
+        /// <summary>版本比较：支持 v1.7.0 / 1.7.0-beta / 1.10 等格式</summary>
         private static int CompareVersions(string a, string b)
         {
             // 去掉 v 前缀；预发布后缀（如 -beta、-rc1）低于正式版

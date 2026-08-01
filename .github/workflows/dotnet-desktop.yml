@@ -47,8 +47,8 @@ jobs:
             Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
             Select-Object -First 1
           $ver = [string]$verNode
-          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = "1.6.0" }
-          if ($ver -match '(\d+\.\d+\.\d+)') { $ver = $Matches[1] } else { $ver = "1.6.0" }
+          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = "1.7.0" }
+          if ($ver -match '(\d+\.\d+\.\d+)') { $ver = $Matches[1] } else { $ver = "1.7.0" }
           echo "version=$ver" >> $env:GITHUB_OUTPUT
           Write-Host "Version: $ver"
         shell: pwsh
