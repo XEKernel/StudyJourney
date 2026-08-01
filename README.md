@@ -106,12 +106,19 @@ dotnet publish -c Release -r win-x64 --self-contained true
 ├── 学程.csproj                      # 项目文件
 │
 ├── Views/                           # 窗口与控件（UI 层）
-│   ├── MainWindow.xaml(.cs)         # 主窗口（倒计时/动画/托盘/考试联动）
+│   ├── MainWindow.xaml(.cs)         # 主窗口核心（字段/托盘/事件/退出）
+│   ├── MainWindow.Countdown.cs      # 主窗口：倒计时/动画/进度
+│   ├── MainWindow.Schedule.cs       # 主窗口：课表/考试/课表栏联动
+│   ├── MainWindow.Quote.cs          # 主窗口：每日一言
 │   ├── SettingWindow.xaml           # 设置窗口 UI（6 个纵向侧边栏 Tab）
-│   ├── SettingWindow_Core.cs        # 设置窗口逻辑（倒计时/位置/API/关于/动画）
-│   ├── SettingWindow_Schedule.cs    # 设置窗口逻辑（课表/考试）
+│   ├── SettingWindow_Core.cs        # 设置窗口：初始化/加载/应用/按钮
+│   ├── SettingWindow_Styles.cs      # 设置窗口：动画控件样式构建
+│   ├── SettingWindow_Events.cs      # 设置窗口：控件事件处理器
+│   ├── SettingWindow_Schedule.cs    # 设置窗口：课表/考试
 │   ├── ExamModeWindow.xaml(.cs)     # 考试全屏倒计时
-│   ├── ScheduleBarWindow.xaml(.cs)  # 课表悬浮栏
+│   ├── ScheduleBarWindow.xaml(.cs)  # 课表悬浮栏核心（构造/定位/设置）
+│   ├── ScheduleBarWindow.Render.cs  # 课表悬浮栏：刷新/卡片渲染
+│   ├── ScheduleBarWindow.Interact.cs# 课表悬浮栏：倒计时/紧凑展开/天气
 │   ├── DialogHelper.cs              # 自定义对话框辅助（居中/颜色选择/消息框）
 │   ├── DialogOverlayWindow.xaml(.cs)# 对话框遮罩层
 │   ├── MessageBoxControl.xaml(.cs)  # 主题消息框控件
