@@ -1,15 +1,18 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
 
-namespace GaokaoCountdown
+namespace GaokaoCountdown.Models
 {
     /// <summary>课表管理器：加载/保存课表，查询当前/下一节课</summary>
     public class ScheduleManager
     {
         private ScheduleData _data;
+
+        /// <summary>数据变更事件（导入/保存后触发，供提醒服务等刷新缓存）</summary>
+        public event Action? DataChanged;
 
         public ScheduleData Data => _data;
 
@@ -18,9 +21,17 @@ namespace GaokaoCountdown
             _data = ScheduleData.Load();
         }
 
-        public void Reload() => _data = ScheduleData.Load();
+        public void Reload()
+        {
+            _data = ScheduleData.Load();
+            DataChanged?.Invoke();
+        }
 
-        public void Save() => _data.Save();
+        public void Save()
+        {
+            _data.Save();
+            DataChanged?.Invoke();
+        }
 
         // ── 课表查询 ──────────────────────────────────────────
 
@@ -45,7 +56,13 @@ namespace GaokaoCountdown
             // 预备铃提前2分钟，老师即到，进入上课模式
             // 重叠时优先高节次（下一节的预备铃覆盖上一节的末尾）
             return GetTodayEntries(dt.Date)
-                .Where(e => tod >= e.StartTime - TimeSpan.FromMinutes(2) && tod < e.EndTime)
+                .Where(e =>
+                {
+                    // 跨天课（EndTime < StartTime，如晚自习 22:00-00:30）特殊处理
+                    if (e.EndTime < e.StartTime)
+                        return tod >= e.StartTime - TimeSpan.FromMinutes(2) || tod < e.EndTime;
+                    return tod >= e.StartTime - TimeSpan.FromMinutes(2) && tod < e.EndTime;
+                })
                 .OrderByDescending(e => e.Period)
                 .FirstOrDefault();
         }
@@ -56,7 +73,13 @@ namespace GaokaoCountdown
             var dt = now ?? DateTime.Now;
             var tod = dt.TimeOfDay;
             return GetTodayEntries(dt.Date)
-                .FirstOrDefault(e => e.StartTime > tod);
+                .FirstOrDefault(e =>
+                {
+                    // 跨天课（22:00-00:30）：若当前在跨天课的结束时段内，视为"今天最后一节已结束"
+                    if (e.EndTime < e.StartTime)
+                        return tod < e.StartTime - TimeSpan.FromMinutes(2); // 跨天课开始前才视为下一节
+                    return e.StartTime > tod;
+                });
         }
 
         /// <summary>距离下节课开始的剩余时间，无下节课返回 null</summary>
@@ -76,6 +99,8 @@ namespace GaokaoCountdown
             var cur = GetCurrentEntry(dt);
             if (cur == null) return null;
             var endDt = cur.GetEndDateTime(dt.Date);
+            // 跨天课（EndTime < StartTime）：结束时刻在次日
+            if (cur.EndTime < cur.StartTime) endDt = endDt.AddDays(1);
             var remaining = endDt - dt;
             return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
         }
@@ -86,9 +111,14 @@ namespace GaokaoCountdown
             var dt = now ?? DateTime.Now;
             var cur = GetCurrentEntry(dt);
             if (cur == null) return null;
-            var elapsed = dt.TimeOfDay - cur.StartTime;
-            if (cur.Duration.TotalSeconds <= 0) return null;
-            return Math.Clamp(elapsed.TotalSeconds / cur.Duration.TotalSeconds, 0, 1);
+            // 跨天课进度
+            TimeSpan start = cur.StartTime, end = cur.EndTime;
+            if (end < start) end += TimeSpan.FromHours(24);   // 跨天：结束时间视为次日
+            var elapsed = dt.TimeOfDay - start;
+            if (elapsed < TimeSpan.Zero) elapsed += TimeSpan.FromHours(24);
+            var duration = end - start;
+            if (duration.TotalSeconds <= 0) return null;
+            return Math.Clamp(elapsed.TotalSeconds / duration.TotalSeconds, 0, 1);
         }
 
         // ── 考试查询 ──────────────────────────────────────────
@@ -159,6 +189,7 @@ namespace GaokaoCountdown
                 data.Exams  ??= new List<ExamEntry>();
                 _data = data;
                 _data.Save();
+                DataChanged?.Invoke();
                 return (true, $"导入成功：{data.Entries.Count} 节课，{data.Exams.Count} 场考试");
             }
             catch (Exception ex)

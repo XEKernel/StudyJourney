@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -6,8 +6,10 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using GaokaoCountdown.Helpers;
 
-namespace GaokaoCountdown
+using GaokaoCountdown.Models;
+namespace GaokaoCountdown.Services
 {
     /// <summary>GitHub Release 更新检查结果</summary>
     public class UpdateInfo
@@ -137,28 +139,37 @@ namespace GaokaoCountdown
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"[Updater] 启动失败: {ex.Message}");
+                Helpers.AppLogger.Warn($"[Updater] 启动失败: {ex.Message}");
                 return false;
             }
         }
 
-        /// <summary>简易版本比较（支持 1.6 > 1.5 > 1.10）</summary>
+        /// <summary>版本比较：支持 v1.6.0 / 1.6.0-beta / 1.10 等格式</summary>
         private static int CompareVersions(string a, string b)
         {
-            try
+            // 去掉 v 前缀；预发布后缀（如 -beta、-rc1）低于正式版
+            var clean = (string s) =>
             {
-                var pa = a.Split('.', StringSplitOptions.RemoveEmptyEntries);
-                var pb = b.Split('.', StringSplitOptions.RemoveEmptyEntries);
-                int len = Math.Max(pa.Length, pb.Length);
-                for (int i = 0; i < len; i++)
-                {
-                    int na = i < pa.Length && int.TryParse(pa[i], out int x) ? x : 0;
-                    int nb = i < pb.Length && int.TryParse(pb[i], out int y) ? y : 0;
-                    if (na != nb) return na.CompareTo(nb);
-                }
-                return 0;
+                s = Regex.Replace(s, @"^v", "", RegexOptions.IgnoreCase);
+                var idx = s.IndexOfAny(new[] { '-', '+' });
+                return idx >= 0 ? s[..idx] : s;
+            };
+            string pa = clean(a), pb = clean(b);
+
+            var numsA = pa.Split('.', StringSplitOptions.RemoveEmptyEntries);
+            var numsB = pb.Split('.', StringSplitOptions.RemoveEmptyEntries);
+            int len = Math.Max(numsA.Length, numsB.Length);
+            for (int i = 0; i < len; i++)
+            {
+                int na = i < numsA.Length && int.TryParse(numsA[i], out int x) ? x : 0;
+                int nb = i < numsB.Length && int.TryParse(numsB[i], out int y) ? y : 0;
+                if (na != nb) return na.CompareTo(nb);
             }
-            catch { return string.CompareOrdinal(a, b); }
+            // 版本号相同 → 无预发布后缀者更新（正式版 > 预发布版）
+            bool hasPreA = Regex.IsMatch(a, @"[-+](alpha|beta|rc|pre)", RegexOptions.IgnoreCase);
+            bool hasPreB = Regex.IsMatch(b, @"[-+](alpha|beta|rc|pre)", RegexOptions.IgnoreCase);
+            if (hasPreA != hasPreB) return hasPreA ? -1 : 1;
+            return 0;
         }
     }
 }

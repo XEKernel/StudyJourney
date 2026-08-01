@@ -15,9 +15,12 @@ using System.Windows.Media.Effects;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Application = System.Windows.Application;
-using MessageBox = GaokaoCountdown.DialogHelper; // 自定义主题对话框
+using MessageBox = GaokaoCountdown.Views.DialogHelper; // 自定义主题对话框
+using GaokaoCountdown.Helpers;
 using Hardcodet.Wpf.TaskbarNotification;
-namespace GaokaoCountdown
+using GaokaoCountdown.Models;
+using GaokaoCountdown.Services;
+namespace GaokaoCountdown.Views
 {
     public partial class MainWindow : Window
     {
@@ -695,19 +698,10 @@ namespace GaokaoCountdown
             else if (!isForegroundMaximized && _hiddenByMaximize)
             {
                 _hiddenByMaximize = false;
-                Opacity = 0;
                 Show();
                 ApplyWindowLayer();
-                var fadeIn = new DoubleAnimation(0, Math.Clamp(OverallOpacity, 0.1, 1.0),
-                    TimeSpan.FromMilliseconds(350))
-                {
-                    EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-                };
-                fadeIn.Completed += (_, _) =>
-                {
-                    if (EnableAnimations) PlayIntroAnimation();
-                };
-                BeginAnimation(OpacityProperty, fadeIn);
+                FadeHelper.FadeIn(this, 0, Math.Clamp(OverallOpacity, 0.1, 1.0), 350,
+                    () => { if (EnableAnimations) PlayIntroAnimation(); });
             }
         }
 
@@ -761,18 +755,9 @@ namespace GaokaoCountdown
                     {
                         _classEndRestoreTimer?.Stop();
                         _classEndRestoreTimer = null;
-                        Opacity = 0;
                         Show();
-                        var fadeIn = new DoubleAnimation(0, Math.Clamp(OverallOpacity, 0.1, 1.0),
-                            TimeSpan.FromMilliseconds(400))
-                        {
-                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-                        };
-                        fadeIn.Completed += (_, _) =>
-                        {
-                            if (EnableAnimations) PlayIntroAnimation();
-                        };
-                        BeginAnimation(OpacityProperty, fadeIn);
+                        FadeHelper.FadeIn(this, 0, Math.Clamp(OverallOpacity, 0.1, 1.0), 400,
+                            () => { if (EnableAnimations) PlayIntroAnimation(); });
                         _scheduleBarWindow?.Show();
                         UpdateCountdownDisplay(); // 立即刷新倒计时显示
                     };
@@ -864,13 +849,9 @@ namespace GaokaoCountdown
             double pct = progress * 100.0;
             ProgressText.Text   = $"高中生活已过去 {pct.ToString(fmt)}%";
             ProgressTextEn.Text = $"High school life has passed {pct.ToString(fmt)}%.";
-            SyncProgressBarWidth();
 
-            // 字体同步
-            ProgressText.FontFamily   = CountdownFontFamily;
-            ProgressTextEn.FontFamily = CountdownFontFamily;
-
-            UpdateCountdownDisplay();
+            // 自定义倒计时（内部有缓存+文本变更守卫，每秒开销极低）
+            UpdateCustomCountdown();
         }
 
         // ══════════════════════════════════════════════════════
@@ -1208,6 +1189,8 @@ namespace GaokaoCountdown
             Activate();  // 确保启动时窗口可见（不被其他窗口遮挡）
             if (EnableAnimations)
                 PlayIntroAnimation();
+            // 渲染完成后刷新一次静态显示（进度条宽度依赖 ActualWidth，构造时不可用）
+            UpdateCountdownDisplay();
             // 异步加载每日一言（fire-and-forget）
             if (ShowDailyQuote)
             {
@@ -1327,14 +1310,8 @@ namespace GaokaoCountdown
             if (_isExiting) return;
             e.Cancel = true;
 
-            // 淡出动画后隐藏
-            var fadeOut = new DoubleAnimation(Math.Clamp(OverallOpacity, 0.1, 1.0), 0,
-                TimeSpan.FromMilliseconds(300))
-            {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn }
-            };
-            fadeOut.Completed += (_, _) => Hide();
-            BeginAnimation(OpacityProperty, fadeOut);
+            // 淡出动画后隐藏（FadeHelper 在动画完成后会移除动画持有，避免 Opacity 残留）
+            FadeHelper.FadeOut(this, Math.Clamp(OverallOpacity, 0.1, 1.0), 0, 300, Hide);
         }
 
         private void ExitApplication()

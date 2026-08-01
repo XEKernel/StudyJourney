@@ -12,9 +12,11 @@ using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
 using Forms = System.Windows.Forms;
-using MessageBox = GaokaoCountdown.DialogHelper; // 自定义主题对话框，替代 Win32 样式
+using MessageBox = GaokaoCountdown.Views.DialogHelper; // 自定义主题对话框，替代 Win32 样式
 
-namespace GaokaoCountdown
+using GaokaoCountdown.Models;
+using GaokaoCountdown.Services;
+namespace GaokaoCountdown.Views
 {
     public partial class SettingWindow : Window
     {
@@ -1631,7 +1633,7 @@ namespace GaokaoCountdown
                         "检查更新", MessageBoxButton.YesNo, MessageBoxImage.Information);
                     if (r == MessageBoxResult.Yes)
                     {
-                        btn.IsEnabled = false;
+                        if (btn != null) btn.IsEnabled = false;
                         var result = await UpdateService.StartUpdateAsync(info.DownloadUrl,
                             Environment.ProcessId);
                         if (result)

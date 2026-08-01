@@ -100,35 +100,45 @@ dotnet publish -c Release -r win-x64 --self-contained true
 
 ```
 学程/
-├── MainWindow.xaml          # 主窗口 UI（倒计时面板）
-├── MainWindow.xaml.cs       # 主窗口逻辑（倒计时/动画/托盘/考试联动）
-├── SettingWindow.xaml       # 设置窗口 UI（6 个纵向侧边栏 Tab）
-├── SettingWindow_Core.cs    # 设置窗口逻辑（倒计时/位置/API/关于/动画）
-├── SettingWindow_Schedule.cs# 设置窗口逻辑（课表/考试）
-├── ExamModeWindow.xaml      # 考试全屏倒计时 UI
-├── ExamModeWindow.xaml.cs   # 考试全屏倒计时逻辑
-├── ScheduleBarWindow.xaml   # 课表悬浮栏 UI
-├── ScheduleBarWindow.xaml.cs# 课表悬浮栏逻辑
-├── ReminderWindow.xaml      # 自定义提醒弹窗 UI
-├── ReminderWindow.xaml.cs   # 自定义提醒弹窗逻辑
-├── BatchInputDialog.xaml    # 批量添加课节弹窗 UI
-├── BatchInputDialog.xaml.cs # 批量添加课节弹窗逻辑
-├── WeatherWindow.xaml       # 天气独立窗口 UI
-├── WeatherWindow.xaml.cs    # 天气窗口逻辑
-├── Settings.cs              # 设置数据模型（JSON 持久化）
-├── ScheduleManager.cs       # 课表与考试数据管理
-├── ScheduleEntry.cs         # 课表/考试条目/时段模板/课程表网格行模型
-├── ReminderService.cs       # 提醒调度服务
-├── WeatherService.cs        # 共享天气服务（HTTP + JSON解析）
-├── ColorUtils.cs            # 共享工具类（颜色解析/天气表情符号）
-├── App.xaml / .cs           # 应用入口
-├── Styles.xaml              # 全局暗色样式（CheckBox/RadioButton/ComboBox/ScrollBar/…）
-├── icon.ico                 # 软件图标
-└── 学程.csproj              # 项目文件
+├── App.xaml / App.xaml.cs           # 应用入口（单实例/全局快捷键）
+├── Styles.xaml                      # 全局暗色样式（CheckBox/RadioButton/ComboBox/ScrollBar/…）
+├── icon.ico                         # 软件图标
+├── 学程.csproj                      # 项目文件
+│
+├── Views/                           # 窗口与控件（UI 层）
+│   ├── MainWindow.xaml(.cs)         # 主窗口（倒计时/动画/托盘/考试联动）
+│   ├── SettingWindow.xaml           # 设置窗口 UI（6 个纵向侧边栏 Tab）
+│   ├── SettingWindow_Core.cs        # 设置窗口逻辑（倒计时/位置/API/关于/动画）
+│   ├── SettingWindow_Schedule.cs    # 设置窗口逻辑（课表/考试）
+│   ├── ExamModeWindow.xaml(.cs)     # 考试全屏倒计时
+│   ├── ScheduleBarWindow.xaml(.cs)  # 课表悬浮栏
+│   ├── DialogHelper.cs              # 自定义对话框辅助（居中/颜色选择/消息框）
+│   ├── DialogOverlayWindow.xaml(.cs)# 对话框遮罩层
+│   ├── MessageBoxControl.xaml(.cs)  # 主题消息框控件
+│   └── ColorPickerControl.xaml(.cs) # 颜色选择控件
+│
+├── Models/                          # 数据模型（纯数据，无 UI 依赖）
+│   ├── Settings.cs                  # 应用设置（JSON 持久化）
+│   ├── ScheduleEntry.cs             # 课表/考试条目/时段模板/课程表网格行
+│   └── ScheduleManager.cs           # 课表与考试数据管理（加载/保存/查询）
+│
+├── Services/                        # 服务层（业务逻辑，可独立测试）
+│   ├── ReminderService.cs           # 提醒调度服务（上课/下课/考试提醒）
+│   ├── WeatherService.cs            # 天气服务（HTTP + JSON 解析）
+│   └── UpdateService.cs             # GitHub Release 更新检查/下载
+│
+├── Helpers/                         # 公共工具
+│   ├── ColorUtils.cs                # 颜色解析/天气表情符号
+│   ├── DialogEnums.cs               # 对话框枚举
+│   ├── FadeHelper.cs                # 统一淡入淡出（解决动画 FillBehavior 残留）
+│   └── AppLogger.cs                 # 轻量日志（Debug + 文件）
+│
+└── Updater/                         # 独立更新程序（StudyJourney.Updater）
 ```
 
----
+> 架构约定：`Views → Models/Services/Helpers` 单向依赖；`Services → Models/Helpers`；Models/Helpers 不依赖上层。
 
+---
 ## 📝 设置 Tab 说明
 
 | Tab | 功能 |

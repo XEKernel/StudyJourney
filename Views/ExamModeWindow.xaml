@@ -1,4 +1,4 @@
-<Window x:Class="GaokaoCountdown.ExamModeWindow"
+﻿<Window x:Class="GaokaoCountdown.Views.ExamModeWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="考试模式"

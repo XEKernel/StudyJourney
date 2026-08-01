@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Media;
 using System.Windows.Threading;
 
-namespace GaokaoCountdown
+using GaokaoCountdown.Models;
+namespace GaokaoCountdown.Services
 {
     /// <summary>提醒事件参数</summary>
     public class ReminderEventArgs : EventArgs
@@ -48,6 +49,11 @@ namespace GaokaoCountdown
         private readonly HashSet<string> _firedKeys = new();
         private DateTime _lastClearDay = DateTime.Today;
 
+        // ── 当天课程缓存（避免每 500ms 全量遍历，课表变更时失效）──
+        private DateTime _cachedDay = DateTime.MinValue;
+        private List<ScheduleEntry> _cachedEntries = new();
+        private readonly Action _onDataChanged;   // 课表变更回调（缓存失效）
+
         // ── 60 秒倒计时状态 ────────────────────────────────
         private DispatcherTimer? _countdown60Timer;
         private int _countdown60Remaining;
@@ -55,8 +61,6 @@ namespace GaokaoCountdown
         // ── 提示音播放器（保持引用防止 GC 回收）───────────
         private System.Media.SoundPlayer? _reminderPlayer;
 
-        // ── 60s 倒计时去重（防止 ExamMode 500ms 定时器重复蜂鸣）───
-        private int _lastBeepSecond = -1;
         // ── 事件 ──────────────────────────────────────────
         public event EventHandler<ReminderEventArgs>? Reminder;
         /// <summary>60 秒倒计时每秒更新（参数=剩余秒数），倒计时结束时参数=0</summary>
@@ -66,9 +70,12 @@ namespace GaokaoCountdown
         {
             _manager = manager;
             _settings = settings;
+            _onDataChanged = () => _cachedDay = DateTime.MinValue; // 课表变更 → 强制重取
+            _manager.DataChanged += _onDataChanged;
 
             _timer = new DispatcherTimer
             {
+                // 500ms 精度足够覆盖 TryFire 的 [-0.5s, +1.0s) 窗口，且响应更及时
                 Interval = TimeSpan.FromMilliseconds(500)
             };
             _timer.Tick += OnTick;
@@ -88,12 +95,17 @@ namespace GaokaoCountdown
                 _lastClearDay = now.Date;
             }
 
-            var entries = _manager.GetTodayEntries();
-            if (entries.Count == 0) return;
-
-            foreach (var entry in entries)
+            // 课程缓存：跨天或课表变更时重新拉取
+            if (_cachedDay != now.Date)
             {
-                CheckClassReminders(entry, now, entries);
+                _cachedDay = now.Date;
+                _cachedEntries = _manager.GetTodayEntries();
+            }
+            if (_cachedEntries.Count == 0) return;
+
+            foreach (var entry in _cachedEntries)
+            {
+                CheckClassReminders(entry, now, _cachedEntries);
             }
 
             // 检查考试提醒
@@ -270,6 +282,7 @@ namespace GaokaoCountdown
             _countdown60Timer = null;
             _reminderPlayer?.Dispose();
             _reminderPlayer = null;
+            _manager.DataChanged -= _onDataChanged;
         }
     }
 }

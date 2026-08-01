@@ -9,7 +9,10 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
-namespace GaokaoCountdown
+using GaokaoCountdown.Models;
+using GaokaoCountdown.Services;
+using GaokaoCountdown.Helpers;
+namespace GaokaoCountdown.Views
 {
     public partial class ScheduleBarWindow : Window
     {
@@ -85,15 +88,8 @@ namespace GaokaoCountdown
             ApplyFontSizes();
             PositionToTop();
 
-            // ── 窗口入场淡入动画 ──
-            Opacity = 0;
-            var fadeIn = new DoubleAnimation(0, _settings.ScheduleBarOpacity,
-                TimeSpan.FromMilliseconds(400))
-            {
-                EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-            };
-            fadeIn.Completed += (_, _) => Opacity = _settings.ScheduleBarOpacity;
-            BeginAnimation(Window.OpacityProperty, fadeIn);
+            // ── 窗口入场淡入动画（FadeHelper 自动清理动画持有，避免 Opacity 残留）──
+            Helpers.FadeHelper.FadeIn(this, 0, _settings.ScheduleBarOpacity, 400);
 
             StartTimer();
             Refresh();
@@ -190,17 +186,19 @@ namespace GaokaoCountdown
         private readonly List<(ScheduleEntry Entry, Border Card, TextBlock PeriodLabel,
                                TextBlock SubjectLabel, TextBlock TimeLabel)> _periodCardRefs = new();
 
-        // ── 缓存画刷（避免每秒 new SolidColorBrush）─────────────
-        private static readonly SolidColorBrush BrOrange   = new(Color.FromRgb(0xFF, 0x88, 0x44));
-        private static readonly SolidColorBrush BrRed      = new(Color.FromRgb(0xFF, 0x44, 0x44));
-        private static readonly SolidColorBrush BrGreen    = new(Color.FromRgb(0x4C, 0xAF, 0x50));
-        private static readonly SolidColorBrush BrGray     = new(Color.FromRgb(0xAA, 0xAA, 0xAA));
-        private static readonly SolidColorBrush BrLightGray= new(Color.FromRgb(0x88, 0x88, 0x88));
-        private static readonly SolidColorBrush BrWhite    = new SolidColorBrush(Colors.White);
-        private static readonly SolidColorBrush BrLtGreen  = new(Color.FromRgb(0xA5, 0xD6, 0xA7));
-        private static readonly SolidColorBrush BrLtBlue   = new(Color.FromRgb(0x90, 0xCA, 0xF9));
-        private static readonly SolidColorBrush BrFlashBg  = new(Color.FromRgb(0x55, 0x15, 0x00));
-        private static readonly SolidColorBrush BrIndicator= new(Color.FromRgb(0x4C, 0xAF, 0x50));
+        // ── 缓存画刷（避免每秒 new SolidColorBrush；已 Freeze 提升性能）─────────────
+        private static readonly SolidColorBrush BrOrange    = FreezeBrush(new SolidColorBrush(Color.FromRgb(0xFF, 0x88, 0x44)));
+        private static readonly SolidColorBrush BrRed       = FreezeBrush(new SolidColorBrush(Color.FromRgb(0xFF, 0x44, 0x44)));
+        private static readonly SolidColorBrush BrGreen     = FreezeBrush(new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)));
+        private static readonly SolidColorBrush BrGray      = FreezeBrush(new SolidColorBrush(Color.FromRgb(0xAA, 0xAA, 0xAA)));
+        private static readonly SolidColorBrush BrLightGray = FreezeBrush(new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)));
+        private static readonly SolidColorBrush BrWhite     = FreezeBrush(new SolidColorBrush(Colors.White));
+        private static readonly SolidColorBrush BrLtGreen   = FreezeBrush(new SolidColorBrush(Color.FromRgb(0xA5, 0xD6, 0xA7)));
+        private static readonly SolidColorBrush BrLtBlue    = FreezeBrush(new SolidColorBrush(Color.FromRgb(0x90, 0xCA, 0xF9)));
+        private static readonly SolidColorBrush BrFlashBg   = FreezeBrush(new SolidColorBrush(Color.FromRgb(0x55, 0x15, 0x00)));
+        private static readonly SolidColorBrush BrIndicator = FreezeBrush(new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)));
+
+        private static SolidColorBrush FreezeBrush(SolidColorBrush b) { b.Freeze(); return b; }
 
         // ── 定时刷新 ──────────────────────────────────────────
         private void StartTimer()

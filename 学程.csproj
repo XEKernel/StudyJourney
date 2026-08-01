@@ -34,6 +34,12 @@
 		<PackageReference Include="System.Drawing.Common" Version="9.0.9" />
 	</ItemGroup>
 
+	<!-- 构建后复制 Updater.exe（更新功能依赖，从 Updater 子项目产物复制） -->
+	<Target Name="CopyUpdater" AfterTargets="Build" Condition="Exists('$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\net8.0-windows\StudyJourney.Updater.exe')">
+		<Copy SourceFiles="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\net8.0-windows\StudyJourney.Updater.exe"
+		      DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+	</Target>
+
 	<!-- Release 构建后自动签名（需要 Windows SDK signtool.exe） -->
 	<Target Name="SignOutput" AfterTargets="AfterBuild" Condition="'$(Configuration)' == 'Release' And Exists('$(SignCertificate)')">
 		<Message Text="[Sign] 正在签名: $(TargetPath)" Importance="high" />

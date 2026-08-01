@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Windows.Media;
 
-namespace GaokaoCountdown
+namespace GaokaoCountdown.Helpers
 {
     /// <summary>跨窗口共享的工具方法</summary>
     public static class ColorUtils

@@ -1,10 +1,12 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.IO;
+using GaokaoCountdown.Helpers;
 
-namespace GaokaoCountdown
+namespace GaokaoCountdown.Models
 {
     // ── 节次类型 ───────────────────────────────────────────
     public enum PeriodType
@@ -47,7 +49,9 @@ namespace GaokaoCountdown
             get
             {
                 if (TimeSpan.TryParseExact(StartTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t;
-                return TimeSpan.Zero;
+                // 解析失败：记录一次警告（避免静默错误），返回安全默认 08:00
+                System.Diagnostics.Debug.WriteLine($"[ScheduleEntry] 上课时间解析失败: '{StartTimeStr}' (科目: {Subject})");
+                return TimeSpan.FromHours(8);
             }
         }
 
@@ -58,12 +62,22 @@ namespace GaokaoCountdown
             {
                 if (TimeSpan.TryParseExact(EndTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t;
                 if (TimeSpan.TryParse(EndTimeStr, out t)) return t;
-                return TimeSpan.FromMinutes(45);
+                // 解析失败：回退为开始时间 + 45 分钟，避免 Duration 为负
+                System.Diagnostics.Debug.WriteLine($"[ScheduleEntry] 下课时间解析失败: '{EndTimeStr}' (科目: {Subject})");
+                return StartTime + TimeSpan.FromMinutes(45);
             }
         }
 
         [JsonIgnore]
-        public TimeSpan Duration => EndTime - StartTime;
+        public TimeSpan Duration
+        {
+            get
+            {
+                var d = EndTime - StartTime;
+                // 跨天课（如 22:00-00:30）：Duration 应为 2.5 小时而非负数
+                return d < TimeSpan.Zero ? d + TimeSpan.FromHours(24) : d;
+            }
+        }
 
         /// <summary>返回今天这节课的实际 DateTime</summary>
         public DateTime GetStartDateTime(DateTime? date = null)
@@ -89,17 +103,20 @@ namespace GaokaoCountdown
         [JsonIgnore]
         public TimeSpan StartTime
         {
-            get { if (TimeSpan.TryParseExact(StartTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t; return TimeSpan.Zero; }
+            get { if (TimeSpan.TryParseExact(StartTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t; return TimeSpan.FromHours(9); }
         }
 
         [JsonIgnore]
         public TimeSpan EndTime
         {
-            get { if (TimeSpan.TryParseExact(EndTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t; return TimeSpan.FromHours(2.5); }
+            get { if (TimeSpan.TryParseExact(EndTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t; return StartTime + TimeSpan.FromHours(2.5); }
         }
 
         [JsonIgnore]
-        public TimeSpan Duration => EndTime - StartTime;
+        public TimeSpan Duration
+        {
+            get { var d = EndTime - StartTime; return d < TimeSpan.Zero ? d + TimeSpan.FromHours(24) : d; }
+        }
     }
 
     // ── 考试条目 ───────────────────────────────────────────
@@ -200,12 +217,13 @@ namespace GaokaoCountdown
             }
             catch (Exception ex)
             {
-                // 备份损坏文件，然后删除原文件
+                // 备份损坏文件，然后删除原文件（保留最近 3 份备份）
                 try
                 {
                     var bak = _schedulePath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
                     File.Copy(_schedulePath, bak, overwrite: true);
                     File.Delete(_schedulePath);
+                    TrimCorruptedBackups(_schedulePath);
                     System.Diagnostics.Debug.WriteLine($"[ScheduleData] 已备份损坏文件: {bak}");
                 }
                 catch { }
@@ -215,6 +233,24 @@ namespace GaokaoCountdown
             return new ScheduleData();
         }
 
+        /// <summary>清理过期的 .corrupted 备份，只保留最近 maxCount 份</summary>
+        private static void TrimCorruptedBackups(string basePath, int maxCount = 3)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(basePath);
+                if (string.IsNullOrEmpty(dir)) return;
+                var files = Directory.GetFiles(dir, Path.GetFileName(basePath) + ".corrupted.*")
+                    .OrderByDescending(f => f)
+                    .Skip(maxCount);
+                foreach (var f in files)
+                {
+                    try { File.Delete(f); } catch { }
+                }
+            }
+            catch { }
+        }
+
         public void Save()
         {
             try
@@ -222,7 +258,10 @@ namespace GaokaoCountdown
                 var json = JsonSerializer.Serialize(this, _jsonOpts);
                 File.WriteAllText(_schedulePath, json);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Helpers.AppLogger.Error("保存课表失败", ex);
+            }
         }
     }
 }

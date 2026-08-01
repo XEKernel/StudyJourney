@@ -8,7 +8,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using MessageBox = GaokaoCountdown.DialogHelper;
+using MessageBox = GaokaoCountdown.Views.DialogHelper;
 using System.Windows.Media.Effects;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -16,7 +16,9 @@ using Forms = System.Windows.Forms;
 using WpfMessageBox = System.Windows.MessageBox;
 
 
-namespace GaokaoCountdown
+using GaokaoCountdown.Models;
+using GaokaoCountdown.Services;
+namespace GaokaoCountdown.Views
 {
     public partial class SettingWindow
     {
@@ -33,6 +35,13 @@ namespace GaokaoCountdown
             };
             if (dlg.ShowDialog() == true)
                 ReminderSoundPathBox.Text = dlg.FileName;
+        }
+
+        /// <summary>课表栏透明度滑杆：拖动时实时刷新百分比标签</summary>
+        private void ScheduleBarOpacitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (ScheduleBarOpacityLabel != null)
+                ScheduleBarOpacityLabel.Text = $"{ScheduleBarOpacitySlider.Value * 100:F0}%";
         }
 
         private void ImportScheduleJson_Click(object sender, RoutedEventArgs e)
@@ -625,19 +634,6 @@ namespace GaokaoCountdown
             {
                 ExamStatusTb.Text = $"保存失败：{ex.Message}";
             }
-        }
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  自定义缓动函数
-    // ══════════════════════════════════════════════════════
-
-    public class CircleEaseEase : IEasingFunction
-    {
-        public EasingMode EasingMode { get; set; }
-        public double Ease(double t)
-        {
-            return 1 - Math.Sqrt(1 - t * t);
         }
     }
 

@@ -1,4 +1,4 @@
-<UserControl x:Class="GaokaoCountdown.ColorPickerControl"
+﻿<UserControl x:Class="GaokaoCountdown.Views.ColorPickerControl"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Width="340" Height="420">

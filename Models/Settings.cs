@@ -1,12 +1,14 @@
-using System.Windows.Media;
+﻿using System.Windows.Media;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using GaokaoCountdown.Helpers;
 
 // 学程 (Study Journey) — 学生桌面伴侣
 // 应用设置数据模型，JSON 持久化到 settings.json
 
-namespace GaokaoCountdown
+namespace GaokaoCountdown.Models
 {
     public class CustomCountdown
     {
@@ -219,6 +221,24 @@ namespace GaokaoCountdown
         // ── 持久化 ────────────────────────────────────────────
         private static readonly string SettingsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json");
 
+        /// <summary>清理过期的 .corrupted 备份，只保留最近 maxCount 份</summary>
+        private static void TrimCorruptedBackups(string basePath, int maxCount = 3)
+        {
+            try
+            {
+                var dir = Path.GetDirectoryName(basePath);
+                if (string.IsNullOrEmpty(dir)) return;
+                var files = Directory.GetFiles(dir, Path.GetFileName(basePath) + ".corrupted.*")
+                    .OrderByDescending(f => f)   // 文件名含时间戳，字典序即时间序
+                    .Skip(maxCount);
+                foreach (var f in files)
+                {
+                    try { File.Delete(f); } catch { }
+                }
+            }
+            catch { }
+        }
+
         public static AppSettings Load()
         {
             if (File.Exists(SettingsPath))
@@ -230,12 +250,13 @@ namespace GaokaoCountdown
                 }
                 catch (Exception ex)
                 {
-                    // 备份损坏文件，然后删除原文件
+                    // 备份损坏文件，然后删除原文件（保留最近 3 份备份，防止无限堆积）
                     try
                     {
                         var bak = SettingsPath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
                         File.Copy(SettingsPath, bak, overwrite: true);
                         File.Delete(SettingsPath);
+                        TrimCorruptedBackups(SettingsPath);
                         System.Diagnostics.Debug.WriteLine($"[AppSettings] 已备份损坏文件: {bak}");
                     }
                     catch { }
@@ -256,9 +277,9 @@ namespace GaokaoCountdown
                 string json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(SettingsPath, json);
             }
-            catch
+            catch (Exception ex)
             {
-                // 保存失败静默处理
+                Helpers.AppLogger.Error("保存设置失败", ex);
             }
         }
     }

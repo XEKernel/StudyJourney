@@ -4,9 +4,12 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using MessageBox = GaokaoCountdown.DialogHelper;
+using MessageBox = GaokaoCountdown.Views.DialogHelper;
 
-namespace GaokaoCountdown
+using GaokaoCountdown.Models;
+using GaokaoCountdown.Services;
+using GaokaoCountdown.Helpers;
+namespace GaokaoCountdown.Views
 {
     /// <summary>考试模式全屏倒计时窗口。按 ESC 或托盘菜单退出。</summary>
     public partial class ExamModeWindow : Window
@@ -122,8 +125,9 @@ namespace GaokaoCountdown
             ProgressPctTb.Foreground = Sd(_settings.ExamProgressPctColor, "#66FFFFFF");
             StartTimeTb.Foreground   = Sd(_settings.ExamInfoColor, "#88FFFFFF");
             EndTimeTb.Foreground     = Sd(_settings.ExamInfoColor, "#88FFFFFF");
-            DurationTb.Foreground    = Sd(_settings.ExamInfoColor, "#66FFFFFF");
-            CurrentTimeTb.Foreground = Sd(_settings.ExamInfoColor, "#66FFFFFF");
+            DurationTb.Foreground    = Sd(_settings.ExamInfoDimColor, "#66FFFFFF");
+            CurrentTimeTb.Foreground = Sd(_settings.ExamInfoDimColor, "#66FFFFFF");
+            EscHintTb.Foreground     = Sd(_settings.ExamInfoDimColor, "#88FFFFFF");
 
             // 倒计时字体族
             if (!string.IsNullOrWhiteSpace(_settings.ExamCountdownFontFamily))
@@ -354,6 +358,7 @@ namespace GaokaoCountdown
             {
                 _currentSubjectName = subject.Name;
                 _warnShown = false;
+                _lastBeepSecond = -1;   // 重置蜂鸣去重，防止新科目漏蜂鸣
                 WarningTb.Visibility = Visibility.Collapsed;
             }
         }

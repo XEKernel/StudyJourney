@@ -1,4 +1,4 @@
-﻿<Window x:Class="GaokaoCountdown.SettingWindow"
+﻿<Window x:Class="GaokaoCountdown.Views.SettingWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="设置"
@@ -1373,7 +1373,7 @@
                                     </StackPanel>
 
                                     <!-- 右侧：软件图标 -->
-                                    <Image Grid.Column="1" Source="icon.ico"
+                                    <Image Grid.Column="1" Source="../icon.ico"
                                            Width="96" Height="96"
                                            VerticalAlignment="Center" Margin="16,0,0,0"/>
                                 </Grid>
@@ -1531,7 +1531,8 @@
                                     <StackPanel Orientation="Horizontal">
                                         <Slider x:Name="ScheduleBarOpacitySlider"
                                                 Width="200" Minimum="0.2" Maximum="1.0" SmallChange="0.05"
-                                                TickFrequency="0.1"/>
+                                                TickFrequency="0.1"
+                                                ValueChanged="ScheduleBarOpacitySlider_ValueChanged"/>
                                         <TextBlock x:Name="ScheduleBarOpacityLabel" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
                                     <TextBlock Text="栏宽度（0 = 全屏宽度，像素）" Margin="0,10,0,2"/>

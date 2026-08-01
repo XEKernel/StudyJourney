@@ -1,8 +1,10 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 
-namespace GaokaoCountdown
+using GaokaoCountdown.Models;
+using GaokaoCountdown.Services;
+namespace GaokaoCountdown.Views
 {
     public partial class DialogOverlayWindow : Window
     {

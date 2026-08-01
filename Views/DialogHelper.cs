@@ -2,7 +2,10 @@
 using System.Windows;
 using System.Windows.Media;
 
-namespace GaokaoCountdown
+using GaokaoCountdown.Helpers;
+using GaokaoCountdown.Models;
+using GaokaoCountdown.Services;
+namespace GaokaoCountdown.Views
 {
     /// <summary>自定义对话框：居中于当前活动窗口，暗色主题</summary>
     public static class DialogHelper

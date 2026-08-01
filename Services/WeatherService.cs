@@ -1,9 +1,11 @@
-using System;
+﻿using System;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using GaokaoCountdown.Helpers;
 
-namespace GaokaoCountdown
+using GaokaoCountdown.Models;
+namespace GaokaoCountdown.Services
 {
     /// <summary>天气数据结果</summary>
     public class WeatherResult
@@ -53,8 +55,9 @@ namespace GaokaoCountdown
                                     ? (int)h.GetDouble() : 0
                 };
             }
-            catch
+            catch (Exception ex)
             {
+                Helpers.AppLogger.Warn($"天气获取失败 (city={city}): {ex.Message}");
                 return null;
             }
         }
