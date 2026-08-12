@@ -1,0 +1,61 @@
+<UserControl x:Class="StudyJourney.Avalonia.Views.Settings.SchedulePage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,8,16,16">
+
+            <!-- 课表悬浮栏 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="课表悬浮栏" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="屏幕顶部的课表信息条" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <StackPanel Spacing="10" Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="显示悬浮栏" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="悬浮栏置顶" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="上课时自动收缩" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="透明度" VerticalAlignment="Center"/>
+                            <Slider Grid.Column="1" Minimum="0.2" Maximum="1" Value="0.9" Width="150"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="文字字号" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1" Width="120" SelectedIndex="1">
+                                <ComboBoxItem Content="小"/>
+                                <ComboBoxItem Content="中"/>
+                                <ComboBoxItem Content="大"/>
+                            </ComboBox>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 上课隐藏 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="上课期间" FontSize="16" FontWeight="SemiBold"/>
+                    <StackPanel Spacing="10" Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="上课时自动隐藏主窗口" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="False"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="隐藏的科目" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="体育,信息" Width="140"
+                                     Watermark="逗号分隔科目名"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

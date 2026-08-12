@@ -1,0 +1,56 @@
+<UserControl x:Class="StudyJourney.Avalonia.Views.Settings.ExamPage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,8,16,16">
+
+            <!-- 考试模式 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="考试模式" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="考试期间全屏显示倒计时" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <StackPanel Spacing="10" Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="启用考试模式" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="开考时自动进入" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="考试结束自动退出" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 显示样式 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="显示样式" FontSize="16" FontWeight="SemiBold"/>
+                    <StackPanel Spacing="10" Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="倒计时字号" VerticalAlignment="Center"/>
+                            <Slider Grid.Column="1" Minimum="60" Maximum="180" Value="120" Width="150"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="科目名字号" VerticalAlignment="Center"/>
+                            <Slider Grid.Column="1" Minimum="30" Maximum="100" Value="64" Width="150"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="进度条高度" VerticalAlignment="Center"/>
+                            <Slider Grid.Column="1" Minimum="6" Maximum="24" Value="12" Width="150"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="背景颜色" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="#FF060B14" Width="140"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

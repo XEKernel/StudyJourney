@@ -1,0 +1,64 @@
+<UserControl x:Class="StudyJourney.Avalonia.Views.Settings.QuotePage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,8,16,16">
+
+            <!-- 每日一言开关 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="每日一言" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="在主界面底部显示每日一言" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,10,0,0">
+                        <TextBlock Text="启用每日一言" VerticalAlignment="Center"/>
+                        <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- API 配置 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="接口配置" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="支持自定义一言 API（返回 JSON）" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <StackPanel Spacing="10" Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="110,*">
+                            <TextBlock Text="API 地址" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="https://uapis.cn/api/v1/saying"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="110,*">
+                            <TextBlock Text="内容字段名" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="text"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="110,*">
+                            <TextBlock Text="自动刷新（分钟）" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="30"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 显示样式 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="显示样式" FontSize="16" FontWeight="SemiBold"/>
+                    <StackPanel Spacing="10" Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="斜体" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="字号" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1" Width="120" SelectedIndex="0">
+                                <ComboBoxItem Content="小"/>
+                                <ComboBoxItem Content="中"/>
+                                <ComboBoxItem Content="大"/>
+                            </ComboBox>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

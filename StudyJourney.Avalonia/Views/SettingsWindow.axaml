@@ -5,19 +5,20 @@
         Title="学程 · 设置"
         Width="900" Height="640"
         WindowStartupLocation="CenterScreen"
-        WindowDecorations="None"
-        ExtendClientAreaToDecorationsHint="True"
         TransparencyLevelHint="Mica"
         Background="Transparent">
 
-    <!-- WinUI 3 风格设置窗口：Mica + NavigationView 左侧导航 -->
+    <!--
+        WinUI 3 风格设置窗口：
+        - 保留系统装饰（三大金刚键 + Win11 系统圆角，ClassIsland 同款做法）
+        - Mica 材质 + FANavigationView 左侧导航
+    -->
     <Grid RowDefinitions="Auto,*">
 
-        <!-- 顶部标题（FAAppWindow 标题栏覆盖其上） -->
+        <!-- 页面标题（内容区顶部，WinUI 3 设置页风格） -->
         <TextBlock Grid.Row="0" Text="设置"
-                   FontSize="20" FontWeight="SemiBold"
-                   Margin="24,6,0,0"
-                   IsHitTestVisible="False"/>
+                   FontSize="24" FontWeight="SemiBold"
+                   Margin="24,16,0,8"/>
 
         <ui:FANavigationView Grid.Row="1"
                              x:Name="NavView"
@@ -27,10 +28,15 @@
                              IsBackButtonVisible="False"
                              ItemInvoked="NavView_ItemInvoked">
             <ui:FANavigationView.MenuItems>
-                <ui:FANavigationViewItem Content="显示" Tag="display"> </ui:FANavigationViewItem>
-                <ui:FANavigationViewItem Content="外观" Tag="appearance"> </ui:FANavigationViewItem>
-                <ui:FANavigationViewItem Content="位置" Tag="position"> </ui:FANavigationViewItem>
-                <ui:FANavigationViewItem Content="关于" Tag="about"> </ui:FANavigationViewItem>
+                <ui:FANavigationViewItem Content="显示" Tag="display"/>
+                <ui:FANavigationViewItem Content="外观" Tag="appearance"/>
+                <ui:FANavigationViewItem Content="位置" Tag="position"/>
+                <ui:FANavigationViewItem Content="每日一言" Tag="quote"/>
+                <ui:FANavigationViewItem Content="天气" Tag="weather"/>
+                <ui:FANavigationViewItem Content="课表" Tag="schedule"/>
+                <ui:FANavigationViewItem Content="考试" Tag="exam"/>
+                <ui:FANavigationViewItem Content="提醒" Tag="reminder"/>
+                <ui:FANavigationViewItem Content="关于" Tag="about"/>
             </ui:FANavigationView.MenuItems>
 
             <!-- 页面内容区 -->

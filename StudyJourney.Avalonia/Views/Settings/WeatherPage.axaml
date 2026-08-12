@@ -1,0 +1,52 @@
+<UserControl x:Class="StudyJourney.Avalonia.Views.Settings.WeatherPage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer>
+        <StackPanel Spacing="16" Margin="0,8,16,16">
+
+            <!-- 天气配置 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="天气" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="在悬浮栏和考试模式显示天气" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <StackPanel Spacing="10" Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="110,*">
+                            <TextBlock Text="城市" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="北京"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="110,*">
+                            <TextBlock Text="行政区编码" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="110000" Watermark="可选，留空自动"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="110,*">
+                            <TextBlock Text="刷新间隔（分钟）" VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="30"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 显示选项 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="显示选项" FontSize="16" FontWeight="SemiBold"/>
+                    <StackPanel Spacing="10" Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="在悬浮栏显示天气" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="在考试模式显示天气" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="天气字号" VerticalAlignment="Center"/>
+                            <Slider Grid.Column="1" Minimum="10" Maximum="24" Value="14" Width="150"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>
