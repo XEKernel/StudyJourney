@@ -33,7 +33,7 @@
                    HorizontalAlignment="Center" VerticalAlignment="Center"
                    Margin="0,0,0,5">
             <TextBlock x:Name="ChinesePrefixTb" Text="距离高考还有 " Foreground="#FFFFFF" FontSize="40"/>
-            <TextBlock x:Name="DaysTb" Text="0" Foreground="#FF0000" FontWeight="Bold" FontSize="40">
+            <TextBlock x:Name="DaysTb" Text="{Binding Days}" Foreground="#FF0000" FontWeight="Bold" FontSize="40">
                 <TextBlock.RenderTransform>
                     <ScaleTransform/>
                 </TextBlock.RenderTransform>
@@ -42,7 +42,7 @@
                 </TextBlock.Effect>
             </TextBlock>
             <TextBlock x:Name="ChineseDaysTb" Text="天 " Foreground="#FFFFFF" FontSize="40"/>
-            <TextBlock x:Name="HoursTb" Text="00" Foreground="#FF0000" FontWeight="Bold" FontSize="40">
+            <TextBlock x:Name="HoursTb" Text="{Binding Hours, StringFormat=00}" Foreground="#FF0000" FontWeight="Bold" FontSize="40">
                 <TextBlock.RenderTransform>
                     <ScaleTransform/>
                 </TextBlock.RenderTransform>
@@ -51,7 +51,7 @@
                 </TextBlock.Effect>
             </TextBlock>
             <TextBlock x:Name="ChineseHoursTb" Text="小时 " Foreground="#FFFFFF" FontSize="40"/>
-            <TextBlock x:Name="MinutesTb" Text="00" Foreground="#FF0000" FontWeight="Bold" FontSize="40">
+            <TextBlock x:Name="MinutesTb" Text="{Binding Minutes, StringFormat=00}" Foreground="#FF0000" FontWeight="Bold" FontSize="40">
                 <TextBlock.RenderTransform>
                     <ScaleTransform/>
                 </TextBlock.RenderTransform>
@@ -60,7 +60,7 @@
                 </TextBlock.Effect>
             </TextBlock>
             <TextBlock x:Name="ChineseMinutesTb" Text="分 " Foreground="#FFFFFF" FontSize="40"/>
-            <TextBlock x:Name="SecondsTb" Text="00" Foreground="#FF0000" FontWeight="Bold" FontSize="40">
+            <TextBlock x:Name="SecondsTb" Text="{Binding Seconds, StringFormat=00}" Foreground="#FF0000" FontWeight="Bold" FontSize="40">
                 <TextBlock.RenderTransform>
                     <ScaleTransform/>
                 </TextBlock.RenderTransform>
@@ -76,25 +76,25 @@
                    HorizontalAlignment="Center" VerticalAlignment="Center"
                    Margin="0,0,0,10">
             <TextBlock x:Name="EnglishPrefixTb" Text="There are " Foreground="#D3D3D3" FontSize="16"/>
-            <TextBlock x:Name="DaysEnTb" Text="0" Foreground="#FF0000" FontWeight="Bold" FontSize="16">
+            <TextBlock x:Name="DaysEnTb" Text="{Binding Days}" Foreground="#FF0000" FontWeight="Bold" FontSize="16">
                 <TextBlock.RenderTransform>
                     <ScaleTransform/>
                 </TextBlock.RenderTransform>
             </TextBlock>
             <TextBlock x:Name="EnglishDaysTb" Text=", days " Foreground="#D3D3D3" FontSize="16"/>
-            <TextBlock x:Name="HoursEnTb" Text="00" Foreground="#FF0000" FontWeight="Bold" FontSize="16">
+            <TextBlock x:Name="HoursEnTb" Text="{Binding Hours, StringFormat=00}" Foreground="#FF0000" FontWeight="Bold" FontSize="16">
                 <TextBlock.RenderTransform>
                     <ScaleTransform/>
                 </TextBlock.RenderTransform>
             </TextBlock>
             <TextBlock x:Name="EnglishHoursTb" Text=", hours " Foreground="#D3D3D3" FontSize="16"/>
-            <TextBlock x:Name="MinutesEnTb" Text="00" Foreground="#FF0000" FontWeight="Bold" FontSize="16">
+            <TextBlock x:Name="MinutesEnTb" Text="{Binding Minutes, StringFormat=00}" Foreground="#FF0000" FontWeight="Bold" FontSize="16">
                 <TextBlock.RenderTransform>
                     <ScaleTransform/>
                 </TextBlock.RenderTransform>
             </TextBlock>
             <TextBlock x:Name="EnglishMinutesTb" Text=", minutes, and " Foreground="#D3D3D3" FontSize="16"/>
-            <TextBlock x:Name="SecondsEnTb" Text="00" Foreground="#FF0000" FontWeight="Bold" FontSize="16">
+            <TextBlock x:Name="SecondsEnTb" Text="{Binding Seconds, StringFormat=00}" Foreground="#FF0000" FontWeight="Bold" FontSize="16">
                 <TextBlock.RenderTransform>
                     <ScaleTransform/>
                 </TextBlock.RenderTransform>
@@ -116,6 +116,7 @@
 
         <!-- 中文进度百分比 -->
         <TextBlock Grid.Row="3" Name="ProgressText"
+                   Text="{Binding ProgressText}"
                    FontSize="15"
                    Foreground="#FFFFFF"
                    HorizontalAlignment="Center"
@@ -123,12 +124,14 @@
 
         <!-- 英文进度百分比 -->
         <TextBlock Grid.Row="4" Name="ProgressTextEn"
+                   Text="{Binding ProgressTextEn}"
                    FontSize="13"
                    Foreground="#D3D3D3"
                    HorizontalAlignment="Center"/>
 
         <!-- 自定义倒计时 -->
         <TextBlock Grid.Row="5" x:Name="CustomCountdownTb"
+                   Text="{Binding CustomCountdownText}"
                    FontSize="12"
                    Foreground="#FFCC88"
                    HorizontalAlignment="Center"
@@ -139,6 +142,7 @@
 
         <!-- 每日一言 -->
         <TextBlock Grid.Row="6" x:Name="DailyQuoteTb"
+                   Text="{Binding QuoteText}"
                    FontSize="12"
                    Foreground="#AAAAAA"
                    FontStyle="Italic"

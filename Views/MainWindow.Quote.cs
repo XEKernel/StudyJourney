@@ -56,7 +56,8 @@ namespace GaokaoCountdown.Views
                 {
                     // 应用当前样式设置
                     ApplyQuoteStyle();
-                    DailyQuoteTb.Text = text;
+                    // 文本通过 MVVM 绑定更新
+                    if (ViewModel != null) ViewModel.QuoteText = text;
                     // 淡入动画
                     var anim = new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.8))
                     {

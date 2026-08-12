@@ -137,31 +137,15 @@ namespace GaokaoCountdown.Views
             // 如果是被最大化窗口压下去的，也不做 UI 更新
             if (_hiddenByMaximize) return;
 
-            DateTime now = DateTime.Now;
-            TimeSpan timeLeft = gaokaoDate - now;
-
-            int days    = timeLeft.TotalSeconds > 0 ? timeLeft.Days      : 0;
-            int hours   = timeLeft.TotalSeconds > 0 ? timeLeft.Hours     : 0;
-            int minutes = timeLeft.TotalSeconds > 0 ? timeLeft.Minutes   : 0;
-            int seconds = timeLeft.TotalSeconds > 0 ? timeLeft.Seconds   : 0;
+            // ── 数据计算委托给 ViewModel（绑定自动更新 UI）────
+            ViewModel?.Tick();
+            var days    = ViewModel?.Days    ?? 0;
+            var hours   = ViewModel?.Hours   ?? 0;
+            var minutes = ViewModel?.Minutes ?? 0;
+            var seconds = ViewModel?.Seconds ?? 0;
 
             // ── 入场动画进行中：跳过文本更新，等动画结束 ────
             bool introRunning = _introTimer != null;
-
-            if (!introRunning)
-            {
-                // ── 更新数字文本（中文）─────────────────────────────
-                DaysTb.Text    = days.ToString();
-                HoursTb.Text   = hours.ToString("00");
-                MinutesTb.Text = minutes.ToString("00");
-                SecondsTb.Text = seconds.ToString("00");
-
-                // ── 更新数字文本（英文）─────────────────────────────
-                DaysEnTb.Text    = days.ToString();
-                HoursEnTb.Text   = hours.ToString("00");
-                MinutesEnTb.Text = minutes.ToString("00");
-                SecondsEnTb.Text = seconds.ToString("00");
-            }
 
             // ── 脉冲动画：仅当值变化时触发（入场动画期间跳过）──
             if (settings.EnableAnimations && !introRunning)
@@ -182,13 +166,12 @@ namespace GaokaoCountdown.Views
             _lastMinutes = minutes;
             _lastSeconds = seconds;
 
-            if (timeLeft.TotalSeconds <= 0)
+            if (ViewModel != null && ViewModel.Days == 0 && ViewModel.Hours == 0 &&
+                ViewModel.Minutes == 0 && ViewModel.Seconds == 0)
                 timer?.Stop();
 
-            // ── 进度 ───────────────────────────────────────────────
-            double totalDays   = (gaokaoDate - startDate).TotalDays;
-            double daysPassed  = (now - startDate).TotalDays;
-            double progress    = Math.Min(1, Math.Max(0, daysPassed / totalDays));
+            // ── 进度条（进度值动画仍在 View 层）──────────────
+            double progress = (ViewModel?.ProgressValue ?? 0) / 100.0;
             // 入场动画期间不覆盖进度条（进度条正在动画中）
             if (!introRunning)
             {
@@ -207,13 +190,8 @@ namespace GaokaoCountdown.Views
                 }
             }
 
-            string fmt = "F" + settings.ProgressDecimalDigits;
-            double pct = progress * 100.0;
-            ProgressText.Text   = $"高中生活已过去 {pct.ToString(fmt)}%";
-            ProgressTextEn.Text = $"High school life has passed {pct.ToString(fmt)}%.";
-
-            // 自定义倒计时（内部有缓存+文本变更守卫，每秒开销极低）
-            UpdateCustomCountdown();
+            // 自定义倒计时（绑定已接管文本，仅需重算）
+            ViewModel?.UpdateCustomCountdown();
         }
 
         // ══════════════════════════════════════════════════════
@@ -408,14 +386,15 @@ namespace GaokaoCountdown.Views
             // ── 重新定位 ──────────────────────────────────────────
             PositionWindow();
 
-            // ── 自定义倒计时（显示最近的一个）───────────────────
-            UpdateCustomCountdown();
+            // ── 自定义倒计时（文本由 VM 计算绑定，此处仅同步显隐动画）───
+            SyncCustomCountdownVisibility();
         }
 
-        private void UpdateCustomCountdown()
+        /// <summary>根据 ViewModel 的 CustomCountdownText 驱动显隐/淡入淡出（文本绑定已接管）</summary>
+        private void SyncCustomCountdownVisibility()
         {
-            var list = settings.CustomCountdowns;
-            if (list == null || list.Count == 0)
+            bool hasText = !string.IsNullOrEmpty(ViewModel?.CustomCountdownText);
+            if (!hasText)
             {
                 if (CustomCountdownTb.Visibility != Visibility.Collapsed)
                 {
@@ -427,63 +406,13 @@ namespace GaokaoCountdown.Views
                 return;
             }
 
-            var now = DateTime.Now;
-            var todayDate = now.Date;
-            DateTime? nearestDate;
-            string nearestName;
-
-            // 缓存：仅当日期变化或缓存无效时重新计算最近倒计时
-            if (_cachedNearestCountdown != null && _lastCountdownComputeDay == todayDate)
+            if (CustomCountdownTb.Visibility != Visibility.Visible)
             {
-                var (cachedDate, cachedName) = _cachedNearestCountdown.Value;
-                nearestDate = cachedDate;
-                nearestName = cachedName;
-            }
-            else
-            {
-                nearestDate = null;
-                nearestName = "";
-                foreach (var cc in list)
-                {
-                    if (DateTime.TryParse(cc.DateStr, out var dt))
-                    {
-                        if (dt > now && (nearestDate == null || dt < nearestDate))
-                        {
-                            nearestDate = dt;
-                            nearestName = cc.Name;
-                        }
-                    }
-                }
-                _lastCountdownComputeDay = todayDate;
-                _cachedNearestCountdown = nearestDate != null ? (nearestDate.Value, nearestName) : null;
-            }
-
-            if (nearestDate == null)
-            {
-                if (CustomCountdownTb.Visibility != Visibility.Collapsed)
-                {
-                    var fade = new DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(300))
-                        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
-                    fade.Completed += (_, _) => CustomCountdownTb.Visibility = Visibility.Collapsed;
-                    CustomCountdownTb.BeginAnimation(UIElement.OpacityProperty, fade);
-                }
-                return;
-            }
-
-            var ts = nearestDate.Value - now;
-            string text = $"📅 {nearestName} 还剩 {ts.Days} 天 {ts.Hours:D2}时{ts.Minutes:D2}分";
-
-            if (CustomCountdownTb.Text != text)
-            {
-                CustomCountdownTb.Text = text;
-                if (CustomCountdownTb.Visibility != Visibility.Visible)
-                {
-                    CustomCountdownTb.Visibility = Visibility.Visible;
-                    CustomCountdownTb.Opacity = 0;
-                    var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(500))
-                        { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
-                    CustomCountdownTb.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-                }
+                CustomCountdownTb.Visibility = Visibility.Visible;
+                CustomCountdownTb.Opacity = 0;
+                var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(500))
+                    { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut } };
+                CustomCountdownTb.BeginAnimation(UIElement.OpacityProperty, fadeIn);
             }
         }
 

@@ -96,8 +96,6 @@ namespace GaokaoCountdown.Views
         private string? _lastFontFamily; // 缓存字体族，避免每秒重复设置
         private List<TextBlock>? _cachedChineseTextBlocks; // 缓存中文面板 TextBlock 列表
         private List<TextBlock>? _cachedEnglishTextBlocks; // 缓存英文面板 TextBlock 列表
-        private DateTime _lastCountdownComputeDay = DateTime.MinValue; // 缓存自定义倒计时计算日期
-        private (DateTime Date, string Name)? _cachedNearestCountdown; // 缓存最近自定义倒计时
         private DispatcherTimer? _classEndRestoreTimer; // 下课后延迟恢复计时器
         private DispatcherTimer? _maximizeCheckTimer;
         private bool _isPositioning = false;   // 程序化定位中，抑制 LocationChanged 回写
@@ -119,6 +117,9 @@ namespace GaokaoCountdown.Views
         private ReminderService?   _reminderService;
         private ScheduleBarWindow? _scheduleBarWindow;
         private ExamModeWindow?    _examModeWindow;
+
+        /// <summary>MVVM 数据源（绑定主窗口数字/进度/自定义倒计时/一言）</summary>
+        public ViewModels.MainWindowViewModel? ViewModel { get; private set; }
 
         public FontFamily CountdownFontFamily { get; set; }
         public int    PositionPreset
@@ -219,6 +220,9 @@ namespace GaokaoCountdown.Views
             settings.AutoStart = GetAutoStartFromRegistry();
 
             InitializeComponent();
+            // MVVM：数据绑定到 ViewModel（倒计时/进度/自定义倒计时/一言）
+            ViewModel = new ViewModels.MainWindowViewModel(settings);
+            DataContext = ViewModel;
             SetupTrayIcon();
             SetupScheduleServices();
             SetupTimer();
