@@ -34,10 +34,6 @@ namespace GaokaoCountdown.Views
         private SolidColorBrush _numberBrushCache = new SolidColorBrush(Colors.Red);
         private SolidColorBrush _progressBrushCache = new SolidColorBrush(Colors.White);
 
-        // ── 动态日期 ───────────────────────────────────────────
-        private DateTime gaokaoDate;
-        private DateTime startDate;
-
         // ── Win32 API ─────────────────────────────────────────
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();

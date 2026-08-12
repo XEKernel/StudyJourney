@@ -103,13 +103,106 @@
                                    HorizontalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- 中：课节滚动列表 -->
+                    <!-- 中：课节滚动列表（ItemsControl 绑定，DataTemplate 渲染） -->
                     <ScrollViewer Grid.Column="1"
                                   HorizontalScrollBarVisibility="Auto"
                                   VerticalScrollBarVisibility="Disabled"
                                   Background="Transparent">
-                        <StackPanel x:Name="PeriodPanel" Orientation="Horizontal"
-                                    VerticalAlignment="Center" Margin="0,2"/>
+                        <StackPanel Orientation="Horizontal"
+                                    VerticalAlignment="Center" Margin="0,2">
+                            <!-- 列表头（明天课程） -->
+                            <TextBlock Text="{Binding HeaderText}"
+                                       FontSize="{Binding HeaderFontSize}"
+                                       Foreground="#FFFF8844"
+                                       VerticalAlignment="Center" Margin="6,0,6,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HeaderText}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+
+                            <!-- 课节卡片 -->
+                            <ItemsControl ItemsSource="{Binding Cards}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid>
+                                            <Border x:Name="Card" Style="{StaticResource PeriodCard}">
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding PeriodText}"
+                                                               FontSize="{Binding PeriodFontSize}"
+                                                               Foreground="#FF888888"
+                                                               HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding Subject}"
+                                                               FontSize="{Binding SubjectFontSize}"
+                                                               FontWeight="Normal"
+                                                               Foreground="#FFFFFFFF"
+                                                               HorizontalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding TimeText}"
+                                                               FontSize="{Binding TimeFontSize}"
+                                                               Foreground="#FF888888"
+                                                               HorizontalAlignment="Center"/>
+                                                </StackPanel>
+                                            </Border>
+                                            <!-- 当前课底部指示条 -->
+                                            <Border x:Name="Indicator" Height="2"
+                                                    Background="#FF4CAF50"
+                                                    VerticalAlignment="Bottom"
+                                                    CornerRadius="0,0,4,4"
+                                                    Visibility="Collapsed"/>
+                                        </Grid>
+                                        <DataTemplate.Triggers>
+                                            <!-- 当前课：绿底高亮 + 指示条 -->
+                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                <Setter TargetName="Card" Property="Background" Value="#CC2D5A3D"/>
+                                                <Setter TargetName="Card" Property="BorderBrush" Value="#FF4CAF50"/>
+                                                <Setter TargetName="Card" Property="BorderThickness" Value="1.5"/>
+                                                <Setter TargetName="Indicator" Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                            <!-- 下一节：蓝底 -->
+                                            <DataTrigger Binding="{Binding IsNext}" Value="True">
+                                                <Setter TargetName="Card" Property="Background" Value="#CC2A3A5E"/>
+                                                <Setter TargetName="Card" Property="BorderBrush" Value="#FF5B9BD5"/>
+                                                <Setter TargetName="Card" Property="BorderThickness" Value="1.5"/>
+                                            </DataTrigger>
+                                            <!-- 快上课闪烁：半透明 + 橙框深红底 -->
+                                            <DataTrigger Binding="{Binding IsFlashing}" Value="True">
+                                                <Setter TargetName="Card" Property="Opacity" Value="0.25"/>
+                                                <Setter TargetName="Card" Property="BorderBrush" Value="#FFFF8844"/>
+                                                <Setter TargetName="Card" Property="Background" Value="#FF551500"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 空态（今日无课 / 明日无课） -->
+                            <TextBlock Text="{Binding EmptyText}"
+                                       FontSize="{Binding EmptyFontSize}"
+                                       Foreground="#FF888888"
+                                       VerticalAlignment="Center" Margin="6,0,0,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding EmptyText}" Value="">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </StackPanel>
                     </ScrollViewer>
 
                     <!-- 右：状态信息面板 -->

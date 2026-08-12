@@ -203,10 +203,8 @@ namespace GaokaoCountdown.Views
 
         public void RefreshDateFields()
         {
-            if (!DateTime.TryParse(settings.GaokaoDateStr, out gaokaoDate))
-                gaokaoDate = new DateTime(2027, 6, 7, 9, 0, 0);
-            if (!DateTime.TryParse(settings.StartDateStr, out startDate))
-                startDate = new DateTime(2024, 8, 24);
+            // 日期解析统一在 ViewModel（VM.GaokaoDate / VM.StartDate）
+            ViewModel?.RefreshDates();
         }
     }
 }

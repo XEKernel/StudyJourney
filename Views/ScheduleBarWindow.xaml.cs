@@ -110,6 +110,9 @@ namespace GaokaoCountdown.Views
             double baseFont = _settings.ScheduleBarFontSize; // default 14
             if (baseFont <= 0) baseFont = 14;
 
+            // 同步基准字号到 VM（卡片/header/空态字号按比例计算，变更强制重建）
+            ViewModel?.SetBaseFontSize(baseFont);
+
             CurrentTimeTb.FontSize = baseFont;
             DateTb.FontSize = baseFont * 0.65;
             StatusTb.FontSize = baseFont * 0.65;

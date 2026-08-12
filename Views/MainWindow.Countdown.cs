@@ -447,14 +447,14 @@ namespace GaokaoCountdown.Views
 
             // 记录当前真实目标值
             DateTime now = DateTime.Now;
-            TimeSpan timeLeft = gaokaoDate - now;
+            TimeSpan timeLeft = ViewModel!.GaokaoDate - now;
             _introDays    = timeLeft.TotalSeconds > 0 ? timeLeft.Days    : 0;
             _introHours   = timeLeft.TotalSeconds > 0 ? timeLeft.Hours   : 0;
             _introMinutes = timeLeft.TotalSeconds > 0 ? timeLeft.Minutes : 0;
             _introSeconds = timeLeft.TotalSeconds > 0 ? timeLeft.Seconds : 0;
 
-            double totalDays  = (gaokaoDate - startDate).TotalDays;
-            double daysPassed = (now - startDate).TotalDays;
+            double totalDays  = (ViewModel.GaokaoDate - ViewModel.StartDate).TotalDays;
+            double daysPassed = (now - ViewModel.StartDate).TotalDays;
             _introProgress = Math.Min(100, Math.Max(0, daysPassed / totalDays * 100.0));
 
             // ── 进度条动画：0 → 当前值，1.25s 缓出 ──────────

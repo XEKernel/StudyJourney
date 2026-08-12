@@ -1,11 +1,11 @@
-<ui:AppWindow x:Class="StudyJourney.Avalonia.Views.MainWindow"
+<ui:FAAppWindow x:Class="StudyJourney.Avalonia.Views.MainWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:FluentAvalonia.UI.Windowing;assembly=FluentAvalonia"
         Title="学程 · Avalonia 原型"
         Width="380" Height="540"
         WindowStartupLocation="Manual"
-        SystemDecorations="None"
+        WindowDecorations="None"
         ExtendClientAreaToDecorationsHint="True"
         TransparencyLevelHint="Mica"
         Background="Transparent"
@@ -73,8 +73,7 @@
                     <TextBlock Text="窗口置顶" FontSize="13" Foreground="#CCFFFFFF"
                                VerticalAlignment="Center"/>
                     <ToggleSwitch x:Name="TopmostSwitch" IsChecked="True"
-                                  Checked="TopmostSwitch_Changed"
-                                  Unchecked="TopmostSwitch_Changed"/>
+                                  IsCheckedChanged="TopmostSwitch_Changed"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="12">
                     <TextBlock Text="透明度" FontSize="13" Foreground="#CCFFFFFF"
@@ -96,4 +95,4 @@
                    FontSize="10" Foreground="#55FFFFFF"
                    HorizontalAlignment="Center" Margin="0,0,0,8"/>
     </Grid>
-</ui:AppWindow>
+</ui:FAAppWindow>

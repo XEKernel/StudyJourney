@@ -85,6 +85,31 @@ namespace GaokaoCountdown.ViewModels
         [ObservableProperty]
         private string countdown60Text = "";
 
+        // ── 课节卡片列表（ItemsControl 绑定）──────────────────
+        [ObservableProperty]
+        private System.Collections.ObjectModel.ObservableCollection<PeriodCardItem> cards = new();
+
+        /// <summary>列表头文本（"明天课程"），空则不显示</summary>
+        [ObservableProperty]
+        private string headerText = "";
+
+        /// <summary>空态文本（"今日无课"/"明日无课"），空则不显示</summary>
+        [ObservableProperty]
+        private string emptyText = "";
+
+        /// <summary>列表头字号（"明天课程"）</summary>
+        [ObservableProperty]
+        private double headerFontSize = 11;
+
+        /// <summary>空态字号</summary>
+        [ObservableProperty]
+        private double emptyFontSize = 10;
+
+        // ── 卡片重建内部状态 ──────────────────────────────────
+        private DateTime _lastBuildDate = DateTime.MinValue;
+        private bool _tomorrowChecked;
+        private bool _flashToggle = true;
+
         /// <summary>每秒刷新：重算全部展示数据（值不变时不触发通知）</summary>
         public void Refresh(DateTime now)
         {
@@ -157,6 +182,91 @@ namespace GaokaoCountdown.ViewModels
                 ProgressVisibility = Visibility.Collapsed;
                 CompactRemaining = "";
             }
+
+            // ── 课节卡片：日期变更才重建，其余每秒更新状态 ──
+            if (_lastBuildDate != now.Date)
+            {
+                _lastBuildDate = now.Date;
+                RebuildCards(now);
+            }
+            else
+            {
+                UpdateCardStates(now);
+            }
+        }
+
+        // ── 课节卡片构建（替代 code-behind 的 UI 构建代码）────
+        private void RebuildCards(DateTime now)
+        {
+            Cards.Clear();
+            HeaderText = "";
+            EmptyText = "";
+            double labelSize = BaseFontSize * 0.65 * 1.2;
+            HeaderFontSize = labelSize;
+            EmptyFontSize = labelSize;
+
+            var entries = _manager.GetTodayEntries(now.Date);
+            var cur  = _manager.GetCurrentEntry(now);
+            var next = _manager.GetNextEntry(now);
+
+            // 放学后直接展示明天课程
+            if (cur == null && next == null && !_tomorrowChecked)
+            {
+                _tomorrowChecked = true;
+                var tomorrow = _manager.GetTodayEntries(now.Date.AddDays(1));
+                if (tomorrow.Count > 0)
+                {
+                    HeaderText = "明天课程";
+                    foreach (var e in tomorrow)
+                        Cards.Add(new PeriodCardItem(e, false, false, BaseFontSize));
+                    return;
+                }
+                EmptyText = "明日无课";
+                return;
+            }
+            _tomorrowChecked = false;
+
+            if (entries.Count == 0)
+            {
+                EmptyText = "今日无课";
+                return;
+            }
+
+            foreach (var entry in entries)
+            {
+                Cards.Add(new PeriodCardItem(entry, cur == entry, next == entry, BaseFontSize));
+            }
+        }
+
+        /// <summary>同一天内仅更新卡片状态（不重建集合）</summary>
+        private void UpdateCardStates(DateTime now)
+        {
+            if (Cards.Count == 0) return;
+            var cur  = _manager.GetCurrentEntry(now);
+            var next = _manager.GetNextEntry(now);
+
+            // 闪烁交替：仅当处于"快上课"窗口时翻转
+            _flashToggle = IsFlashing ? !_flashToggle : true;
+
+            foreach (var card in Cards)
+            {
+                card.IsCurrent = card.Entry == cur;
+                card.IsNext = card.Entry == next;
+                card.IsFlashing = card.IsNext && IsFlashing && !_flashToggle;
+            }
+        }
+
+        private double _baseFontSize;
+
+        private double BaseFontSize => _baseFontSize > 0 ? _baseFontSize : 14;
+
+        /// <summary>View 应用字体设置后同步基准字号；变更会强制重建卡片</summary>
+        public void SetBaseFontSize(double size)
+        {
+            if (size <= 0) size = 14;
+            if (Math.Abs(_baseFontSize - size) < 0.01) return;
+            _baseFontSize = size;
+            _lastBuildDate = DateTime.MinValue;   // 下次 Refresh 重建卡片
         }
     }
 }

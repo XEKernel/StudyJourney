@@ -35,6 +35,12 @@ namespace GaokaoCountdown.ViewModels
                 _startDate = new DateTime(2024, 8, 24);
         }
 
+        /// <summary>高考目标日期（View 入场动画用）</summary>
+        public DateTime GaokaoDate => _gaokaoDate;
+
+        /// <summary>高中起算日期（View 入场动画用）</summary>
+        public DateTime StartDate => _startDate;
+
         // ── 倒计时数值（绑定主窗口数字）────────────────────────
         [ObservableProperty]
         private int days;

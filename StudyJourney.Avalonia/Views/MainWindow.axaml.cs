@@ -11,7 +11,7 @@ using FluentAvalonia.UI.Windowing;
 namespace StudyJourney.Avalonia.Views;
 
 /// <summary>阶段 0 骨架窗口：验证 FluentAvalonia 主题 + 无边框透明置顶 + 点击穿透 + 倒计时渲染</summary>
-public partial class MainWindow : AppWindow
+public partial class MainWindow : FAAppWindow
 {
     // ── Win32：点击穿透（与 WPF 版同一套 API）────────────────
     [DllImport("user32.dll")]
@@ -34,9 +34,8 @@ public partial class MainWindow : AppWindow
         // 手动放到屏幕左下角，避开 IDE 桌面遮挡，方便截图与查看
         Position = new global::Avalonia.PixelPoint(40, 480);
 
-        // FA 标题栏：内容延伸到标题栏区域，WinUI 3 风格（ClassIsland 同款做法）
+        // FA 标题栏：内容延伸到标题栏区域，WinUI 3 风格（FA 3.x 无 TitleBarHitTestType）
         TitleBar.ExtendsContentIntoTitleBar = true;
-        TitleBar.TitleBarHitTestType = TitleBarHitTestType.Simple;
     }
 
     private void Window_Opened(object? sender, EventArgs e)
