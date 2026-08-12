@@ -2,9 +2,9 @@ using Avalonia.Controls;
 
 namespace StudyJourney.Avalonia.Views.Settings;
 
-public partial class QuotePage : UserControl
+public partial class ApiPage : UserControl
 {
-    public QuotePage()
+    public ApiPage()
     {
         InitializeComponent();
     }

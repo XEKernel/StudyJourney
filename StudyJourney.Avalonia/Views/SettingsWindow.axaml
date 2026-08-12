@@ -3,19 +3,19 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:ui="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia"
         Title="学程 · 设置"
-        Width="900" Height="640"
+        Width="920" Height="660"
         WindowStartupLocation="CenterScreen"
         TransparencyLevelHint="Mica"
         Background="Transparent">
 
     <!--
-        WinUI 3 风格设置窗口：
-        - 保留系统装饰（三大金刚键 + Win11 系统圆角，ClassIsland 同款做法）
-        - Mica 材质 + FANavigationView 左侧导航
+        WinUI 3 风格设置窗口（对齐学程原版 6 个 Tab）：
+        - 保留系统装饰（三大金刚键 + Win11 系统圆角，ClassIsland 同款）
+        - Mica 材质 + FANavigationView 左侧导航（带图标）
     -->
     <Grid RowDefinitions="Auto,*">
 
-        <!-- 页面标题（内容区顶部，WinUI 3 设置页风格） -->
+        <!-- 页面标题 -->
         <TextBlock Grid.Row="0" Text="设置"
                    FontSize="24" FontWeight="SemiBold"
                    Margin="24,16,0,8"/>
@@ -28,15 +28,36 @@
                              IsBackButtonVisible="False"
                              ItemInvoked="NavView_ItemInvoked">
             <ui:FANavigationView.MenuItems>
-                <ui:FANavigationViewItem Content="显示" Tag="display"/>
-                <ui:FANavigationViewItem Content="外观" Tag="appearance"/>
-                <ui:FANavigationViewItem Content="位置" Tag="position"/>
-                <ui:FANavigationViewItem Content="每日一言" Tag="quote"/>
-                <ui:FANavigationViewItem Content="天气" Tag="weather"/>
-                <ui:FANavigationViewItem Content="课表" Tag="schedule"/>
-                <ui:FANavigationViewItem Content="考试" Tag="exam"/>
-                <ui:FANavigationViewItem Content="提醒" Tag="reminder"/>
-                <ui:FANavigationViewItem Content="关于" Tag="about"/>
+                <ui:FANavigationViewItem Content="倒计时" Tag="countdown">
+                    <ui:FANavigationViewItem.IconSource>
+                        <ui:FASymbolIconSource Symbol="Home"/>
+                    </ui:FANavigationViewItem.IconSource>
+                </ui:FANavigationViewItem>
+                <ui:FANavigationViewItem Content="位置" Tag="position">
+                    <ui:FANavigationViewItem.IconSource>
+                        <ui:FASymbolIconSource Symbol="MapPin"/>
+                    </ui:FANavigationViewItem.IconSource>
+                </ui:FANavigationViewItem>
+                <ui:FANavigationViewItem Content="API 功能" Tag="api">
+                    <ui:FANavigationViewItem.IconSource>
+                        <ui:FASymbolIconSource Symbol="Cloud"/>
+                    </ui:FANavigationViewItem.IconSource>
+                </ui:FANavigationViewItem>
+                <ui:FANavigationViewItem Content="课表" Tag="schedule">
+                    <ui:FANavigationViewItem.IconSource>
+                        <ui:FASymbolIconSource Symbol="Calendar"/>
+                    </ui:FANavigationViewItem.IconSource>
+                </ui:FANavigationViewItem>
+                <ui:FANavigationViewItem Content="考试" Tag="exam">
+                    <ui:FANavigationViewItem.IconSource>
+                        <ui:FASymbolIconSource Symbol="Clock"/>
+                    </ui:FANavigationViewItem.IconSource>
+                </ui:FANavigationViewItem>
+                <ui:FANavigationViewItem Content="关于" Tag="about">
+                    <ui:FANavigationViewItem.IconSource>
+                        <ui:FASymbolIconSource Symbol="Help"/>
+                    </ui:FANavigationViewItem.IconSource>
+                </ui:FANavigationViewItem>
             </ui:FANavigationView.MenuItems>
 
             <!-- 页面内容区 -->

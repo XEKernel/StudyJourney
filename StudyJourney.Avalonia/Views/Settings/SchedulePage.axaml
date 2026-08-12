@@ -2,58 +2,77 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer>
-        <StackPanel Spacing="16" Margin="0,8,16,16">
+        <StackPanel Spacing="14" Margin="0,8,20,20">
 
             <!-- 课表悬浮栏 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="课表悬浮栏" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="屏幕顶部的课表信息条" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="课表悬浮栏" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <CheckBox Content="显示课表悬浮栏" IsChecked="True"/>
+                    <CheckBox Content="悬浮栏始终置顶" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox Content="悬浮栏点击穿透" Margin="0,6,0,0"/>
+                    <CheckBox Content="上课时自动收缩为进度条" IsChecked="True" Margin="0,6,0,0"/>
 
-                    <StackPanel Spacing="10" Margin="0,10,0,0">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="显示悬浮栏" VerticalAlignment="Center"/>
-                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="悬浮栏置顶" VerticalAlignment="Center"/>
-                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="上课时自动收缩" VerticalAlignment="Center"/>
-                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="透明度" VerticalAlignment="Center"/>
-                            <Slider Grid.Column="1" Minimum="0.2" Maximum="1" Value="0.9" Width="150"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="文字字号" VerticalAlignment="Center"/>
-                            <ComboBox Grid.Column="1" Width="120" SelectedIndex="1">
-                                <ComboBoxItem Content="小"/>
-                                <ComboBoxItem Content="中"/>
-                                <ComboBoxItem Content="大"/>
-                            </ComboBox>
-                        </Grid>
-                    </StackPanel>
+                    <Grid ColumnDefinitions="110,*,70" Margin="0,10,0,6">
+                        <TextBlock Text="悬浮栏透明度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="0.2" Maximum="1.0" Value="0.9" TickFrequency="0.1"/>
+                        <TextBlock Grid.Column="2" Text="90%" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,70" Margin="0,4,0,6">
+                        <TextBlock Text="悬浮栏宽度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" Text="0" Watermark="0 = 铺满屏幕"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,70" Margin="0,4,0,6">
+                        <TextBlock Text="文字字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="10" Maximum="24" Value="14" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Grid.Column="2" Text="14" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
                 </StackPanel>
             </Border>
 
-            <!-- 上课隐藏 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+            <!-- 下课倒计时 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="上课期间" FontSize="16" FontWeight="SemiBold"/>
-                    <StackPanel Spacing="10" Margin="0,10,0,0">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="上课时自动隐藏主窗口" VerticalAlignment="Center"/>
-                            <ToggleSwitch Grid.Column="1" IsChecked="False"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="隐藏的科目" VerticalAlignment="Center"/>
-                            <TextBox Grid.Column="1" Text="体育,信息" Width="140"
-                                     Watermark="逗号分隔科目名"/>
-                        </Grid>
-                    </StackPanel>
+                    <TextBlock Text="下课倒计时" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <Grid ColumnDefinitions="110,*">
+                        <TextBlock Text="展开秒数" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" Width="140" SelectedIndex="0">
+                            <ComboBoxItem Content="30 秒"/>
+                            <ComboBoxItem Content="60 秒"/>
+                        </ComboBox>
+                    </Grid>
+                    <CheckBox Content="倒计时提示音" IsChecked="True" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- 提醒 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="提醒" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <CheckBox Content="预备铃（提前 2 分钟）" IsChecked="True"/>
+                    <CheckBox Content="上课提醒" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox Content="课间提醒（距下一节课）" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox Content="即将下课提醒" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox Content="下课提醒" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox Content="一天结束提醒" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox Content="特殊时段提醒（早自习/晚自习等）" Margin="0,6,0,0"/>
+
+                    <TextBlock Text="启用提醒提示音" FontSize="13" Margin="0,10,0,0"/>
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                        <TextBox Watermark="留空使用系统默认音"/>
+                        <Button Grid.Column="1" Content="浏览…" Margin="8,0,0,0"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 课表编辑（迁移阶段 2） -->
+            <Border CornerRadius="8" Background="#0AFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" Padding="20,16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="📋  课表编辑" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="周课表网格 / 时段模板 / 调课代课功能将在迁移阶段 2 中实现（Avalonia DataGrid）"
+                               FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap"/>
+                    <Button Content="阶段 2：编辑课表…" IsEnabled="False" HorizontalAlignment="Left" Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
         </StackPanel>

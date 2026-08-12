@@ -1,29 +1,38 @@
 <UserControl x:Class="StudyJourney.Avalonia.Views.Settings.AboutPage"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:ui="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer>
-        <StackPanel Margin="0,8,16,16">
+        <StackPanel Spacing="14" Margin="0,8,20,20">
 
-            <!-- 关于 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" Padding="24,20">
-                <StackPanel>
+            <!-- 应用信息 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="24,20">
+                <StackPanel Spacing="12">
                     <TextBlock Text="学程" FontSize="28" FontWeight="Bold"/>
                     <TextBlock Text="高考倒计时伴侣 · Avalonia 迁移原型"
                                FontSize="13" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                     <TextBlock Text="版本 1.7.0（迁移中）"
                                FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
-
-                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
                         <Button Content="GitHub 仓库"/>
-                        <Button Content="检查更新"/>
+                        <Button Content="立即检查更新"/>
                     </StackPanel>
                 </StackPanel>
             </Border>
 
+            <!-- 更新设置 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="更新" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <CheckBox Content="启动时自动检查更新" IsChecked="True"/>
+                    <TextBlock Text="发现新版本后会在右下角提示" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Margin="24,0,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
             <!-- 说明 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
-                <StackPanel>
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
+                <StackPanel Spacing="4">
                     <TextBlock Text="关于本原型" FontSize="16" FontWeight="SemiBold"/>
                     <TextBlock Text="这是学程从 WPF 迁移到 Avalonia 的阶段原型。本窗口展示 WinUI 3 样式（FluentAvalonia 主题 + Mica 材质 + NavigationView 导航）在设置页面的应用效果。"
                                FontSize="13"

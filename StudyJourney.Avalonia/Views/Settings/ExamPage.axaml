@@ -2,53 +2,107 @@
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <ScrollViewer>
-        <StackPanel Spacing="16" Margin="0,8,16,16">
+        <StackPanel Spacing="14" Margin="0,8,20,20">
 
-            <!-- 考试模式 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+            <!-- 考试模式开关 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="考试模式" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="考试期间全屏显示倒计时" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-
-                    <StackPanel Spacing="10" Margin="0,10,0,0">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="启用考试模式" VerticalAlignment="Center"/>
-                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="开考时自动进入" VerticalAlignment="Center"/>
-                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="考试结束自动退出" VerticalAlignment="Center"/>
-                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
-                        </Grid>
-                    </StackPanel>
+                    <TextBlock Text="考试模式" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <CheckBox Content="启用考试模式" IsChecked="True"/>
+                    <CheckBox Content="开考时自动进入全屏考试模式" IsChecked="True" Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
 
-            <!-- 显示样式 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+            <!-- 字号 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="显示样式" FontSize="16" FontWeight="SemiBold"/>
-                    <StackPanel Spacing="10" Margin="0,10,0,0">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="倒计时字号" VerticalAlignment="Center"/>
-                            <Slider Grid.Column="1" Minimum="60" Maximum="180" Value="120" Width="150"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="科目名字号" VerticalAlignment="Center"/>
-                            <Slider Grid.Column="1" Minimum="30" Maximum="100" Value="64" Width="150"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="进度条高度" VerticalAlignment="Center"/>
-                            <Slider Grid.Column="1" Minimum="6" Maximum="24" Value="12" Width="150"/>
-                        </Grid>
-                        <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Text="背景颜色" VerticalAlignment="Center"/>
-                            <TextBox Grid.Column="1" Text="#FF060B14" Width="140"/>
-                        </Grid>
-                    </StackPanel>
+                    <TextBlock Text="字号" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,2,0,4">
+                        <TextBlock Text="窗口字体" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="16" Maximum="72" Value="32" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Grid.Column="2" Text="32" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
+                        <TextBlock Text="科目名字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="30" Maximum="120" Value="64" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Grid.Column="2" Text="64" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
+                        <TextBlock Text="倒计时字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="60" Maximum="200" Value="120" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                        <TextBlock Grid.Column="2" Text="120" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
+                        <TextBlock Text="考试名称字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="12" Maximum="60" Value="28" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Grid.Column="2" Text="28" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
+                        <TextBlock Text="时间信息字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="10" Maximum="40" Value="16" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Grid.Column="2" Text="16" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
+                        <TextBlock Text="下一场字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="10" Maximum="48" Value="22" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Grid.Column="2" Text="22" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,0">
+                        <TextBlock Text="进度条高度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="6" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 颜色 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="颜色" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                    <TextBlock Text="科目名颜色" FontSize="13" Margin="0,4,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox Grid.Column="0" Text="#FFFFFFFF"/>
+                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="考试名称颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox Grid.Column="0" Text="#AAFFFFFF"/>
+                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#AAFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="倒计时正常颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox Grid.Column="0" Text="#FFFFFFFF"/>
+                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="倒计时警告颜色（≤15 分钟）" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox Grid.Column="0" Text="#FFFFCC88"/>
+                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFCC88" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="倒计时临界颜色（≤5 分钟）" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox Grid.Column="0" Text="#FFFF4444"/>
+                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFF4444" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="进度条颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox Grid.Column="0" Text="#FF5B9BD5"/>
+                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FF5B9BD5" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                    </Grid>
+                    <TextBlock Text="窗口背景颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox Grid.Column="0" Text="#FF060B14"/>
+                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FF060B14" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                    </Grid>
                 </StackPanel>
             </Border>
         </StackPanel>
