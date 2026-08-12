@@ -23,6 +23,7 @@ public partial class ExamModeWindow : Window
     private const uint MB_ICONASTERISK = 0x40;
 
     private DispatcherTimer? _timer;
+    private DispatcherTimer? _weatherTimer;
     private string _currentSubjectName = string.Empty;
     private bool _warnShown;
     private bool _autoExited;
@@ -32,6 +33,11 @@ public partial class ExamModeWindow : Window
     {
         InitializeComponent();
         ApplyStyles();
+        Closed += (_, _) =>
+        {
+            _timer?.Stop();
+            _weatherTimer?.Stop();
+        };
     }
 
     private void Window_Opened(object? sender, EventArgs e)
@@ -42,9 +48,40 @@ public partial class ExamModeWindow : Window
         Refresh();
 
         _ = LoadWeatherAsync();
+        StartWeatherTimer();
+        PlayIntroAnimation();
     }
 
-    // ── 天气（下一场下方）────────────────────────────────────
+    // ── 入场动画：缩放弹入（对齐 WPF）────────────────────────
+    private void PlayIntroAnimation()
+    {
+        MainGrid.RenderTransformOrigin = new RelativePoint(0.5, 0.5, RelativeUnit.Relative);
+        MainGrid.RenderTransform = new ScaleTransform(0.9, 0.9);
+        MainGrid.Opacity = 0;
+
+        var start = DateTime.Now;
+        var anim = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+        anim.Tick += (_, _) =>
+        {
+            double t = Math.Min(1.0, (DateTime.Now - start).TotalMilliseconds / 400.0);
+            double eased = 1.0 - Math.Pow(1.0 - t, 3);
+            if (MainGrid.RenderTransform is ScaleTransform st)
+            {
+                st.ScaleX = 0.9 + 0.1 * eased;
+                st.ScaleY = 0.9 + 0.1 * eased;
+            }
+            MainGrid.Opacity = t;
+            if (t >= 1.0)
+            {
+                anim.Stop();
+                MainGrid.RenderTransform = new ScaleTransform(1, 1);
+                MainGrid.Opacity = 1;
+            }
+        };
+        anim.Start();
+    }
+
+    // ── 天气（字号/颜色 + 定时刷新，对齐 WPF）─────────────────
     private async System.Threading.Tasks.Task LoadWeatherAsync()
     {
         try
@@ -58,8 +95,29 @@ public partial class ExamModeWindow : Window
             WeatherTb.Text = result.Weather;
             WeatherTempTb.Text = $"{result.Temperature}°";
             WeatherRow.IsVisible = true;
+
+            double fs = s.WeatherFontSize;
+            if (fs <= 0) fs = 14;
+            WeatherIconTb.FontSize = fs * 1.0;
+            WeatherCityTb.FontSize = fs * 0.86;
+            WeatherTb.FontSize = fs * 0.86;
+            WeatherTempTb.FontSize = fs * 0.93;
+            WeatherIconTb.Foreground = ColorUtils.ParseBrush(s.WeatherIconColor, "#FFFFAA00");
+            WeatherCityTb.Foreground = ColorUtils.ParseBrush(s.WeatherCityColor, "#FFFFFFFF");
+            WeatherTb.Foreground = ColorUtils.ParseBrush(s.WeatherInfoColor, "#FFCCCCDD");
+            WeatherTempTb.Foreground = ColorUtils.ParseBrush(s.WeatherTempColor, "#FFFF8844");
         }
         catch { }
+    }
+
+    private void StartWeatherTimer()
+    {
+        _weatherTimer?.Stop();
+        int min = App.Settings.WeatherRefreshInterval;
+        if (min <= 0) return;
+        _weatherTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(min) };
+        _weatherTimer.Tick += async (_, _) => await LoadWeatherAsync();
+        _weatherTimer.Start();
     }
 
     private void ApplyStyles()
@@ -74,15 +132,29 @@ public partial class ExamModeWindow : Window
         NextSubjectTb.FontSize = s.ExamNextSubjectFontSize;
         WarningTb.FontSize = s.ExamWarningFontSize;
         EscHintTb.FontSize = s.ExamEscHintFontSize;
+        CurrentTimeTb.FontSize = s.ExamModeFontSize;
+        ProgressPctTb.FontSize = s.ExamTimeInfoFontSize * 0.81;
         ProgressBar.Height = s.ExamProgressBarHeight;
 
         SubjectTb.Foreground = ColorUtils.ParseBrush(s.ExamSubjectColor, "#FFFFFFFF");
         ExamNameTb.Foreground = ColorUtils.ParseBrush(s.ExamNameColor, "#AAFFFFFF");
         NextSubjectTb.Foreground = ColorUtils.ParseBrush(s.ExamNextSubjectColor, "#88FFFFFF");
         WarningTb.Foreground = ColorUtils.ParseBrush(s.ExamWarningColor, "#FFCC8800");
+        StartTimeTb.Foreground = ColorUtils.ParseBrush(s.ExamInfoColor, "#88FFFFFF");
+        EndTimeTb.Foreground = ColorUtils.ParseBrush(s.ExamInfoColor, "#88FFFFFF");
+        DurationTb.Foreground = ColorUtils.ParseBrush(s.ExamInfoDimColor, "#66FFFFFF");
+        CurrentTimeTb.Foreground = ColorUtils.ParseBrush(s.ExamInfoDimColor, "#66FFFFFF");
+        EscHintTb.Foreground = ColorUtils.ParseBrush(s.ExamInfoDimColor, "#88FFFFFF");
+        ProgressPctTb.Foreground = ColorUtils.ParseBrush(s.ExamProgressPctColor, "#66FFFFFF");
         ProgressBar.Foreground = ColorUtils.ParseBrush(s.ExamProgressBarColor, "#5B9BD5");
         ProgressBar.Background = ColorUtils.ParseBrush(s.ExamProgressBarBgColor, "#22FFFFFF");
         try { Background = new SolidColorBrush(Color.Parse(s.ExamBackgroundColor)); } catch { }
+
+        // 倒计时字体族
+        if (!string.IsNullOrWhiteSpace(s.ExamCountdownFontFamily))
+        {
+            try { CountdownTb.FontFamily = new FontFamily(s.ExamCountdownFontFamily); } catch { }
+        }
     }
 
     private void Refresh()
@@ -214,6 +286,15 @@ public partial class ExamModeWindow : Window
         }
     }
     private bool _escPressed;
+
+    /// <summary>双击切换全屏（对齐 WPF MouseDoubleClick）</summary>
+    private void Window_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && e.ClickCount >= 2)
+        {
+            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        }
+    }
 
     private void ExitBtn_Click(object? sender, RoutedEventArgs e)
     {

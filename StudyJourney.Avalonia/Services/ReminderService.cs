@@ -46,6 +46,12 @@ public class ReminderService : IDisposable
     private static extern bool MessageBeep(uint uType);
     private const uint MB_ICONASTERISK = 0x40;
 
+    // 自定义 wav 播放（winmm，替代 WPF SoundPlayer）
+    [DllImport("winmm.dll", CharSet = CharSet.Unicode)]
+    private static extern bool PlaySoundW(string? pszSound, IntPtr hmod, uint fdwSound);
+    private const uint SND_FILENAME = 0x00020000;
+    private const uint SND_ASYNC = 0x0001;
+
     private readonly ScheduleManager _manager;
     private readonly AppSettings _settings;
     private readonly DispatcherTimer _timer;
@@ -209,8 +215,17 @@ public class ReminderService : IDisposable
         if (!_settings.EnableReminderSound) return;
         try
         {
-            // Avalonia 无内置 wav 播放，统一用系统提示音（WPF 的 SystemSounds.Asterisk 同源）
-            MessageBeep(MB_ICONASTERISK);
+            var path = _settings.ReminderSoundPath;
+            if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+            {
+                // 自定义 wav（对齐 WPF SoundPlayer 行为）
+                PlaySoundW(path, IntPtr.Zero, SND_FILENAME | SND_ASYNC);
+            }
+            else
+            {
+                // 降级到系统提示音
+                MessageBeep(MB_ICONASTERISK);
+            }
         }
         catch { }
     }

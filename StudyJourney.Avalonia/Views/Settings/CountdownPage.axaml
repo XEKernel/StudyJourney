@@ -10,12 +10,7 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="字体与字号" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                    <ComboBox SelectedIndex="0">
-                        <ComboBoxItem Content="默认字体"/>
-                        <ComboBoxItem Content="微软雅黑"/>
-                        <ComboBoxItem Content="宋体"/>
-                        <ComboBoxItem Content="黑体"/>
-                    </ComboBox>
+                    <ComboBox x:Name="FontFamilyBox"/>
                     <Grid ColumnDefinitions="*,56" Margin="0,6,0,0">
                         <Slider x:Name="FontSizeSlider" ValueChanged="FontSizeSlider_ValueChanged" Minimum="16" Maximum="72" Value="40" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock x:Name="FontSizeText" Grid.Column="1" Text="40" FontSize="13"
@@ -146,15 +141,15 @@
                 <StackPanel Spacing="4">
                     <TextBlock Text="中文文本" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <TextBlock Text="前缀" FontSize="13"/>
-                    <TextBox Text="距离高考还有 "/>
+                    <TextBox x:Name="ChinesePrefixBox" Text="距离高考还有 "/>
                     <TextBlock Text="天 的后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox Text="天 "/>
+                    <TextBox x:Name="ChineseDaysBox" Text="天 "/>
                     <TextBlock Text="小时 的后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox Text="小时 "/>
+                    <TextBox x:Name="ChineseHoursBox" Text="小时 "/>
                     <TextBlock Text="分 的后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox Text="分 "/>
+                    <TextBox x:Name="ChineseMinutesBox" Text="分 "/>
                     <TextBlock Text="秒 的后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox Text="秒"/>
+                    <TextBox x:Name="ChineseSecondsBox" Text="秒"/>
                 </StackPanel>
             </Border>
 
@@ -163,15 +158,15 @@
                 <StackPanel Spacing="4">
                     <TextBlock Text="英文文本" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <TextBlock Text="前缀" FontSize="13"/>
-                    <TextBox Text="There are "/>
+                    <TextBox x:Name="EnglishPrefixBox" Text="There are "/>
                     <TextBlock Text="天（days）后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox Text=", days "/>
+                    <TextBox x:Name="EnglishDaysBox" Text=", days "/>
                     <TextBlock Text="小时（hours）后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox Text=", hours "/>
+                    <TextBox x:Name="EnglishHoursBox" Text=", hours "/>
                     <TextBlock Text="分钟（minutes）后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox Text=", minutes, and "/>
+                    <TextBox x:Name="EnglishMinutesBox" Text=", minutes, and "/>
                     <TextBlock Text="秒（seconds）后缀 / 结尾" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox Text=" seconds."/>
+                    <TextBox x:Name="EnglishSecondsBox" Text=" seconds."/>
                 </StackPanel>
             </Border>
 

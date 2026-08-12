@@ -11,9 +11,12 @@
         Topmost="True"
         Opened="Window_Opened">
 
-    <!-- 课表悬浮栏：屏幕顶部横幅（对齐学程 WPF ScheduleBarWindow） -->
+    <!-- 课表悬浮栏：屏幕顶部横幅（对齐学程 WPF ScheduleBarWindow：完整/紧凑双模式） -->
     <Border Background="#DD0D0D1A" CornerRadius="0,0,6,6" Padding="0,4,0,4">
-        <Grid ColumnDefinitions="Auto,*,Auto" Margin="10,2,10,2">
+      <Grid>
+
+        <!-- 完整模式：时间 + 状态 + 进度 + 天气 -->
+        <Grid x:Name="FullInfoRoot" ColumnDefinitions="Auto,*,Auto" Margin="10,2,10,2">
 
             <!-- 左：时间 + 日期 -->
             <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,14,0">
@@ -23,7 +26,7 @@
                            HorizontalAlignment="Center"/>
             </StackPanel>
 
-            <!-- 中：状态 + 进度 -->
+            <!-- 中：状态 + 倒计时 + 进度 -->
             <StackPanel Grid.Column="1" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
                     <TextBlock x:Name="StatusTb" Text="课间休息" FontSize="13" FontWeight="SemiBold"
@@ -36,18 +39,32 @@
                              Margin="0,4,0,0" IsVisible="False"/>
             </StackPanel>
 
-            <!-- 右：今日课程进度提示 + 天气 -->
+            <!-- 右：进度提示 + 天气（描述/风/湿度/温度/城市） -->
             <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="14,0,0,0" HorizontalAlignment="Right">
                 <TextBlock x:Name="ProgressPctTb" Text="" FontSize="12" Foreground="#AAFFFFFF"
                            HorizontalAlignment="Right"/>
-                <StackPanel x:Name="WeatherRow" Orientation="Horizontal" Spacing="6" IsVisible="False"
+                <StackPanel x:Name="WeatherRow" Orientation="Horizontal" Spacing="8" IsVisible="False"
                             HorizontalAlignment="Right">
                     <TextBlock x:Name="WeatherIconTb" Text="☀️" FontSize="12"/>
+                    <TextBlock x:Name="WeatherTb" Text="" FontSize="11" Foreground="#FFCCCCDD"/>
+                    <TextBlock x:Name="WeatherWindTb" Text="" FontSize="11" Foreground="#FFCCCCDD"/>
+                    <TextBlock x:Name="WeatherHumidityTb" Text="" FontSize="11" Foreground="#FFCCCCDD"/>
                     <TextBlock x:Name="WeatherTempTb" Text="--°" FontSize="12" FontWeight="Bold"
                                Foreground="#FF88CCFF"/>
                     <TextBlock x:Name="WeatherCityTb" Text="" FontSize="11" Foreground="#AAFFFFFF"/>
                 </StackPanel>
             </StackPanel>
         </Grid>
+
+        <!-- 紧凑模式：仅当前课进度条（上课自动收缩，铺满屏幕宽度，对齐 WPF ScheduleBarWindow.CompactRow） -->
+        <Grid x:Name="CompactRow" IsVisible="False" Margin="10,2,10,2" ColumnDefinitions="Auto,*,Auto">
+            <TextBlock x:Name="CompactStatusTb" Grid.Column="0" Text="" FontSize="12"
+                       Foreground="#AAFFFFFF" VerticalAlignment="Center" Margin="0,0,8,0"/>
+            <ProgressBar x:Name="CompactProgressBar" Grid.Column="1" Height="5" Minimum="0" Maximum="100"
+                         VerticalAlignment="Center" IsVisible="False"/>
+            <Button x:Name="ExpandBtn" Grid.Column="2" Content="⌄" FontSize="11" Padding="6,0"
+                    Margin="8,0,0,0" IsVisible="False" Click="ExpandBtn_Click" ToolTip.Tip="展开课表栏"/>
+        </Grid>
+      </Grid>
     </Border>
 </Window>

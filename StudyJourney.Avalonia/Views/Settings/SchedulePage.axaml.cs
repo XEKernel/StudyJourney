@@ -1,6 +1,8 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using StudyJourney.Avalonia.Models;
 
 namespace StudyJourney.Avalonia.Views.Settings;
@@ -19,6 +21,30 @@ public partial class SchedulePage : UserControl, ISettingsPage
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner != null) win.Show(owner);
         else win.Show();
+    }
+
+    /// <summary>浏览选择提醒音 wav 文件（对齐 WPF BrowseReminderSound_Click）</summary>
+    private async void BrowseReminderSound_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top == null) return;
+            var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                Title = "选择提醒音文件（wav）",
+                AllowMultiple = false,
+                FileTypeFilter = new[]
+                {
+                    new FilePickerFileType("音频文件") { Patterns = new[] { "*.wav", "*.mp3", "*.wma" } },
+                    new FilePickerFileType("所有文件") { Patterns = new[] { "*.*" } }
+                }
+            });
+            if (files.Count == 0) return;
+            var path = files[0].TryGetLocalPath();
+            if (!string.IsNullOrEmpty(path)) ReminderSoundPathBox.Text = path;
+        }
+        catch { }
     }
 
     // ── 滑条联动 ────────────────────────────────────────────

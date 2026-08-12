@@ -8,8 +8,8 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="考试模式" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="EnableExamModeCheck" Content="启用考试模式" IsChecked="True"/>
-                    <CheckBox x:Name="AutoEnterExamModeCheck" Content="开考时自动进入全屏考试模式" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="EnableExamModeCheck" Content="启用考试模式"/>
+                    <CheckBox x:Name="AutoEnterExamModeCheck" Content="开考时自动进入全屏考试模式" Margin="0,6,0,0"/>
                     <Button Content="立即进入考试模式" Margin="0,10,0,0" HorizontalAlignment="Left"
                             Click="EnterExamModeBtn_Click"/>
                 </StackPanel>
@@ -50,60 +50,116 @@
                         <Slider x:Name="ExamNextSubjectFontSizeSlider" ValueChanged="ExamNextSubjectFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="10" Maximum="48" Value="22" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock x:Name="ExamNextSubjectFontSizeText" Grid.Column="2" Text="22" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
-                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,0">
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
+                        <TextBlock Text="警告文字字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider x:Name="ExamWarningFontSizeSlider" ValueChanged="ExamWarningFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="10" Maximum="48" Value="20" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ExamWarningFontSizeText" Grid.Column="2" Text="20" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
+                        <TextBlock Text="ESC 提示字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider x:Name="ExamEscHintFontSizeSlider" ValueChanged="ExamEscHintFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="8" Maximum="28" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ExamEscHintFontSizeText" Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="进度条高度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <Slider x:Name="ExamProgressBarHeightSlider" ValueChanged="ExamProgressBarHeightSlider_ValueChanged" Grid.Column="1" Minimum="6" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock x:Name="ExamProgressBarHeightText" Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
+                    <Grid ColumnDefinitions="110,*" Margin="0,8,0,0">
+                        <TextBlock Text="倒计时字体" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="ExamCountdownFontFamilyBox" Grid.Column="1"/>
+                    </Grid>
                 </StackPanel>
             </Border>
 
-            <!-- 颜色 -->
+            <!-- 颜色（对齐 WPF 原版 14 色） -->
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="颜色" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
 
                     <TextBlock Text="科目名颜色" FontSize="13" Margin="0,4,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FFFFFFFF"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="ExamSubjectColorBox" Grid.Column="0" Text="#FFFFFFFF"/>
+                        <Border x:Name="ExamSubjectColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamSubjectColor_Click"/>
                     </Grid>
                     <TextBlock Text="考试名称颜色" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#AAFFFFFF"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#AAFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="ExamNameColorBox" Grid.Column="0" Text="#AAFFFFFF"/>
+                        <Border x:Name="ExamNameColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#AAFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamNameColor_Click"/>
                     </Grid>
                     <TextBlock Text="倒计时正常颜色" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FFFFFFFF"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="ExamCountdownNormalColorBox" Grid.Column="0" Text="#FFFFFFFF"/>
+                        <Border x:Name="ExamCountdownNormalColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamCountdownNormalColor_Click"/>
                     </Grid>
                     <TextBlock Text="倒计时警告颜色（≤15 分钟）" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FFFFCC88"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFCC88" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="ExamCountdownWarningColorBox" Grid.Column="0" Text="#FFCC8800"/>
+                        <Border x:Name="ExamCountdownWarningColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFCC8800" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamCountdownWarningColor_Click"/>
                     </Grid>
                     <TextBlock Text="倒计时临界颜色（≤5 分钟）" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FFFF4444"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFF4444" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="ExamCountdownCriticalColorBox" Grid.Column="0" Text="#FFCC4400"/>
+                        <Border x:Name="ExamCountdownCriticalColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFCC4400" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamCountdownCriticalColor_Click"/>
+                    </Grid>
+                    <TextBlock Text="距开考倒计时颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox x:Name="ExamDistanceColorBox" Grid.Column="0" Text="#8899CC"/>
+                        <Border x:Name="ExamDistanceColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#8899CC" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamDistanceColor_Click"/>
+                    </Grid>
+                    <TextBlock Text="信息文字颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox x:Name="ExamInfoColorBox" Grid.Column="0" Text="#88FFFFFF"/>
+                        <Border x:Name="ExamInfoColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#88FFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamInfoColor_Click"/>
+                    </Grid>
+                    <TextBlock Text="标签弱化颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox x:Name="ExamInfoDimColorBox" Grid.Column="0" Text="#44FFFFFF"/>
+                        <Border x:Name="ExamInfoDimColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#44FFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamInfoDimColor_Click"/>
                     </Grid>
                     <TextBlock Text="进度条颜色" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FF5B9BD5"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FF5B9BD5" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="ExamProgressBarColorBox" Grid.Column="0" Text="#FF5B9BD5"/>
+                        <Border x:Name="ExamProgressBarColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FF5B9BD5" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamProgressBarColor_Click"/>
+                    </Grid>
+                    <TextBlock Text="进度条背景颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox x:Name="ExamProgressBarBgColorBox" Grid.Column="0" Text="#22FFFFFF"/>
+                        <Border x:Name="ExamProgressBarBgColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#22FFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamProgressBarBgColor_Click"/>
+                    </Grid>
+                    <TextBlock Text="下一场文字颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox x:Name="ExamNextSubjectColorBox" Grid.Column="0" Text="#88FFFFFF"/>
+                        <Border x:Name="ExamNextSubjectColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#88FFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamNextSubjectColor_Click"/>
+                    </Grid>
+                    <TextBlock Text="警告文字颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox x:Name="ExamWarningColorBox" Grid.Column="0" Text="#FFCC8800"/>
+                        <Border x:Name="ExamWarningColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFCC8800" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamWarningColor_Click"/>
+                    </Grid>
+                    <TextBlock Text="进度百分比颜色" FontSize="13" Margin="0,10,0,4"/>
+                    <Grid ColumnDefinitions="90,*,Auto">
+                        <TextBox x:Name="ExamProgressPctColorBox" Grid.Column="0" Text="#66FFFFFF"/>
+                        <Border x:Name="ExamProgressPctColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#66FFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamProgressPctColor_Click"/>
                     </Grid>
                     <TextBlock Text="窗口背景颜色" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
                         <TextBox x:Name="ExamBackgroundColorBox" Grid.Column="0" Text="#FF060B14"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FF060B14" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <Border x:Name="ExamBackgroundColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FF060B14" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickExamBackgroundColor_Click"/>
                     </Grid>
                 </StackPanel>
             </Border>

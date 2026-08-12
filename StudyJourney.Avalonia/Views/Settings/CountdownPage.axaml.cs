@@ -17,6 +17,14 @@ public partial class CountdownPage : UserControl, ISettingsPage
 
     public void Load(AppSettings s)
     {
+        // 字体族（系统字体）
+        if (FontFamilyBox.Items.Count == 0)
+        {
+            foreach (var ff in FontManager.Current.SystemFonts)
+                FontFamilyBox.Items.Add(ff.Name);
+        }
+        FontFamilyBox.SelectedItem = s.FontFamily;
+
         FontSizeSlider.Value = s.FontSize;
         FontSizeText.Text = ((int)s.FontSize).ToString();
         OpacitySlider.Value = s.OverallOpacity;
@@ -35,6 +43,18 @@ public partial class CountdownPage : UserControl, ISettingsPage
         StartDateBox.Text = s.StartDateStr;
         CustomCountdownGrid.ItemsSource = s.CustomCountdowns;
 
+        // 中英文自定义文本
+        ChinesePrefixBox.Text = s.ChinesePrefix;
+        ChineseDaysBox.Text = s.ChineseDaysText;
+        ChineseHoursBox.Text = s.ChineseHoursText;
+        ChineseMinutesBox.Text = s.ChineseMinutesText;
+        ChineseSecondsBox.Text = s.ChineseSecondsText;
+        EnglishPrefixBox.Text = s.EnglishPrefix;
+        EnglishDaysBox.Text = s.EnglishDaysText;
+        EnglishHoursBox.Text = s.EnglishHoursText;
+        EnglishMinutesBox.Text = s.EnglishMinutesText;
+        EnglishSecondsBox.Text = s.EnglishSecondsText;
+
         NumberColorBox.Text = s.NumberColor.ToString();
         TextColorBox.Text = s.TextColor.ToString();
         ProgressBarColorBox.Text = s.ProgressBarColor.ToString();
@@ -45,6 +65,9 @@ public partial class CountdownPage : UserControl, ISettingsPage
 
     public void Apply(AppSettings s)
     {
+        if (FontFamilyBox.SelectedItem is string ff && !string.IsNullOrWhiteSpace(ff))
+            s.FontFamily = ff;
+
         s.FontSize = (int)FontSizeSlider.Value;
         s.OverallOpacity = OpacitySlider.Value;
         s.ShowEnglishLine = ShowEnglishCheck.IsChecked == true;
@@ -58,6 +81,18 @@ public partial class CountdownPage : UserControl, ISettingsPage
         s.EnableAnimations = EnableAnimationsCheck.IsChecked == true;
         s.GaokaoDateStr = GaokaoDateBox.Text ?? "";
         s.StartDateStr = StartDateBox.Text ?? "";
+
+        // 中英文自定义文本
+        s.ChinesePrefix = ChinesePrefixBox.Text ?? s.ChinesePrefix;
+        s.ChineseDaysText = ChineseDaysBox.Text ?? s.ChineseDaysText;
+        s.ChineseHoursText = ChineseHoursBox.Text ?? s.ChineseHoursText;
+        s.ChineseMinutesText = ChineseMinutesBox.Text ?? s.ChineseMinutesText;
+        s.ChineseSecondsText = ChineseSecondsBox.Text ?? s.ChineseSecondsText;
+        s.EnglishPrefix = EnglishPrefixBox.Text ?? s.EnglishPrefix;
+        s.EnglishDaysText = EnglishDaysBox.Text ?? s.EnglishDaysText;
+        s.EnglishHoursText = EnglishHoursBox.Text ?? s.EnglishHoursText;
+        s.EnglishMinutesText = EnglishMinutesBox.Text ?? s.EnglishMinutesText;
+        s.EnglishSecondsText = EnglishSecondsBox.Text ?? s.EnglishSecondsText;
 
         if (TryParseColor(NumberColorBox.Text ?? "#FFFFFF", out var nc)) s.NumberColor = nc;
         if (TryParseColor(TextColorBox.Text ?? "#FFFFFF", out var tc)) s.TextColor = tc;

@@ -32,6 +32,7 @@ public partial class ApiPage : UserControl, ISettingsPage
         WeatherInfoColorBox.Text = s.WeatherInfoColor;
         WeatherTempColorBox.Text = s.WeatherTempColor;
         WeatherIconColorBox.Text = s.WeatherIconColor;
+        WeatherTimeColorBox.Text = s.WeatherTimeColor;
     }
 
     public void Apply(AppSettings s)
@@ -52,6 +53,7 @@ public partial class ApiPage : UserControl, ISettingsPage
         s.WeatherInfoColor = WeatherInfoColorBox.Text ?? s.WeatherInfoColor;
         s.WeatherTempColor = WeatherTempColorBox.Text ?? s.WeatherTempColor;
         s.WeatherIconColor = WeatherIconColorBox.Text ?? s.WeatherIconColor;
+        s.WeatherTimeColor = WeatherTimeColorBox.Text ?? s.WeatherTimeColor;
     }
 
     // ── 滑条联动 ────────────────────────────────────────────
@@ -90,6 +92,9 @@ public partial class ApiPage : UserControl, ISettingsPage
 
     private void PickWeatherIconColor_Click(object? sender, RoutedEventArgs e)
         => PickColor(WeatherIconColorBox);
+
+    private void PickWeatherTimeColor_Click(object? sender, RoutedEventArgs e)
+        => PickColor(WeatherTimeColorBox);
 
     private void PickColor(TextBox box)
     {

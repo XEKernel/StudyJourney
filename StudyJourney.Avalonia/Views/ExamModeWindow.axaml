@@ -8,6 +8,7 @@
         Topmost="True"
         ShowInTaskbar="True"
         KeyDown="Window_KeyDown"
+        PointerPressed="Window_PointerPressed"
         Opened="Window_Opened">
 
     <!-- 考试全屏倒计时（对齐学程 WPF ExamModeWindow） -->
