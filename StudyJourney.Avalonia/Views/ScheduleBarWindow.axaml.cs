@@ -302,9 +302,15 @@ public partial class ScheduleBarWindow : Window
         var next = manager.GetNextEntry(now);
         var timeToNext = manager.GetTimeToNextEntry(now);
 
+        // 今日课程（用于节次计数与课后列表）
+        var todayEntries = manager.GetTodayEntries(now.Date);
+        int total = todayEntries.Count;
+        int curIndex = cur != null ? todayEntries.FindIndex(e => e.Period == cur.Period) + 1 : -1;
+        bool isLast = cur != null && next == null;
+
         if (cur != null)
         {
-            StatusTb.Text = $"正在上课：{cur.Subject}";
+            StatusTb.Text = isLast ? $"最后一节课：{cur.Subject}" : $"正在上课：{cur.Subject}";
             StatusTb.Foreground = BrGreen;
 
             var pct = manager.GetCurrentProgress(now);
@@ -314,7 +320,9 @@ public partial class ScheduleBarWindow : Window
                 ProgressBar.IsVisible = true;
                 CompactProgressBar.Value = pct.Value * 100;
                 CompactProgressBar.IsVisible = true;
-                ProgressPctTb.Text = $"{pct.Value * 100:F0}%";
+                ProgressPctTb.Text = total > 0 && curIndex > 0
+                    ? $"{pct.Value * 100:F0}% · 第{curIndex}/{total}节"
+                    : $"{pct.Value * 100:F0}%";
                 CompactStatusTb.Text = $"正在上课：{cur.Subject} {pct.Value * 100:F0}%";
             }
             else
@@ -327,7 +335,9 @@ public partial class ScheduleBarWindow : Window
 
             var remain = manager.GetTimeToEndOfCurrent(now);
             NextCountdownTb.Text = remain.HasValue
-                ? $"下课剩余 {remain.Value.Hours:D2}:{remain.Value.Minutes:D2}:{remain.Value.Seconds:D2}"
+                ? (isLast
+                    ? $"最后一节 · 下课剩余 {remain.Value.Hours:D2}:{remain.Value.Minutes:D2}:{remain.Value.Seconds:D2}"
+                    : $"下课剩余 {remain.Value.Hours:D2}:{remain.Value.Minutes:D2}:{remain.Value.Seconds:D2}")
                 : "";
             NextCountdownTb.Foreground = BrGreen;
 
@@ -360,13 +370,15 @@ public partial class ScheduleBarWindow : Window
         }
         else
         {
-            StatusTb.Text = "今日课程已结束";
+            // 今日课程已结束：显示今天上过的课程列表（用户需求）
+            StatusTb.Text = total > 0 ? "今日课程已结束" : "今日无课";
             StatusTb.Foreground = BrGray;
-            NextCountdownTb.Text = "";
+            NextCountdownTb.Text = total > 0 ? BuildTodayList(todayEntries) : "";
+            NextCountdownTb.Foreground = BrGray;
             ProgressBar.IsVisible = false;
             CompactProgressBar.IsVisible = false;
-            ProgressPctTb.Text = "";
-            CompactStatusTb.Text = "今日课程已结束";
+            ProgressPctTb.Text = total > 0 ? $"共 {total} 节" : "";
+            CompactStatusTb.Text = total > 0 ? $"今日课程已结束（{total} 节）" : "今日无课";
             if (_isCompact) SetExpanded();
         }
 
@@ -377,6 +389,14 @@ public partial class ScheduleBarWindow : Window
             PulseOpacity(StatusTb);
         }
     }
+
+    /// <summary>今日课程列表文本（"08:00 语文 · 08:55 数学 …"）</summary>
+    private static string BuildTodayList(System.Collections.Generic.List<ScheduleEntry> entries)
+        => string.Join("  ", entries.Select(e =>
+        {
+            var s = e.StartTimeStr;
+            return string.IsNullOrWhiteSpace(e.Subject) ? s : $"{s} {e.Subject}";
+        }));
 
     /// <summary>状态文本快速脉冲动画（透明度 1→0.3→1）</summary>
     private static void PulseOpacity(TextBlock element)
