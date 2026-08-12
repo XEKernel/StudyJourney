@@ -18,6 +18,14 @@
             BorderThickness="1"
             Padding="20,14"
             BoxShadow="0 8 24 2 #66000000">
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="进入考试模式" Click="ExamModeMenuItem_Click"/>
+                <MenuItem Header="打开设置" Click="OpenSettingsMenuItem_Click"/>
+                <Separator/>
+                <MenuItem Header="退出" Click="ExitMenuItem_Click"/>
+            </ContextMenu>
+        </Border.ContextMenu>
         <StackPanel Spacing="4">
 
             <!-- 中文倒计时行 -->

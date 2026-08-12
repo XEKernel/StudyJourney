@@ -8,8 +8,8 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="考试模式" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox Content="启用考试模式" IsChecked="True"/>
-                    <CheckBox Content="开考时自动进入全屏考试模式" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="EnableExamModeCheck" Content="启用考试模式" IsChecked="True"/>
+                    <CheckBox x:Name="AutoEnterExamModeCheck" Content="开考时自动进入全屏考试模式" IsChecked="True" Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -20,37 +20,37 @@
 
                     <Grid ColumnDefinitions="110,*,50" Margin="0,2,0,4">
                         <TextBlock Text="窗口字体" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="16" Maximum="72" Value="32" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="ExamModeFontSizeSlider" Grid.Column="1" Minimum="16" Maximum="72" Value="32" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="32" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="科目名字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="30" Maximum="120" Value="64" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="ExamSubjectFontSizeSlider" Grid.Column="1" Minimum="30" Maximum="120" Value="64" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="64" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="倒计时字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="60" Maximum="200" Value="120" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="ExamCountdownFontSizeSlider" Grid.Column="1" Minimum="60" Maximum="200" Value="120" TickFrequency="5" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="120" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="考试名称字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="12" Maximum="60" Value="28" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="ExamNameFontSizeSlider" Grid.Column="1" Minimum="12" Maximum="60" Value="28" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="28" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="时间信息字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="10" Maximum="40" Value="16" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="ExamTimeInfoFontSizeSlider" Grid.Column="1" Minimum="10" Maximum="40" Value="16" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="16" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="下一场字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="10" Maximum="48" Value="22" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="ExamNextSubjectFontSizeSlider" Grid.Column="1" Minimum="10" Maximum="48" Value="22" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="22" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,0">
                         <TextBlock Text="进度条高度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="6" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="ExamProgressBarHeightSlider" Grid.Column="1" Minimum="6" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
@@ -99,7 +99,7 @@
                     </Grid>
                     <TextBlock Text="窗口背景颜色" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FF060B14"/>
+                        <TextBox x:Name="ExamBackgroundColorBox" Grid.Column="0" Text="#FF060B14"/>
                         <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FF060B14" HorizontalAlignment="Left" Margin="8,0,0,0"/>
                         <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
                     </Grid>

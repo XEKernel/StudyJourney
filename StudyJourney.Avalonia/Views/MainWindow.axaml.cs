@@ -289,4 +289,22 @@ public partial class MainWindow : Window
         var win = new SettingsWindow();
         win.Show(this);
     }
+
+    // ── 右键菜单 ────────────────────────────────────────────
+    private void ExamModeMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        var win = new ExamModeWindow();
+        win.Show();
+    }
+
+    private void OpenSettingsMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        OpenSettings();
+    }
+
+    private void ExitMenuItem_Click(object? sender, RoutedEventArgs e)
+    {
+        _scheduleBar?.Close();
+        Close();
+    }
 }
