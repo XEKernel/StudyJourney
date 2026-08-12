@@ -60,7 +60,9 @@
             <!-- 每日一言 -->
             <TextBlock x:Name="DailyQuoteTb" FontSize="12" Foreground="#FFAAAAAA"
                        FontStyle="Italic" HorizontalAlignment="Center"
-                       IsVisible="False" TextTrimming="CharacterEllipsis" MaxWidth="760"/>
+                       IsVisible="False" TextTrimming="CharacterEllipsis" MaxWidth="760"
+                       Cursor="Hand" PointerPressed="DailyQuoteTb_PointerPressed"
+                       ToolTip.Tip="点击刷新每日一言"/>
 
         </StackPanel>
     </Border>

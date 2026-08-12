@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -18,7 +21,11 @@ namespace StudyJourney.Avalonia.Views;
 /// </summary>
 public partial class MainWindow : Window
 {
+    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(10) };
+
     private DispatcherTimer? _timer;
+    private DispatcherTimer? _quoteTimer;
+    private ScheduleBarWindow? _scheduleBar;
     private DateTime _gaokaoDate = new(2027, 6, 7, 9, 0, 0);
     private DateTime _startDate = new(2024, 8, 24);
     private bool _draggable;   // 自定义位置模式可拖动
@@ -41,6 +48,55 @@ public partial class MainWindow : Window
         _timer.Tick += (_, _) => Tick();
         _timer.Start();
         Tick();
+
+        // 每日一言：启动加载 + 定时刷新
+        if (App.Settings.ShowDailyQuote)
+        {
+            _ = LoadQuoteAsync();
+            StartQuoteTimer();
+        }
+    }
+
+    // ── 每日一言（HTTP + 定时刷新，逻辑同 WPF MainWindowViewModel.FetchQuoteAsync）──
+    private async Task LoadQuoteAsync()
+    {
+        try
+        {
+            var s = App.Settings;
+            string url = string.IsNullOrWhiteSpace(s.QuoteApiUrl)
+                ? "https://uapis.cn/api/v1/saying" : s.QuoteApiUrl;
+            string json = await _http.GetStringAsync(url);
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            string field = string.IsNullOrWhiteSpace(s.QuoteTextFieldName) ? "text" : s.QuoteTextFieldName.Trim();
+            if (!root.TryGetProperty(field, out var prop) || prop.ValueKind != JsonValueKind.String) return;
+            string? text = prop.GetString();
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            DailyQuoteTb.Text = $"「{text.Trim()}」";
+            DailyQuoteTb.IsVisible = true;
+            DailyQuoteTb.FontSize = Math.Max(10, s.QuoteFontSize);
+            DailyQuoteTb.FontStyle = s.QuoteItalic ? FontStyle.Italic : FontStyle.Normal;
+            try { DailyQuoteTb.Foreground = new SolidColorBrush(Color.Parse(s.QuoteForegroundHex)); } catch { }
+        }
+        catch { /* 网络异常静默 */ }
+    }
+
+    private void StartQuoteTimer()
+    {
+        _quoteTimer?.Stop();
+        int sec = App.Settings.QuoteAutoRefreshInterval;
+        if (sec <= 0) return;
+        _quoteTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(sec) };
+        _quoteTimer.Tick += async (_, _) => await LoadQuoteAsync();
+        _quoteTimer.Start();
+    }
+
+    private void DailyQuoteTb_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        // 单击一言 → 刷新（与 WPF 版点击刷新一致）
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed && e.ClickCount == 1)
+            _ = LoadQuoteAsync();
     }
 
     private void OnSettingsChanged()
@@ -105,6 +161,18 @@ public partial class MainWindow : Window
 
         // 自定义位置模式可拖动
         _draggable = s.PositionPreset == PositionPresetValues.Custom;
+
+        // 课表悬浮栏显隐（设置控制）
+        if (s.ShowScheduleBar && _scheduleBar == null)
+        {
+            _scheduleBar = new ScheduleBarWindow();
+            _scheduleBar.Show();
+        }
+        else if (!s.ShowScheduleBar && _scheduleBar != null)
+        {
+            _scheduleBar.Close();
+            _scheduleBar = null;
+        }
     }
 
     /// <summary>每秒刷新倒计时与进度</summary>

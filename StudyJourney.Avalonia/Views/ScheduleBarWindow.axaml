@@ -1,0 +1,44 @@
+<Window x:Class="StudyJourney.Avalonia.Views.ScheduleBarWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="课表栏"
+        WindowDecorations="None"
+        TransparencyLevelHint="None"
+        Background="Transparent"
+        SizeToContent="Height"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Topmost="True"
+        Opened="Window_Opened">
+
+    <!-- 课表悬浮栏：屏幕顶部横幅（对齐学程 WPF ScheduleBarWindow） -->
+    <Border Background="#DD0D0D1A" CornerRadius="0,0,6,6" Padding="0,4,0,4">
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="10,2,10,2">
+
+            <!-- 左：时间 + 日期 -->
+            <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,14,0">
+                <TextBlock x:Name="CurrentTimeTb" Text="00:00:00" FontSize="16" FontWeight="Bold"
+                           Foreground="#FFFFFFFF" FontFamily="Consolas" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="DateTb" Text="08月12日 周三" FontSize="10" Foreground="#AAFFFFFF"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- 中：状态 + 进度 -->
+            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+                    <TextBlock x:Name="StatusTb" Text="课间休息" FontSize="13" FontWeight="SemiBold"
+                               Foreground="#FFFF8844"/>
+                    <TextBlock x:Name="NextCountdownTb" Text="" FontSize="13" Foreground="#FFFF8844"/>
+                </StackPanel>
+                <ProgressBar x:Name="ProgressBar" Height="5" Minimum="0" Maximum="100"
+                             Margin="0,4,0,0" IsVisible="False"/>
+            </StackPanel>
+
+            <!-- 右：今日课程进度提示 -->
+            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="14,0,0,0" HorizontalAlignment="Right">
+                <TextBlock x:Name="ProgressPctTb" Text="" FontSize="12" Foreground="#AAFFFFFF"
+                           HorizontalAlignment="Right"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

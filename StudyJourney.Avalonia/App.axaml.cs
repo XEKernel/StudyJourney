@@ -11,6 +11,9 @@ public partial class App : Application
     /// <summary>全局设置（从 settings.json 加载，与 WPF 版共用同一配置）</summary>
     public static AppSettings Settings { get; private set; } = new();
 
+    /// <summary>全局课表管理器（从 schedule.json 加载）</summary>
+    public static ScheduleManager Schedule { get; private set; } = new();
+
     /// <summary>设置被保存后触发（主窗口/悬浮栏等订阅并刷新）</summary>
     public static event Action? SettingsChanged;
 

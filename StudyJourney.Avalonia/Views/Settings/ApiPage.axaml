@@ -11,7 +11,7 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="每日一言开关" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox Content="在倒计时窗口底部显示每日一言" IsChecked="True"/>
+                    <CheckBox x:Name="ShowDailyQuoteCheck" Content="在倒计时窗口底部显示每日一言" IsChecked="True"/>
                     <TextBlock Text="每日随机展示一条名言/诗词，点击可手动刷新"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
@@ -23,18 +23,18 @@
                     <TextBlock Text="显示样式" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="70,*,80" Margin="0,2,0,6">
                         <TextBlock Text="字体大小" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="8" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="QuoteFontSizeSlider" Grid.Column="1" Minimum="8" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="70,*,Auto" Margin="0,4,0,6">
                         <TextBlock Text="文字颜色" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" Text="#FFAAAAAA"/>
+                        <TextBox x:Name="QuoteForegroundBox" Grid.Column="1" Text="#FFAAAAAA"/>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
                             <Border Width="26" Height="26" CornerRadius="4" Background="#FFAAAAAA"/>
                             <Button Content="选择…"/>
                         </StackPanel>
                     </Grid>
-                    <CheckBox Content="斜体" IsChecked="True"/>
+                    <CheckBox x:Name="QuoteItalicCheck" Content="斜体" IsChecked="True"/>
                 </StackPanel>
             </Border>
 
@@ -43,18 +43,18 @@
                     <TextBlock Text="数据来源" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="70,*" Margin="0,2,0,6">
                         <TextBlock Text="API 地址" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" Text="https://uapis.cn/api/v1/saying"/>
+                        <TextBox x:Name="QuoteApiUrlBox" Grid.Column="1" Text="https://uapis.cn/api/v1/saying"/>
                     </Grid>
                     <TextBlock Text="返回格式应为 {&quot;text&quot;: &quot;...&quot;}（与 uapis.cn 兼容）"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="70,0,0,0" TextWrapping="Wrap"/>
                     <Grid ColumnDefinitions="70,*" Margin="0,10,0,6">
                         <TextBlock Text="文本字段" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" Text="text"/>
+                        <TextBox x:Name="QuoteTextFieldNameBox" Grid.Column="1" Text="text"/>
                     </Grid>
                     <Grid ColumnDefinitions="70,*,80" Margin="0,10,0,6">
                         <TextBlock Text="自动切换" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="QuoteRefreshIntervalSlider" Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="30秒" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <TextBlock Text="0 = 不自动切换；设置后每隔 N 秒自动刷新一条新的一言"
@@ -75,11 +75,11 @@
                     <TextBlock Text="城市设置" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="70,*" Margin="0,2,0,6">
                         <TextBlock Text="城市名称" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" Text="北京"/>
+                        <TextBox x:Name="WeatherCityBox" Grid.Column="1" Text="北京"/>
                     </Grid>
                     <Grid ColumnDefinitions="70,*" Margin="0,6,0,6">
                         <TextBlock Text="行政区划代码" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <TextBox Grid.Column="1" Text="110000" Watermark="可选，留空自动匹配"/>
+                        <TextBox x:Name="WeatherAdcodeBox" Grid.Column="1" Text="110000" Watermark="可选，留空自动匹配"/>
                     </Grid>
                     <TextBlock Text="城市名必填；adcode 可选（6 位数字，如 110105=朝阳区）"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -92,7 +92,7 @@
                     <TextBlock Text="文本字体大小" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <Grid ColumnDefinitions="70,*,50">
                         <TextBlock Text="字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="10" Maximum="36" Value="14" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="WeatherFontSizeSlider" Grid.Column="1" Minimum="10" Maximum="36" Value="14" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="14" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
@@ -133,7 +133,7 @@
                     <TextBlock Text="其他选项" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="70,*,80" Margin="0,2,0,6">
                         <TextBlock Text="刷新间隔" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="WeatherRefreshIntervalSlider" Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
                         <TextBlock Grid.Column="2" Text="30分" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <TextBlock Text="0 = 不自动刷新；单位：分钟"

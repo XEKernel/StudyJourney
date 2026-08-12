@@ -22,7 +22,7 @@
   <!-- 与 WPF 版共用 settings.json / schedule.json（迁移规划：数据文件共用） -->
   <ItemGroup>
     <None Include="..\settings.json" Link="settings.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..\schedule_example.json" Link="schedule_example.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\schedule_example.json" Link="schedule.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
