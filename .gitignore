@@ -21,3 +21,6 @@ StudyJourney.pfx
 
 # WorkBuddy
 .workbuddy/
+
+# 参考源码（第三方，不入库）
+ClassIsland-*/

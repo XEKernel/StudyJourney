@@ -26,25 +26,29 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<!-- 排除参考源码目录（ClassIsland 等仅作学习参考，不属于本编译单元） -->
+		<Compile Remove="ClassIsland-*\**" />
+		<Page Remove="ClassIsland-*\**" />
+		<ApplicationDefinition Remove="ClassIsland-*\**" />
+		<None Remove="ClassIsland-*\**" />
 		<Compile Remove="Updater\**" />
 		<Content Include="icon.ico">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
 		<PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
 		<PackageReference Include="System.Drawing.Common" Version="9.0.9" />
 	</ItemGroup>
 
 	<!-- 构建后复制 Updater.exe（更新功能依赖，从 Updater 子项目产物复制） -->
 	<Target Name="CopyUpdater" AfterTargets="Build" Condition="Exists('$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\net8.0-windows\StudyJourney.Updater.exe')">
-		<Copy SourceFiles="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\net8.0-windows\StudyJourney.Updater.exe"
-		      DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+		<Copy SourceFiles="$(MSBuildProjectDirectory)\Updater\bin\$(Configuration)\net8.0-windows\StudyJourney.Updater.exe" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
 	</Target>
 
 	<!-- Release 构建后自动签名（需要 Windows SDK signtool.exe） -->
 	<Target Name="SignOutput" AfterTargets="AfterBuild" Condition="'$(Configuration)' == 'Release' And Exists('$(SignCertificate)')">
 		<Message Text="[Sign] 正在签名: $(TargetPath)" Importance="high" />
-		<Exec Command="signtool sign /fd SHA256 /f &quot;$(SignCertificate)&quot; /p $(SignPassword) /tr $(SignTimestampUrl) /td SHA256 /v &quot;$(TargetPath)&quot;"
-		      IgnoreExitCode="true" ContinueOnError="true">
+		<Exec Command="signtool sign /fd SHA256 /f &quot;$(SignCertificate)&quot; /p $(SignPassword) /tr $(SignTimestampUrl) /td SHA256 /v &quot;$(TargetPath)&quot;" IgnoreExitCode="true" ContinueOnError="true">
 			<Output TaskParameter="ExitCode" PropertyName="SignExitCode" />
 		</Exec>
 		<Warning Condition="'$(SignExitCode)' != '0'" Text="本地签名失败(缺少 Windows SDK 或 signtool)，CI 构建将自动签名" />
@@ -52,12 +56,10 @@
 
 	<Target Name="SignPublishOutput" AfterTargets="AfterPublish" Condition="'$(Configuration)' == 'Release' And Exists('$(SignCertificate)')">
 		<Message Text="[Sign] 正在签名发布输出: $(PublishDir)" Importance="high" />
-		<Exec Command="signtool sign /fd SHA256 /f &quot;$(SignCertificate)&quot; /p $(SignPassword) /tr $(SignTimestampUrl) /td SHA256 /v &quot;$(PublishDir)学程.exe&quot;"
-		      IgnoreExitCode="true" ContinueOnError="true">
+		<Exec Command="signtool sign /fd SHA256 /f &quot;$(SignCertificate)&quot; /p $(SignPassword) /tr $(SignTimestampUrl) /td SHA256 /v &quot;$(PublishDir)学程.exe&quot;" IgnoreExitCode="true" ContinueOnError="true">
 			<Output TaskParameter="ExitCode" PropertyName="SignExitCode2" />
 		</Exec>
-		<Exec Command="signtool sign /fd SHA256 /f &quot;$(SignCertificate)&quot; /p $(SignPassword) /tr $(SignTimestampUrl) /td SHA256 /v &quot;$(PublishDir)学程.dll&quot;"
-		      IgnoreExitCode="true" ContinueOnError="true" Condition="'$(SignExitCode2)' == '0'" />
+		<Exec Command="signtool sign /fd SHA256 /f &quot;$(SignCertificate)&quot; /p $(SignPassword) /tr $(SignTimestampUrl) /td SHA256 /v &quot;$(PublishDir)学程.dll&quot;" IgnoreExitCode="true" ContinueOnError="true" Condition="'$(SignExitCode2)' == '0'" />
 	</Target>
 
 </Project>
