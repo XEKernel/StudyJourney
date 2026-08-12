@@ -17,8 +17,8 @@
                         <ComboBoxItem Content="黑体"/>
                     </ComboBox>
                     <Grid ColumnDefinitions="*,56" Margin="0,6,0,0">
-                        <Slider Minimum="16" Maximum="72" Value="40" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="1" Text="40" FontSize="13"
+                        <Slider x:Name="FontSizeSlider" Minimum="16" Maximum="72" Value="40" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="FontSizeText" Grid.Column="1" Text="40" FontSize="13"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                     </Grid>
@@ -30,8 +30,8 @@
                 <StackPanel Spacing="4">
                     <TextBlock Text="窗口透明度" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <Grid ColumnDefinitions="*,56">
-                        <Slider Minimum="0.1" Maximum="1.0" Value="1.0" TickFrequency="0.05"/>
-                        <TextBlock Grid.Column="1" Text="100%" FontSize="13"
+                        <Slider x:Name="OpacitySlider" Minimum="0.1" Maximum="1.0" Value="1.0" TickFrequency="0.05"/>
+                        <TextBlock x:Name="OpacityText" Grid.Column="1" Text="100%" FontSize="13"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                     </Grid>
@@ -70,9 +70,9 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="可见内容" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox Content="显示英文倒计时行" IsChecked="True"/>
-                    <CheckBox Content="显示进度条" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox Content="显示进度百分比文字" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="ShowEnglishCheck" Content="显示英文倒计时行" IsChecked="True"/>
+                    <CheckBox x:Name="ShowProgressBarCheck" Content="显示进度条" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="ShowProgressTextCheck" Content="显示进度百分比文字" IsChecked="True" Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -83,10 +83,10 @@
                     <TextBlock Text="隐藏某一单位后，该数字与标签均不显示；至少保留一项以防页面空白。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap" Margin="0,0,0,10"/>
-                    <CheckBox Content="📅  天（Days）" IsChecked="True"/>
-                    <CheckBox Content="⏰  小时（Hours）" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox Content="⏱  分钟（Minutes）" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox Content="⌛  秒（Seconds）" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="ShowDaysCheck" Content="📅  天（Days）" IsChecked="True"/>
+                    <CheckBox x:Name="ShowHoursCheck" Content="⏰  小时（Hours）" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="ShowMinutesCheck" Content="⏱  分钟（Minutes）" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="ShowSecondsCheck" Content="⌛  秒（Seconds）" IsChecked="True" Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -96,8 +96,8 @@
                     <TextBlock Text="进度百分比精度" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <TextBlock Text="小数位数（0 ～ 10）" FontSize="13"/>
                     <Grid ColumnDefinitions="*,56" Margin="0,6,0,0">
-                        <Slider Minimum="0" Maximum="10" Value="7" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="1" Text="7" FontSize="13"
+                        <Slider x:Name="DecimalSlider" Minimum="0" Maximum="10" Value="7" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="DecimalText" Grid.Column="1" Text="7" FontSize="13"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                     </Grid>
@@ -108,7 +108,7 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="动画" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox Content="启用数字脉冲动画 &amp; 进度条平滑过渡" IsChecked="True"/>
+                    <CheckBox x:Name="EnableAnimationsCheck" Content="启用数字脉冲动画 &amp; 进度条平滑过渡" IsChecked="True"/>
                     <TextBlock Text="关闭后数字每秒直接更新，进度条直接跳转，性能更节省"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,6" TextWrapping="Wrap"/>
@@ -126,7 +126,7 @@
                     <TextBlock Text="格式：yyyy-MM-dd HH:mm:ss  （例：2027-06-07 09:00:00）"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap" Margin="0,0,0,6"/>
-                    <TextBox Text="2027-06-07 09:00:00"/>
+                    <TextBox x:Name="GaokaoDateBox" Text="2027-06-07 09:00:00"/>
                 </StackPanel>
             </Border>
 
@@ -137,7 +137,7 @@
                     <TextBlock Text="格式：yyyy-MM-dd  （例：2024-08-24）"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap" Margin="0,0,0,6"/>
-                    <TextBox Text="2024-08-24"/>
+                    <TextBox x:Name="StartDateBox" Text="2024-08-24"/>
                 </StackPanel>
             </Border>
 

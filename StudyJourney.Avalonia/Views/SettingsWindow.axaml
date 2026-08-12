@@ -13,7 +13,7 @@
         - 保留系统装饰（三大金刚键 + Win11 系统圆角，ClassIsland 同款）
         - Mica 材质 + FANavigationView 左侧导航（带图标）
     -->
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,*,Auto">
 
         <!-- 页面标题 -->
         <TextBlock Grid.Row="0" Text="设置"
@@ -63,5 +63,17 @@
             <!-- 页面内容区 -->
             <Border x:Name="PageHost" Margin="8,0,0,0"/>
         </ui:FANavigationView>
+
+        <!-- 底部操作条 -->
+        <Border Grid.Row="2" Padding="20,10" Background="#0AFFFFFF"
+                BorderBrush="#15FFFFFF" BorderThickness="0,1,0,0">
+            <Grid ColumnDefinitions="*,Auto,Auto">
+                <TextBlock Text="修改后点击「保存」生效，保存到 settings.json（与 WPF 版共用）"
+                           FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                           VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="取消" Margin="0,0,8,0" Click="CancelBtn_Click"/>
+                <Button Grid.Column="2" Content="保存设置" Classes="accent" Click="SaveBtn_Click"/>
+            </Grid>
+        </Border>
     </Grid>
 </ui:FAAppWindow>
