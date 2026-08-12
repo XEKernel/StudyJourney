@@ -207,6 +207,7 @@ public partial class ScheduleBarWindow : Window
             WeatherTempTb.Text = $"{result.Temperature}°";
             WeatherCityTb.Text = result.Location;
             WeatherRow.IsVisible = true;
+            WeatherMetaRow.IsVisible = true;
 
             // 字号与颜色（对齐 WPF：描述/风/湿度用 Info 色）
             double fs = s.WeatherFontSize;
@@ -297,6 +298,7 @@ public partial class ScheduleBarWindow : Window
 
         CurrentTimeTb.Text = now.ToString("HH:mm:ss");
         DateTb.Text = now.ToString("MM月dd日 ddd");
+        CompactTimeTb.Text = now.ToString("HH:mm");
 
         var cur = manager.GetCurrentEntry(now);
         var next = manager.GetNextEntry(now);
@@ -323,6 +325,7 @@ public partial class ScheduleBarWindow : Window
                 ProgressPctTb.Text = total > 0 && curIndex > 0
                     ? $"{pct.Value * 100:F0}% · 第{curIndex}/{total}节"
                     : $"{pct.Value * 100:F0}%";
+                ProgressPctTb.IsVisible = true;
                 CompactStatusTb.Text = $"正在上课：{cur.Subject} {pct.Value * 100:F0}%";
             }
             else
@@ -330,6 +333,7 @@ public partial class ScheduleBarWindow : Window
                 ProgressBar.IsVisible = false;
                 CompactProgressBar.IsVisible = false;
                 ProgressPctTb.Text = "";
+                ProgressPctTb.IsVisible = false;
                 CompactStatusTb.Text = $"正在上课：{cur.Subject}";
             }
 
@@ -364,6 +368,7 @@ public partial class ScheduleBarWindow : Window
                 NextCountdownTb.Foreground = BrOrange;
             }
             ProgressPctTb.Text = "";
+            ProgressPctTb.IsVisible = false;
 
             // 下课 → 展开（对齐 WPF）
             if (_isCompact) SetExpanded();
@@ -378,6 +383,7 @@ public partial class ScheduleBarWindow : Window
             ProgressBar.IsVisible = false;
             CompactProgressBar.IsVisible = false;
             ProgressPctTb.Text = total > 0 ? $"共 {total} 节" : "";
+            ProgressPctTb.IsVisible = total > 0;
             CompactStatusTb.Text = total > 0 ? $"今日课程已结束（{total} 节）" : "今日无课";
             if (_isCompact) SetExpanded();
         }
