@@ -1,0 +1,643 @@
+{
+  "Entries": [
+    {
+      "DayOfWeek": 1,
+      "Period": 1,
+      "Subject": "早读·语文",
+      "StartTimeStr": "06:40",
+      "EndTimeStr": "07:20",
+      "Type": "Morning"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 2,
+      "Subject": "语文",
+      "StartTimeStr": "08:00",
+      "EndTimeStr": "08:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 3,
+      "Subject": "数学",
+      "StartTimeStr": "08:55",
+      "EndTimeStr": "09:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 4,
+      "Subject": "英语",
+      "StartTimeStr": "10:00",
+      "EndTimeStr": "10:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 5,
+      "Subject": "物理",
+      "StartTimeStr": "10:55",
+      "EndTimeStr": "11:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 6,
+      "Subject": "午休",
+      "StartTimeStr": "12:10",
+      "EndTimeStr": "13:20",
+      "Type": "Noon"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 7,
+      "Subject": "化学",
+      "StartTimeStr": "13:30",
+      "EndTimeStr": "14:15",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 8,
+      "Subject": "生物",
+      "StartTimeStr": "14:25",
+      "EndTimeStr": "15:10",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 9,
+      "Subject": "历史",
+      "StartTimeStr": "15:20",
+      "EndTimeStr": "16:05",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 10,
+      "Subject": "政治",
+      "StartTimeStr": "16:15",
+      "EndTimeStr": "17:00",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 11,
+      "Subject": "晚读·英语",
+      "StartTimeStr": "18:20",
+      "EndTimeStr": "18:40",
+      "Type": "Reading"
+    },
+    {
+      "DayOfWeek": 1,
+      "Period": 12,
+      "Subject": "晚自习",
+      "StartTimeStr": "19:00",
+      "EndTimeStr": "21:00",
+      "Type": "Evening"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 1,
+      "Subject": "早读·英语",
+      "StartTimeStr": "06:40",
+      "EndTimeStr": "07:20",
+      "Type": "Morning"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 2,
+      "Subject": "数学",
+      "StartTimeStr": "08:00",
+      "EndTimeStr": "08:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 3,
+      "Subject": "语文",
+      "StartTimeStr": "08:55",
+      "EndTimeStr": "09:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 4,
+      "Subject": "物理",
+      "StartTimeStr": "10:00",
+      "EndTimeStr": "10:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 5,
+      "Subject": "化学",
+      "StartTimeStr": "10:55",
+      "EndTimeStr": "11:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 6,
+      "Subject": "午休",
+      "StartTimeStr": "12:10",
+      "EndTimeStr": "13:20",
+      "Type": "Noon"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 7,
+      "Subject": "英语",
+      "StartTimeStr": "13:30",
+      "EndTimeStr": "14:15",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 8,
+      "Subject": "历史",
+      "StartTimeStr": "14:25",
+      "EndTimeStr": "15:10",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 9,
+      "Subject": "生物",
+      "StartTimeStr": "15:20",
+      "EndTimeStr": "16:05",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 10,
+      "Subject": "地理",
+      "StartTimeStr": "16:15",
+      "EndTimeStr": "17:00",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 11,
+      "Subject": "晚读·语文",
+      "StartTimeStr": "18:20",
+      "EndTimeStr": "18:40",
+      "Type": "Reading"
+    },
+    {
+      "DayOfWeek": 2,
+      "Period": 12,
+      "Subject": "晚自习",
+      "StartTimeStr": "19:00",
+      "EndTimeStr": "21:00",
+      "Type": "Evening"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 1,
+      "Subject": "早读·语文",
+      "StartTimeStr": "06:40",
+      "EndTimeStr": "07:20",
+      "Type": "Morning"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 2,
+      "Subject": "英语",
+      "StartTimeStr": "08:00",
+      "EndTimeStr": "08:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 3,
+      "Subject": "数学",
+      "StartTimeStr": "08:55",
+      "EndTimeStr": "09:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 4,
+      "Subject": "生物",
+      "StartTimeStr": "10:00",
+      "EndTimeStr": "10:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 5,
+      "Subject": "化学",
+      "StartTimeStr": "10:55",
+      "EndTimeStr": "11:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 6,
+      "Subject": "午休",
+      "StartTimeStr": "12:10",
+      "EndTimeStr": "13:20",
+      "Type": "Noon"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 7,
+      "Subject": "语文",
+      "StartTimeStr": "13:30",
+      "EndTimeStr": "14:15",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 8,
+      "Subject": "物理",
+      "StartTimeStr": "14:25",
+      "EndTimeStr": "15:10",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 9,
+      "Subject": "政治",
+      "StartTimeStr": "15:20",
+      "EndTimeStr": "16:05",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 10,
+      "Subject": "历史",
+      "StartTimeStr": "16:15",
+      "EndTimeStr": "17:00",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 11,
+      "Subject": "晚读·英语",
+      "StartTimeStr": "18:20",
+      "EndTimeStr": "18:40",
+      "Type": "Reading"
+    },
+    {
+      "DayOfWeek": 3,
+      "Period": 12,
+      "Subject": "晚自习",
+      "StartTimeStr": "19:00",
+      "EndTimeStr": "21:00",
+      "Type": "Evening"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 1,
+      "Subject": "早读·英语",
+      "StartTimeStr": "06:40",
+      "EndTimeStr": "07:20",
+      "Type": "Morning"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 2,
+      "Subject": "物理",
+      "StartTimeStr": "08:00",
+      "EndTimeStr": "08:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 3,
+      "Subject": "语文",
+      "StartTimeStr": "08:55",
+      "EndTimeStr": "09:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 4,
+      "Subject": "数学",
+      "StartTimeStr": "10:00",
+      "EndTimeStr": "10:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 5,
+      "Subject": "英语",
+      "StartTimeStr": "10:55",
+      "EndTimeStr": "11:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 6,
+      "Subject": "午休",
+      "StartTimeStr": "12:10",
+      "EndTimeStr": "13:20",
+      "Type": "Noon"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 7,
+      "Subject": "化学",
+      "StartTimeStr": "13:30",
+      "EndTimeStr": "14:15",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 8,
+      "Subject": "地理",
+      "StartTimeStr": "14:25",
+      "EndTimeStr": "15:10",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 9,
+      "Subject": "生物",
+      "StartTimeStr": "15:20",
+      "EndTimeStr": "16:05",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 10,
+      "Subject": "政治",
+      "StartTimeStr": "16:15",
+      "EndTimeStr": "17:00",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 11,
+      "Subject": "晚读·语文",
+      "StartTimeStr": "18:20",
+      "EndTimeStr": "18:40",
+      "Type": "Reading"
+    },
+    {
+      "DayOfWeek": 4,
+      "Period": 12,
+      "Subject": "晚自习",
+      "StartTimeStr": "19:00",
+      "EndTimeStr": "21:00",
+      "Type": "Evening"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 1,
+      "Subject": "早读·语文",
+      "StartTimeStr": "06:40",
+      "EndTimeStr": "07:20",
+      "Type": "Morning"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 2,
+      "Subject": "数学",
+      "StartTimeStr": "08:00",
+      "EndTimeStr": "08:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 3,
+      "Subject": "英语",
+      "StartTimeStr": "08:55",
+      "EndTimeStr": "09:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 4,
+      "Subject": "物理",
+      "StartTimeStr": "10:00",
+      "EndTimeStr": "10:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 5,
+      "Subject": "语文",
+      "StartTimeStr": "10:55",
+      "EndTimeStr": "11:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 6,
+      "Subject": "午休",
+      "StartTimeStr": "12:10",
+      "EndTimeStr": "13:20",
+      "Type": "Noon"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 7,
+      "Subject": "生物",
+      "StartTimeStr": "13:30",
+      "EndTimeStr": "14:15",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 8,
+      "Subject": "历史",
+      "StartTimeStr": "14:25",
+      "EndTimeStr": "15:10",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 9,
+      "Subject": "化学",
+      "StartTimeStr": "15:20",
+      "EndTimeStr": "16:05",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 10,
+      "Subject": "体育",
+      "StartTimeStr": "16:15",
+      "EndTimeStr": "17:00",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 11,
+      "Subject": "晚读·英语",
+      "StartTimeStr": "18:20",
+      "EndTimeStr": "18:40",
+      "Type": "Reading"
+    },
+    {
+      "DayOfWeek": 5,
+      "Period": 12,
+      "Subject": "晚自习",
+      "StartTimeStr": "19:00",
+      "EndTimeStr": "21:00",
+      "Type": "Evening"
+    },
+    {
+      "DayOfWeek": 6,
+      "Period": 2,
+      "Subject": "数学",
+      "StartTimeStr": "08:00",
+      "EndTimeStr": "08:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 6,
+      "Period": 3,
+      "Subject": "语文",
+      "StartTimeStr": "08:55",
+      "EndTimeStr": "09:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 6,
+      "Period": 4,
+      "Subject": "英语",
+      "StartTimeStr": "10:00",
+      "EndTimeStr": "10:45",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 6,
+      "Period": 5,
+      "Subject": "物理",
+      "StartTimeStr": "10:55",
+      "EndTimeStr": "11:40",
+      "Type": "Normal"
+    },
+    {
+      "DayOfWeek": 7,
+      "Period": 12,
+      "Subject": "晚自习",
+      "StartTimeStr": "19:00",
+      "EndTimeStr": "21:00",
+      "Type": "Evening"
+    }
+  ],
+  "Exams": [
+    {
+      "Name": "期中考试",
+      "DateStr": "2026-08-12",
+      "Subjects": [
+        {
+          "Name": "语文",
+          "StartTimeStr": "09:00",
+          "EndTimeStr": "11:30"
+        },
+        {
+          "Name": "数学",
+          "StartTimeStr": "14:30",
+          "EndTimeStr": "16:30"
+        }
+      ]
+    },
+    {
+      "Name": "英语听说模拟",
+      "DateStr": "2026-08-13",
+      "Subjects": [
+        {
+          "Name": "英语",
+          "StartTimeStr": "08:30",
+          "EndTimeStr": "10:00"
+        }
+      ]
+    },
+    {
+      "Name": "周末综合测试",
+      "DateStr": "2026-08-14",
+      "Subjects": [
+        {
+          "Name": "物理",
+          "StartTimeStr": "09:00",
+          "EndTimeStr": "10:30"
+        },
+        {
+          "Name": "化学",
+          "StartTimeStr": "14:00",
+          "EndTimeStr": "15:30"
+        }
+      ]
+    }
+  ],
+  "TimeTemplates": [
+    {
+      "Period": 1,
+      "StartTime": "06:40",
+      "EndTime": "07:20",
+      "Type": "Morning"
+    },
+    {
+      "Period": 2,
+      "StartTime": "08:00",
+      "EndTime": "08:45",
+      "Type": "Normal"
+    },
+    {
+      "Period": 3,
+      "StartTime": "08:55",
+      "EndTime": "09:40",
+      "Type": "Normal"
+    },
+    {
+      "Period": 4,
+      "StartTime": "10:00",
+      "EndTime": "10:45",
+      "Type": "Normal"
+    },
+    {
+      "Period": 5,
+      "StartTime": "10:55",
+      "EndTime": "11:40",
+      "Type": "Normal"
+    },
+    {
+      "Period": 6,
+      "StartTime": "12:10",
+      "EndTime": "13:20",
+      "Type": "Noon"
+    },
+    {
+      "Period": 7,
+      "StartTime": "13:30",
+      "EndTime": "14:15",
+      "Type": "Normal"
+    },
+    {
+      "Period": 8,
+      "StartTime": "14:25",
+      "EndTime": "15:10",
+      "Type": "Normal"
+    },
+    {
+      "Period": 9,
+      "StartTime": "15:20",
+      "EndTime": "16:05",
+      "Type": "Normal"
+    },
+    {
+      "Period": 10,
+      "StartTime": "16:15",
+      "EndTime": "17:00",
+      "Type": "Normal"
+    },
+    {
+      "Period": 11,
+      "StartTime": "18:20",
+      "EndTime": "18:40",
+      "Type": "Reading"
+    },
+    {
+      "Period": 12,
+      "StartTime": "19:00",
+      "EndTime": "21:00",
+      "Type": "Evening"
+    }
+  ]
+}
