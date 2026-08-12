@@ -1,19 +1,23 @@
 using System;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
+using StudyJourney.Avalonia.Helpers;
 using StudyJourney.Avalonia.Models;
+using StudyJourney.Avalonia.Services;
 
 namespace StudyJourney.Avalonia.Views;
 
 /// <summary>
-/// 课表悬浮栏：屏幕顶部横幅，显示当前课/下一节课/进度/时间（对齐学程 WPF ScheduleBarWindow）。
+/// 课表悬浮栏：屏幕顶部横幅，显示当前课/下一节课/进度/时间/天气（对齐学程 WPF ScheduleBarWindow）。
 /// 数据来自 App.Schedule（ScheduleManager），设置保存后自动刷新。
 /// </summary>
 public partial class ScheduleBarWindow : Window
 {
     private DispatcherTimer? _timer;
+    private DispatcherTimer? _weatherTimer;
 
     private static readonly IBrush BrOrange = new SolidColorBrush(Color.FromRgb(0xFF, 0x88, 0x44));
     private static readonly IBrush BrRed    = new SolidColorBrush(Color.FromRgb(0xFF, 0x44, 0x44));
@@ -24,7 +28,11 @@ public partial class ScheduleBarWindow : Window
     {
         InitializeComponent();
         App.SettingsChanged += OnSettingsChanged;
-        Closed += (_, _) => App.SettingsChanged -= OnSettingsChanged;
+        Closed += (_, _) =>
+        {
+            App.SettingsChanged -= OnSettingsChanged;
+            _weatherTimer?.Stop();
+        };
     }
 
     private void Window_Opened(object? sender, EventArgs e)
@@ -35,6 +43,44 @@ public partial class ScheduleBarWindow : Window
         _timer.Tick += (_, _) => Refresh();
         _timer.Start();
         Refresh();
+
+        _ = LoadWeatherAsync();
+        StartWeatherTimer();
+    }
+
+    // ── 天气（WeatherService + 定时刷新）─────────────────────
+    private async Task LoadWeatherAsync()
+    {
+        try
+        {
+            var s = App.Settings;
+            var result = await WeatherService.FetchAsync(s.WeatherCity, s.WeatherAdcode);
+            if (result == null) return;
+
+            WeatherIconTb.Text = ColorUtils.GetWeatherEmoji(result.WeatherIcon);
+            WeatherTempTb.Text = $"{result.Temperature}°";
+            WeatherCityTb.Text = result.Location;
+            WeatherRow.IsVisible = true;
+
+            double fs = s.WeatherFontSize;
+            if (fs <= 0) fs = 14;
+            WeatherIconTb.FontSize = fs * 0.86;
+            WeatherTempTb.FontSize = fs * 0.8;
+            WeatherCityTb.FontSize = fs * 0.72;
+            WeatherTempTb.Foreground = ColorUtils.ParseBrush(s.WeatherTempColor, "#FF88CCFF");
+            WeatherCityTb.Foreground = ColorUtils.ParseBrush(s.WeatherCityColor, "#AAFFFFFF");
+        }
+        catch { /* 网络异常静默 */ }
+    }
+
+    private void StartWeatherTimer()
+    {
+        _weatherTimer?.Stop();
+        int min = App.Settings.WeatherRefreshInterval;
+        if (min <= 0) return;
+        _weatherTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(min) };
+        _weatherTimer.Tick += async (_, _) => await LoadWeatherAsync();
+        _weatherTimer.Start();
     }
 
     private void OnSettingsChanged()

@@ -34,10 +34,17 @@
                              Margin="0,4,0,0" IsVisible="False"/>
             </StackPanel>
 
-            <!-- 右：今日课程进度提示 -->
+            <!-- 右：今日课程进度提示 + 天气 -->
             <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="14,0,0,0" HorizontalAlignment="Right">
                 <TextBlock x:Name="ProgressPctTb" Text="" FontSize="12" Foreground="#AAFFFFFF"
                            HorizontalAlignment="Right"/>
+                <StackPanel x:Name="WeatherRow" Orientation="Horizontal" Spacing="6" IsVisible="False"
+                            HorizontalAlignment="Right">
+                    <TextBlock x:Name="WeatherIconTb" Text="☀️" FontSize="12"/>
+                    <TextBlock x:Name="WeatherTempTb" Text="--°" FontSize="12" FontWeight="Bold"
+                               Foreground="#FF88CCFF"/>
+                    <TextBlock x:Name="WeatherCityTb" Text="" FontSize="11" Foreground="#AAFFFFFF"/>
+                </StackPanel>
             </StackPanel>
         </Grid>
     </Border>

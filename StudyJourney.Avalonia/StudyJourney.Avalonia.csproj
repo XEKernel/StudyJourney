@@ -25,4 +25,9 @@
     <None Include="..\schedule_example.json" Link="schedule.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- 应用资源（托盘图标等） -->
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
 </Project>

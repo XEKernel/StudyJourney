@@ -1,4 +1,6 @@
+using System;
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using StudyJourney.Avalonia.Models;
 
 namespace StudyJourney.Avalonia.Views.Settings;
@@ -28,6 +30,7 @@ public partial class CountdownPage : UserControl, ISettingsPage
         EnableAnimationsCheck.IsChecked = s.EnableAnimations;
         GaokaoDateBox.Text = s.GaokaoDateStr;
         StartDateBox.Text = s.StartDateStr;
+        CustomCountdownGrid.ItemsSource = s.CustomCountdowns;
     }
 
     public void Apply(AppSettings s)
@@ -45,5 +48,32 @@ public partial class CountdownPage : UserControl, ISettingsPage
         s.EnableAnimations = EnableAnimationsCheck.IsChecked == true;
         s.GaokaoDateStr = GaokaoDateBox.Text ?? "";
         s.StartDateStr = StartDateBox.Text ?? "";
+    }
+
+    // ── 自定义倒计时：增删 + 网格刷新（List 需手动刷新 ItemsSource）──
+    private void AddCountdownBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        var list = App.Settings.CustomCountdowns;
+        list.Add(new CustomCountdown
+        {
+            Name = "新倒计时",
+            DateStr = DateTime.Today.AddDays(30).ToString("yyyy-MM-dd")
+        });
+        RefreshGrid();
+    }
+
+    private void DeleteCountdownBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        if (CustomCountdownGrid.SelectedItem is CustomCountdown c)
+        {
+            App.Settings.CustomCountdowns.Remove(c);
+            RefreshGrid();
+        }
+    }
+
+    private void RefreshGrid()
+    {
+        CustomCountdownGrid.ItemsSource = null;
+        CustomCountdownGrid.ItemsSource = App.Settings.CustomCountdowns;
     }
 }

@@ -1,6 +1,10 @@
+using System;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using StudyJourney.Avalonia.Models;
 using StudyJourney.Avalonia.Views;
 
@@ -24,6 +28,9 @@ public partial class App : Application
         SettingsChanged?.Invoke();
     }
 
+    private TrayIcon? _trayIcon;
+    private Window? _mainWindow;
+
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
     public override void OnFrameworkInitializationCompleted()
@@ -32,12 +39,71 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow();
+            _mainWindow = new MainWindow();
+            desktop.MainWindow = _mainWindow;
+            SetupTrayIcon();
 
             // 原型验证：启动后自动弹出 WinUI 3 风格设置窗口（方便直接查看设置页效果）
-            desktop.MainWindow.Opened += (_, _) => new SettingsWindow().Show(desktop.MainWindow);
+            _mainWindow.Opened += (_, _) => new SettingsWindow().Show(_mainWindow!);
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>系统托盘图标（替代 WPF Hardcodet.NotifyIcon；Avalonia 内置 TrayIcon + NativeMenu）</summary>
+    private void SetupTrayIcon()
+    {
+        try
+        {
+            var icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri("avares://StudyJourney.Avalonia/Assets/icon.ico"))));
+
+            var showItem = new NativeMenuItem("显示 / 隐藏窗口");
+            showItem.Click += (_, _) => ToggleMainWindow();
+
+            var examItem = new NativeMenuItem("进入考试模式");
+            examItem.Click += (_, _) => new ExamModeWindow().Show();
+
+            var settingsItem = new NativeMenuItem("打开设置");
+            settingsItem.Click += (_, _) => new SettingsWindow().Show(_mainWindow!);
+
+            var exitItem = new NativeMenuItem("退出");
+            exitItem.Click += (_, _) =>
+            {
+                _trayIcon?.Dispose();
+                _mainWindow?.Close();
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime l) l.Shutdown();
+            };
+
+            var menu = new NativeMenu();
+            menu.Add(showItem);
+            menu.Add(examItem);
+            menu.Add(settingsItem);
+            menu.Add(new NativeMenuItemSeparator());
+            menu.Add(exitItem);
+
+            _trayIcon = new TrayIcon
+            {
+                Icon = icon,
+                ToolTipText = "学程",
+                Menu = menu,
+                IsVisible = true
+            };
+            _trayIcon.Clicked += (_, _) => ToggleMainWindow();
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Error("托盘图标初始化失败", ex);
+        }
+    }
+
+    private void ToggleMainWindow()
+    {
+        if (_mainWindow == null) return;
+        if (_mainWindow.IsVisible) _mainWindow.Hide();
+        else
+        {
+            _mainWindow.Show();
+            _mainWindow.Activate();
+        }
     }
 }
