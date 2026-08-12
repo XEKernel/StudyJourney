@@ -86,7 +86,7 @@ public class ReminderService : IDisposable
 
     private void OnTick(object? sender, EventArgs e)
     {
-        var now = DateTime.Now;
+        var now = Helpers.TimeSimulator.Now;
 
         if (now.Date != _lastClearDay)
         {
@@ -97,7 +97,7 @@ public class ReminderService : IDisposable
         if (_cachedDay != now.Date)
         {
             _cachedDay = now.Date;
-            _cachedEntries = _manager.GetTodayEntries();
+            _cachedEntries = _manager.GetTodayEntries(now.Date);
         }
         if (_cachedEntries.Count == 0) return;
 

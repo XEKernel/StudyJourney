@@ -160,7 +160,7 @@ public partial class ExamModeWindow : Window
 
     private void Refresh()
     {
-        var now = DateTime.Now;
+        var now = Helpers.TimeSimulator.Now;
         CurrentTimeTb.Text = now.ToString("HH:mm:ss");
 
         var cur = App.Schedule.GetCurrentExamSubject(now);

@@ -400,7 +400,7 @@ public partial class MainWindow : Window
     /// <summary>每秒刷新倒计时与进度；上课/考试期间隐藏主窗口</summary>
     private void Tick()
     {
-        var now = DateTime.Now;
+        var now = Helpers.TimeSimulator.Now;
         var s = App.Settings;
 
         // ── 上课期间隐藏主窗口（可设置科目白名单）──

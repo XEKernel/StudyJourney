@@ -95,7 +95,7 @@ public partial class ScheduleBarWindow : Window
             _countdownExpanded = false;
             Countdown60Tb.IsVisible = false;
             // 倒计时结束：若在上课且开启自动收缩 → 收缩
-            if (App.Settings.ScheduleBarAutoCollapse && App.Schedule.GetCurrentEntry() != null)
+            if (App.Settings.ScheduleBarAutoCollapse && App.Schedule.GetCurrentEntry(Helpers.TimeSimulator.Now) != null)
                 SetCompact();
         }
     }
@@ -140,7 +140,7 @@ public partial class ScheduleBarWindow : Window
         {
             _expandTimer?.Stop();
             _expandTimer = null;
-            if (App.Schedule.GetCurrentEntry() != null && App.Settings.ScheduleBarAutoCollapse)
+            if (App.Schedule.GetCurrentEntry(Helpers.TimeSimulator.Now) != null && App.Settings.ScheduleBarAutoCollapse)
                 SetCompact();
         };
         _expandTimer.Start();
@@ -292,7 +292,7 @@ public partial class ScheduleBarWindow : Window
 
     private void Refresh()
     {
-        var now = DateTime.Now;
+        var now = Helpers.TimeSimulator.Now;
         var manager = App.Schedule;
 
         CurrentTimeTb.Text = now.ToString("HH:mm:ss");
