@@ -28,14 +28,13 @@ namespace GaokaoCountdown.Views
 
         // ── 课节卡片缓存（避免每秒重建 UI）─────────────────────
         private DateTime _lastBuildDate = DateTime.MinValue;
+        private string _lastStatusText = "";   // 状态文本变化检测（脉冲动画用）
         /// <summary>(entry, card, 节次Label, 课程Label, 时间Label)</summary>
         private readonly List<(ScheduleEntry Entry, Border Card, TextBlock PeriodLabel,
                                TextBlock SubjectLabel, TextBlock TimeLabel)> _periodCardRefs = new();
 
         // ── 缓存画刷（避免每秒 new SolidColorBrush；已 Freeze 提升性能）─────────────
         private static readonly SolidColorBrush BrOrange    = FreezeBrush(new SolidColorBrush(Color.FromRgb(0xFF, 0x88, 0x44)));
-        private static readonly SolidColorBrush BrRed       = FreezeBrush(new SolidColorBrush(Color.FromRgb(0xFF, 0x44, 0x44)));
-        private static readonly SolidColorBrush BrGreen     = FreezeBrush(new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)));
         private static readonly SolidColorBrush BrGray      = FreezeBrush(new SolidColorBrush(Color.FromRgb(0xAA, 0xAA, 0xAA)));
         private static readonly SolidColorBrush BrLightGray = FreezeBrush(new SolidColorBrush(Color.FromRgb(0x88, 0x88, 0x88)));
         private static readonly SolidColorBrush BrWhite     = FreezeBrush(new SolidColorBrush(Colors.White));
@@ -59,23 +58,22 @@ namespace GaokaoCountdown.Views
         {
             var now = DateTime.Now;
 
-            // 当前时间
-            CurrentTimeTb.Text = now.ToString("HH:mm:ss");
-            DateTb.Text = now.ToString("MM月dd日 ddd");
+            // 数据计算（时间/状态/倒计时/进度）全部委托 ViewModel，值不变不触发通知
+            ViewModel?.Refresh(now);
 
-            // 当前/下节信息
             var cur  = _manager.GetCurrentEntry(now);
             var next = _manager.GetNextEntry(now);
-            var timeToNext = _manager.GetTimeToNextEntry(now);
 
-            // ── "快上课"闪烁检测 ──
-            bool isFlashing = timeToNext.HasValue
-                && timeToNext.Value.TotalSeconds <= FLASH_THRESHOLD_SECONDS
-                && timeToNext.Value.TotalSeconds > 0;
-            if (isFlashing)
+            // ── "快上课"闪烁翻转（IsFlashing 由 VM 计算）──
+            if (ViewModel?.IsFlashing == true)
                 _flashVisible = !_flashVisible;
             else
                 _flashVisible = true;
+
+            // ── 状态文本变化时脉冲动画（文本本身走绑定）──
+            if (ViewModel != null && ViewModel.Status != _lastStatusText && !ViewModel.IsFlashing)
+                PulseOpacity(StatusTb);
+            _lastStatusText = ViewModel?.Status ?? "";
 
             // 重建课节列表（仅在日期变更或首次时重建，其余仅更新状态）
             if (_lastBuildDate != now.Date)
@@ -86,86 +84,6 @@ namespace GaokaoCountdown.Views
             else
             {
                 UpdatePeriodCardStates(now);
-            }
-
-            // 状态文本（快上课时显示特殊提示）— 带交叉淡入淡出
-            string newStatus, newCountdown;
-            if (isFlashing && next != null)
-            {
-                int remainSec = (int)timeToNext!.Value.TotalSeconds;
-                newStatus = $"即将上课：{next.Subject}";
-                newCountdown = $"还有 {remainSec}s";
-                StatusTb.Foreground = BrOrange;
-                NextCountdownTb.Foreground = BrRed;
-            }
-            else if (cur != null)
-            {
-                newStatus = $"正在上课：{cur.Subject}";
-                newCountdown = string.Empty;
-                StatusTb.Foreground = BrGreen;
-            }
-            else if (next != null)
-            {
-                newStatus = "课间休息";
-                newCountdown = string.Empty;
-                StatusTb.Foreground = BrOrange;
-            }
-            else
-            {
-                newStatus = "今日课程已结束";
-                newCountdown = string.Empty;
-                StatusTb.Foreground = BrGray;
-            }
-
-            // 状态文本 — 变化时做交叉淡入淡出
-            if (StatusTb.Text != newStatus && !isFlashing)
-            {
-                PulseOpacity(StatusTb);
-                StatusTb.Text = newStatus;
-            }
-            else StatusTb.Text = newStatus;
-
-            // 距下节课倒计时
-            if (!isFlashing && timeToNext.HasValue)
-            {
-                var ts = timeToNext.Value;
-                var cnt = $"距下节课 {ts.Hours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
-                NextCountdownTb.Text = cnt;
-                NextCountdownTb.Foreground = BrOrange;
-                NextCountdownTb.Visibility = Visibility.Visible;
-            }
-            else if (isFlashing && next != null)
-            {
-                NextCountdownTb.Text = $"还有 {(int)timeToNext!.Value.TotalSeconds}s";
-                NextCountdownTb.Foreground = BrRed;
-                NextCountdownTb.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                NextCountdownTb.Visibility = Visibility.Collapsed;
-            }
-
-            // 当前课进度条
-            var pct = _manager.GetCurrentProgress(now);
-            if (pct.HasValue && cur != null)
-            {
-                ProgressRow.Visibility = Visibility.Visible;
-                ProgressLabelTb.Text   = cur.Subject;
-                CurrentClassProgress.Value = pct.Value * 100;
-                ProgressPctTb.Text     = $"{pct.Value * 100:F0}%";
-
-                // 同步更新紧凑模式进度条
-                CompactProgress.Value = pct.Value * 100;
-                CompactPctTb.Text = $"{pct.Value * 100:F0}%";
-                CompactSubjectTb.Text = cur.Subject;
-                var remaining = _manager.GetTimeToEndOfCurrent(now);
-                CompactRemainingTb.Text = remaining.HasValue
-                    ? $"剩余 {remaining.Value.Hours:D2}:{remaining.Value.Minutes:D2}:{remaining.Value.Seconds:D2}"
-                    : "";
-            }
-            else
-            {
-                ProgressRow.Visibility = Visibility.Collapsed;
             }
 
             // ── 自动收缩/展开 ──

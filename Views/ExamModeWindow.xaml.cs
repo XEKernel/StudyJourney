@@ -30,7 +30,14 @@ namespace GaokaoCountdown.Views
             _manager  = manager;
             _settings = settings;
             InitializeComponent();
+
+            // MVVM：倒计时/进度/科目信息绑定 ViewModel
+            ViewModel = new ViewModels.ExamModeViewModel(manager, settings);
+            DataContext = ViewModel;
         }
+
+        /// <summary>考试模式 ViewModel（倒计时/进度/科目信息）</summary>
+        public ViewModels.ExamModeViewModel? ViewModel { get; private set; }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -102,6 +109,9 @@ namespace GaokaoCountdown.Views
         /// <summary>应用静态样式（字体大小、颜色、进度条等不随计时变化的属性）</summary>
         private void ApplyStaticStyles()
         {
+            // 同步 VM 中随设置变化的倒计时颜色画刷
+            ViewModel?.RefreshColors();
+
             // 字体大小
             SubjectTb.FontSize        = _settings.ExamSubjectFontSize;
             ExamNameTb.FontSize       = _settings.ExamNameFontSize;
@@ -236,117 +246,24 @@ namespace GaokaoCountdown.Views
         private void Refresh()
         {
             var now = DateTime.Now;
-            CurrentTimeTb.Text = now.ToString("HH:mm:ss");
 
-            var cur = _manager.GetCurrentExamSubject(now);
-            if (cur.HasValue)
-            {
-                var (exam, subject) = cur.Value;
-                ShowCurrentSubject(exam, subject, now);
-            }
-            else
-            {
-                // 不在考试中，显示等待或结束
-                var next = _manager.GetNextExamSubject(now);
-                if (next.HasValue)
-                {
-                    var (exam, subject) = next.Value;
-                    ExamNameTb.Text     = exam.Name;
-                    SubjectTb.Text      = subject.Name;
-                    var startDt         = now.Date + subject.StartTime;
-                    var remaining       = startDt - now;
-                    CountdownTb.Text    = remaining > TimeSpan.Zero
-                                          ? $"距开考 {remaining:hh\\:mm\\:ss}"
-                                          : "--:--";
-                    CountdownTb.Foreground = SP(_settings.ExamDistanceColor);
-                    ExamProgress.Value  = 0;
-                    ProgressPctTb.Text  = string.Empty;
-                    StartTimeTb.Text    = subject.StartTimeStr;
-                    EndTimeTb.Text      = subject.EndTimeStr;
-                    DurationTb.Text     = $"共 {subject.Duration.TotalMinutes:F0} 分钟";
-                    NextSubjectTb.Text  = string.Empty;
-                    WarningTb.Visibility = Visibility.Collapsed;
-                }
-                else
-                {
-                    ExamNameTb.Text     = "今日考试";
-                    SubjectTb.Text      = "考试已结束";
-                    CountdownTb.Text    = "00:00";
-                    CountdownTb.Foreground = new SolidColorBrush(Color.FromRgb(0x66, 0x66, 0x66));
-                    ExamProgress.Value  = 100;
-                    ProgressPctTb.Text  = "100%";
-                    NextSubjectTb.Text  = string.Empty;
-                    WarningTb.Visibility = Visibility.Collapsed;
+            // 展示数据（倒计时/进度/科目/时间）由 ViewModel 计算，绑定自动更新
+            ViewModel?.Refresh(now);
 
-                    // 最后一场考试结束 → 3 秒后自动退出，恢复正常上课状态
-                    if (!_autoExited)
-                    {
-                        _autoExited = true;
-                        var autoClose = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-                        autoClose.Tick += (s, args) =>
-                        {
-                            autoClose.Stop();
-                            if (IsLoaded) CloseWindow();
-                        };
-                        autoClose.Start();
-                    }
-                }
-            }
-        }
+            // ── 以下为 View 副作用：蜂鸣/警告/自动退出 ──
+            if (ViewModel == null) return;
 
-        private void ShowCurrentSubject(ExamEntry exam, ExamSubject subject, DateTime now)
-        {
-            ExamNameTb.Text = exam.Name;
-            SubjectTb.Text  = subject.Name;
-            StartTimeTb.Text = subject.StartTimeStr;
-            EndTimeTb.Text   = subject.EndTimeStr;
-            DurationTb.Text  = $"共 {subject.Duration.TotalMinutes:F0} 分钟";
-
-            // 剩余时间
-            var endDt     = now.Date + subject.EndTime;
-            var remaining = endDt - now;
-            if (remaining < TimeSpan.Zero) remaining = TimeSpan.Zero;
-
-            CountdownTb.Text = remaining.ToString(@"hh\:mm\:ss");
-
-            // 颜色随时间变化（可配置）
-            CountdownTb.Foreground = remaining.TotalMinutes <= 5
-                ? SP(_settings.ExamCountdownCriticalColor)
-                : remaining.TotalMinutes <= 15
-                    ? SP(_settings.ExamCountdownWarningColor)
-                    : SP(_settings.ExamCountdownNormalColor);
-
-            // 进度条
-            var elapsed = now - (now.Date + subject.StartTime);
-            double pct  = subject.Duration.TotalSeconds > 0
-                          ? Math.Clamp(elapsed.TotalSeconds / subject.Duration.TotalSeconds, 0, 1)
-                          : 0;
-            ExamProgress.Value = pct * 100;
-            ProgressPctTb.Text = $"{pct * 100:F1}% 已完成";
-
-            // 下一场
-            var next = _manager.GetNextExamSubject(now);
-            if (next.HasValue)
-            {
-                var (_, ns) = next.Value;
-                NextSubjectTb.Text = $"下一场：{ns.Name}  {ns.StartTimeStr}";
-            }
-            else
-            {
-                NextSubjectTb.Text = string.Empty;
-            }
-
-            // 15 分钟警告
-            if (remaining.TotalMinutes <= 15 && !_warnShown)
+            // 15 分钟警告（仅一次）
+            if (ViewModel.RemainingSeconds > 0 && ViewModel.RemainingSeconds <= 15 * 60 && !_warnShown)
             {
                 _warnShown = true;
                 WarningTb.Visibility = Visibility.Visible;
                 System.Media.SystemSounds.Beep.Play();
             }
             // 5 分钟临界提醒（每秒蜂鸣，避免重复）
-            if (remaining.TotalMinutes <= 5)
+            if (ViewModel.RemainingSeconds > 0 && ViewModel.RemainingSeconds <= 5 * 60)
             {
-                int currentSecond = (int)remaining.TotalSeconds;
+                int currentSecond = (int)ViewModel.RemainingSeconds;
                 if (currentSecond != _lastBeepSecond)
                 {
                     _lastBeepSecond = currentSecond;
@@ -354,12 +271,25 @@ namespace GaokaoCountdown.Views
                 }
             }
             // 科目切换后重置警告
-            if (subject.Name != _currentSubjectName)
+            if (ViewModel.Subject != _currentSubjectName)
             {
-                _currentSubjectName = subject.Name;
+                _currentSubjectName = ViewModel.Subject;
                 _warnShown = false;
                 _lastBeepSecond = -1;   // 重置蜂鸣去重，防止新科目漏蜂鸣
                 WarningTb.Visibility = Visibility.Collapsed;
+            }
+
+            // 最后一场考试结束 → 3 秒后自动退出，恢复正常上课状态
+            if (ViewModel.IsExamOver && !_autoExited)
+            {
+                _autoExited = true;
+                var autoClose = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+                autoClose.Tick += (s, args) =>
+                {
+                    autoClose.Stop();
+                    if (IsLoaded) CloseWindow();
+                };
+                autoClose.Start();
             }
         }
 

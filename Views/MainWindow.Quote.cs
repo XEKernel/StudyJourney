@@ -35,42 +35,25 @@ namespace GaokaoCountdown.Views
         {
             // 窗口隐藏时（上课/考试中）不请求 API
             if (Visibility != Visibility.Visible || !settings.ShowDailyQuote) return;
-            try
+
+            // HTTP 获取在 ViewModel，View 只负责动画
+            string? text = ViewModel == null ? null : await ViewModel.FetchQuoteAsync();
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            await Dispatcher.InvokeAsync(() =>
             {
-                string url = string.IsNullOrWhiteSpace(settings.QuoteApiUrl)
-                    ? "https://uapis.cn/api/v1/saying" : settings.QuoteApiUrl;
-                var json = await _httpClient.GetStringAsync(url);
-
-                // 使用动态字段名解析 JSON（支持自定义 API）
-                using var doc = JsonDocument.Parse(json);
-                var root = doc.RootElement;
-                string fieldName = string.IsNullOrWhiteSpace(settings.QuoteTextFieldName)
-                    ? "text" : settings.QuoteTextFieldName.Trim();
-                string? quoteText = root.TryGetProperty(fieldName, out var prop) && prop.ValueKind == JsonValueKind.String
-                    ? prop.GetString() : null;
-                if (string.IsNullOrWhiteSpace(quoteText)) return;
-
-                string text = $"「{quoteText.Trim()}」";
-
-                await Dispatcher.InvokeAsync(() =>
+                // 应用当前样式设置
+                ApplyQuoteStyle();
+                // 文本通过 MVVM 绑定更新
+                if (ViewModel != null) ViewModel.QuoteText = $"「{text}」";
+                // 淡入动画
+                var anim = new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.8))
                 {
-                    // 应用当前样式设置
-                    ApplyQuoteStyle();
-                    // 文本通过 MVVM 绑定更新
-                    if (ViewModel != null) ViewModel.QuoteText = text;
-                    // 淡入动画
-                    var anim = new DoubleAnimation(0, 1, TimeSpan.FromSeconds(0.8))
-                    {
-                        EasingFunction = new PowerEase { Power = 3, EasingMode = EasingMode.EaseOut }
-                    };
-                    DailyQuoteTb.BeginAnimation(UIElement.OpacityProperty, anim);
-                    DailyQuoteTb.Visibility = Visibility.Visible;
-                });
-            }
-            catch
-            {
-                // 网络异常时静默处理
-            }
+                    EasingFunction = new PowerEase { Power = 3, EasingMode = EasingMode.EaseOut }
+                };
+                DailyQuoteTb.BeginAnimation(UIElement.OpacityProperty, anim);
+                DailyQuoteTb.Visibility = Visibility.Visible;
+            });
         }
 
         /// <summary>将当前设置中的字体大小、颜色、斜体应用到 DailyQuoteTb</summary>

@@ -1,5 +1,8 @@
 using System;
 using System.Linq;
+using System.Net.Http;
+using System.Text.Json;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using GaokaoCountdown.Models;
 
@@ -12,12 +15,14 @@ namespace GaokaoCountdown.ViewModels
     public partial class MainWindowViewModel : ObservableObject
     {
         private readonly AppSettings _settings;
+        private readonly HttpClient _httpClient;
         private DateTime _gaokaoDate;
         private DateTime _startDate;
 
-        public MainWindowViewModel(AppSettings settings)
+        public MainWindowViewModel(AppSettings settings, HttpClient httpClient)
         {
             _settings = settings;
+            _httpClient = httpClient;
             RefreshDates();
         }
 
@@ -57,9 +62,36 @@ namespace GaokaoCountdown.ViewModels
         [ObservableProperty]
         private string customCountdownText = "";
 
-        // ── 每日一言（HTTP 加载仍在 View 层，加载后写入此属性）──
+        // ── 每日一言（HTTP 获取在 VM；View 拿到文本后做淡入动画）──
         [ObservableProperty]
         private string quoteText = "";
+
+        /// <summary>
+        /// 从一言 API 拉取文本（支持自定义 URL / 字段名）。
+        /// 返回原始文本（未加「」包装）；失败或格式异常返回 null。
+        /// </summary>
+        public async Task<string?> FetchQuoteAsync()
+        {
+            try
+            {
+                string url = string.IsNullOrWhiteSpace(_settings.QuoteApiUrl)
+                    ? "https://uapis.cn/api/v1/saying" : _settings.QuoteApiUrl;
+                string json = await _httpClient.GetStringAsync(url);
+
+                using var doc = JsonDocument.Parse(json);
+                var root = doc.RootElement;
+                string fieldName = string.IsNullOrWhiteSpace(_settings.QuoteTextFieldName)
+                    ? "text" : _settings.QuoteTextFieldName.Trim();
+                string? text = root.TryGetProperty(fieldName, out var prop) && prop.ValueKind == JsonValueKind.String
+                    ? prop.GetString() : null;
+                return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+            }
+            catch
+            {
+                // 网络异常/JSON 解析失败：静默返回 null
+                return null;
+            }
+        }
 
         /// <summary>每秒 tick：重算倒计时与进度</summary>
         public void Tick()

@@ -48,7 +48,7 @@ namespace GaokaoCountdown.Views
                         }
                     }
 
-                    // 倒计时展开秒数（可设 30s 或 60s），展开时高亮+可选提示音
+                    // 文本走绑定（VM），View 只负责显隐/展开/提示音
                     int expandAt = _settings.CountdownExpandSeconds;
                     if (expandAt <= 0 || expandAt > 60) expandAt = 30;
                     if (remaining <= expandAt && _isCompact && !_countdownExpanded)
@@ -69,9 +69,10 @@ namespace GaokaoCountdown.Views
                         }
                     }
 
-                    Countdown60Tb.Text = remaining <= expandAt
-                        ? $"⏰ 还有 {remaining}s 下课！"
-                        : $"下课倒计时 {remaining}s";
+                    if (ViewModel != null)
+                        ViewModel.Countdown60Text = remaining <= expandAt
+                            ? $"⏰ 还有 {remaining}s 下课！"
+                            : $"下课倒计时 {remaining}s";
                 }
                 else
                 {

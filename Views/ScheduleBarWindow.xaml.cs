@@ -69,12 +69,19 @@ namespace GaokaoCountdown.Views
             _reminder = reminder;
             InitializeComponent();
 
+            // MVVM：状态文本/倒计时/进度绑定 ViewModel
+            ViewModel = new ViewModels.ScheduleBarViewModel(manager);
+            DataContext = ViewModel;
+
             // 订阅 60 秒倒计时
             _reminder.Countdown60Tick += OnCountdown60Tick;
 
             // ContentRendered：此时 SizeToContent 已完成，再定位一次（DPI 正确）
             ContentRendered += OnContentRendered;
         }
+
+        /// <summary>课表栏 ViewModel（状态文本/倒计时/进度）</summary>
+        public ViewModels.ScheduleBarViewModel? ViewModel { get; private set; }
 
         private void OnContentRendered(object? sender, EventArgs e)
         {

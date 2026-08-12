@@ -51,19 +51,23 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Column="0" x:Name="CompactSubjectTb"
+                           Text="{Binding ProgressLabel}"
                            FontSize="11" FontWeight="Bold" Foreground="#CCFFFFFF"
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
 
                 <Grid Grid.Column="1">
                     <ProgressBar x:Name="CompactProgress" Height="8"
+                                 Value="{Binding Progress}"
                                  Background="#22FFFFFF" Foreground="#FF4CAF50"
                                  Minimum="0" Maximum="100"/>
-                    <TextBlock x:Name="CompactPctTb" FontSize="10" FontWeight="SemiBold"
+                    <TextBlock x:Name="CompactPctTb" Text="{Binding ProgressPct}"
+                               FontSize="10" FontWeight="SemiBold"
                                Foreground="#FFFFFFFF"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Grid>
 
                 <TextBlock Grid.Column="2" x:Name="CompactRemainingTb"
+                           Text="{Binding CompactRemaining}"
                            FontSize="10" Foreground="#88CCFF"
                            VerticalAlignment="Center" Margin="8,0,0,0"/>
 
@@ -89,10 +93,12 @@
                     <!-- 左：当前时间 + 日期 -->
                     <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,8,0">
                         <TextBlock x:Name="CurrentTimeTb"
+                                   Text="{Binding CurrentTime}"
                                    FontSize="14" FontWeight="Bold"
                                    Foreground="#FFFFFFFF"
                                    FontFamily="Consolas"/>
                         <TextBlock x:Name="DateTb"
+                                   Text="{Binding Date}"
                                    FontSize="9" Foreground="#AAFFFFFF"
                                    HorizontalAlignment="Center"/>
                     </StackPanel>
@@ -110,15 +116,20 @@
                     <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="8,0,0,0"
                                 MinWidth="110">
                         <TextBlock x:Name="StatusTb"
-                                   FontSize="9" Foreground="#AAFFFFFF"
+                                   Text="{Binding Status}"
+                                   Foreground="{Binding StatusBrush}"
+                                   FontSize="9"
                                    HorizontalAlignment="Right"/>
                         <TextBlock x:Name="NextCountdownTb"
+                                   Text="{Binding NextCountdown}"
+                                   Foreground="{Binding NextCountdownBrush}"
+                                   Visibility="{Binding NextCountdownVisibility}"
                                    FontSize="10" FontWeight="Bold"
-                                   Foreground="#FFFF8844"
                                    HorizontalAlignment="Right"/>
                         <Border x:Name="Countdown60Panel" Visibility="Collapsed"
                                 Background="#881A0000" CornerRadius="3" Padding="4,1" Margin="0,1,0,0">
                             <TextBlock x:Name="Countdown60Tb"
+                                       Text="{Binding Countdown60Text}"
                                        FontSize="11" FontWeight="Bold"
                                        Foreground="#FFFF4444"
                                        HorizontalAlignment="Center"/>
@@ -146,15 +157,19 @@
                 </Grid>
 
                 <!-- 当前课进度条（位于完整模式底部） -->
-                <Grid Margin="6,0,6,2" x:Name="ProgressRow" Visibility="Collapsed">
+                <Grid Margin="6,0,6,2" x:Name="ProgressRow"
+                      Visibility="{Binding ProgressVisibility}">
                     <ProgressBar x:Name="CurrentClassProgress" Height="6"
+                                 Value="{Binding Progress}"
                                  Background="#33FFFFFF" Foreground="#FF4CAF50"
                                  Minimum="0" Maximum="100"/>
                     <Grid Margin="8,0">
                         <TextBlock x:Name="ProgressLabelTb"
+                                   Text="{Binding ProgressLabel}"
                                    FontSize="9" Foreground="#CCFFFFFF"
                                    HorizontalAlignment="Left" VerticalAlignment="Center"/>
                         <TextBlock x:Name="ProgressPctTb"
+                                   Text="{Binding ProgressPct}"
                                    FontSize="9" Foreground="#FFFFFFFF"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Grid>

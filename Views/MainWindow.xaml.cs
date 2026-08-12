@@ -221,7 +221,7 @@ namespace GaokaoCountdown.Views
 
             InitializeComponent();
             // MVVM：数据绑定到 ViewModel（倒计时/进度/自定义倒计时/一言）
-            ViewModel = new ViewModels.MainWindowViewModel(settings);
+            ViewModel = new ViewModels.MainWindowViewModel(settings, _httpClient);
             DataContext = ViewModel;
             SetupTrayIcon();
             SetupScheduleServices();

@@ -30,12 +30,14 @@
 
         <!-- 考试名称 -->
         <TextBlock x:Name="ExamNameTb" Grid.Row="0"
+                   Text="{Binding ExamName}"
                    FontSize="28" Foreground="#AAFFFFFF"
                    HorizontalAlignment="Center" VerticalAlignment="Bottom"
                    Margin="0,0,0,16"/>
 
         <!-- 当前科目名 -->
         <TextBlock x:Name="SubjectTb" Grid.Row="1"
+                   Text="{Binding Subject}"
                    FontSize="64" FontWeight="Bold"
                    Foreground="#FFFFFFFF"
                    HorizontalAlignment="Center"
@@ -43,9 +45,10 @@
 
         <!-- 主倒计时 hh:mm:ss -->
         <TextBlock x:Name="CountdownTb" Grid.Row="2"
+                   Text="{Binding CountdownText}"
+                   Foreground="{Binding CountdownBrush}"
                    FontSize="120" FontWeight="Bold"
                    FontFamily="Consolas"
-                   Foreground="#FFFFFFFF"
                    HorizontalAlignment="Center"
                    Margin="0,0,0,8"/>
 
@@ -60,14 +63,15 @@
             <!-- 科目时间信息 -->
             <StackPanel Grid.Row="0" Orientation="Horizontal"
                         HorizontalAlignment="Center" Margin="0,0,0,10">
-                <TextBlock x:Name="StartTimeTb" FontSize="16" Foreground="#88FFFFFF"/>
+                <TextBlock x:Name="StartTimeTb" Text="{Binding StartTime}" FontSize="16" Foreground="#88FFFFFF"/>
                 <TextBlock FontSize="16" Foreground="#44FFFFFF" Margin="12,0"> — </TextBlock>
-                <TextBlock x:Name="EndTimeTb" FontSize="16" Foreground="#88FFFFFF"/>
-                <TextBlock x:Name="DurationTb" FontSize="16" Foreground="#66FFFFFF" Margin="16,0,0,0"/>
+                <TextBlock x:Name="EndTimeTb" Text="{Binding EndTime}" FontSize="16" Foreground="#88FFFFFF"/>
+                <TextBlock x:Name="DurationTb" Text="{Binding Duration}" FontSize="16" Foreground="#66FFFFFF" Margin="16,0,0,0"/>
             </StackPanel>
 
             <!-- 进度条 -->
             <ProgressBar x:Name="ExamProgress" Grid.Row="1"
+                         Value="{Binding ProgressValue}"
                          Height="12"
                          Background="#22FFFFFF"
                          Foreground="#FF5B9BD5"
@@ -75,6 +79,7 @@
 
             <!-- 进度百分比 -->
             <TextBlock x:Name="ProgressPctTb" Grid.Row="2"
+                       Text="{Binding ProgressPctText}"
                        FontSize="13" Foreground="#66FFFFFF"
                        HorizontalAlignment="Right" Margin="0,4,0,0"/>
         </Grid>
@@ -82,9 +87,11 @@
         <!-- 下一场 + 当前时间 -->
         <StackPanel Grid.Row="4" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,0,0,0">
             <TextBlock x:Name="NextSubjectTb"
+                       Text="{Binding NextSubject}"
                        FontSize="22" Foreground="#88FFFFFF"
                        HorizontalAlignment="Center"/>
             <TextBlock x:Name="CurrentTimeTb"
+                       Text="{Binding CurrentTime}"
                        FontSize="32" FontFamily="Consolas"
                        Foreground="#66FFFFFF"
                        HorizontalAlignment="Center"
