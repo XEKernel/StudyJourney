@@ -3,7 +3,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using StudyJourney.Avalonia.Models;
 using StudyJourney.Avalonia.Services;
@@ -64,7 +63,9 @@ public partial class App : Application
     {
         try
         {
-            var icon = new WindowIcon(new Bitmap(AssetLoader.Open(new Uri("avares://StudyJourney.Avalonia/Assets/icon.ico"))));
+            // WindowIcon 从 avares 资源流加载（支持 .ico；Bitmap 不支持 ico 会抛异常）
+            using var stream = AssetLoader.Open(new Uri("avares://StudyJourney.Avalonia/Assets/icon.ico"));
+            var icon = new WindowIcon(stream);
 
             var showItem = new NativeMenuItem("显示 / 隐藏窗口");
             showItem.Click += (_, _) => ToggleMainWindow();

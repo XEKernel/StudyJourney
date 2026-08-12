@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Interactivity;
 using StudyJourney.Avalonia.Models;
 
 namespace StudyJourney.Avalonia.Views.Settings;
@@ -8,6 +9,13 @@ public partial class SchedulePage : UserControl, ISettingsPage
     public SchedulePage()
     {
         InitializeComponent();
+    }
+
+    /// <summary>打开课表编辑窗口（自定义课表）</summary>
+    private void EditScheduleBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        var win = new Views.ScheduleEditorWindow();
+        win.Show();
     }
 
     public void Load(AppSettings s)

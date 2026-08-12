@@ -65,14 +65,15 @@
                 </StackPanel>
             </Border>
 
-            <!-- 课表编辑（迁移阶段 2） -->
-            <Border CornerRadius="8" Background="#0AFFFFFF" BorderBrush="#15FFFFFF" BorderThickness="1" Padding="20,16">
+            <!-- 课表编辑 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="8">
                     <TextBlock Text="📋  课表编辑" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="周课表网格 / 时段模板 / 调课代课功能将在迁移阶段 2 中实现（Avalonia DataGrid）"
+                    <TextBlock Text="编辑每周课程：星期 1-7、节次、科目、时间。保存后课表栏立即生效。"
                                FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap"/>
-                    <Button Content="阶段 2：编辑课表…" IsEnabled="False" HorizontalAlignment="Left" Margin="0,4,0,0"/>
+                    <Button Content="编辑课表数据…" HorizontalAlignment="Left" Margin="0,4,0,0"
+                            Click="EditScheduleBtn_Click"/>
                 </StackPanel>
             </Border>
         </StackPanel>

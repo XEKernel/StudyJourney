@@ -1,0 +1,43 @@
+<Window x:Class="StudyJourney.Avalonia.Views.ScheduleEditorWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:dg="using:Avalonia.Controls"
+        Title="编辑课表"
+        Width="760" Height="520"
+        WindowStartupLocation="CenterOwner"
+        TransparencyLevelHint="Mica"
+        Background="Transparent"
+        x:CompileBindings="False">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+
+        <!-- 标题 -->
+        <StackPanel Grid.Row="0" Spacing="4" Margin="0,8,0,12">
+            <TextBlock Text="编辑课表" FontSize="22" FontWeight="SemiBold"/>
+            <TextBlock Text="直接编辑 schedule.json 的课程条目（星期 1-7，节次从 1 开始）"
+                       FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+        </StackPanel>
+
+        <!-- 课表 DataGrid -->
+        <dg:DataGrid Grid.Row="1" x:Name="EntryGrid"
+                     AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
+                     SelectionMode="Single" Height="340">
+            <dg:DataGrid.Columns>
+                <dg:DataGridTextColumn Header="星期" Width="60" Binding="{Binding DayOfWeek}"/>
+                <dg:DataGridTextColumn Header="节次" Width="50" Binding="{Binding Period}"/>
+                <dg:DataGridTextColumn Header="科目" Width="*" Binding="{Binding Subject}"/>
+                <dg:DataGridTextColumn Header="开始" Width="70" Binding="{Binding StartTimeStr}"/>
+                <dg:DataGridTextColumn Header="结束" Width="70" Binding="{Binding EndTimeStr}"/>
+                <dg:DataGridTextColumn Header="类型" Width="90" Binding="{Binding Type}"/>
+            </dg:DataGrid.Columns>
+        </dg:DataGrid>
+
+        <!-- 底部操作 -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
+            <Button Content="＋ 添加课程" Click="AddBtn_Click"/>
+            <Button Content="－ 删除选中" Click="DeleteBtn_Click"/>
+            <Button Content="撤销修改" Click="CancelBtn_Click" Margin="20,0,0,0"/>
+            <Button Content="保存到 schedule.json" Classes="accent" Click="SaveBtn_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>
