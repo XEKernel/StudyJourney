@@ -1,0 +1,103 @@
+<ui:AppWindow x:Class="StudyJourney.Avalonia.Views.MainWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:FluentAvalonia.UI.Windowing;assembly=FluentAvalonia"
+        Title="学程 · Avalonia 原型"
+        Width="460" Height="640"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        ExtendClientAreaToDecorationsHint="True"
+        TransparencyLevelHint="None"
+        Background="Transparent"
+        Topmost="True"
+        Opened="Window_Opened">
+
+    <!-- 阶段 0 骨架：无边框透明 + 置顶 + 点击穿透 + FluentAvalonia 主题 -->
+    <Border CornerRadius="12"
+            Background="#F21A1A2E"
+            BorderBrush="#33FFFFFF"
+            BorderThickness="1"
+            Margin="8"
+            BoxShadow="0 8 24 2 #66000000">
+        <Grid RowDefinitions="40,Auto,*,Auto,Auto,Auto">
+
+            <!-- 顶部留白给 FA 内置 TitleBar（AppWindow 自带） -->
+            <Border Grid.Row="0" Background="Transparent"/>
+
+            <!-- 副标题行 -->
+            <TextBlock Grid.Row="1"
+                       Text="阶段 0 骨架验证 · Avalonia 11.3.17 + FluentAvaloniaUI 2.4.1"
+                       FontSize="11" Foreground="#66FFFFFF"
+                       HorizontalAlignment="Center" Margin="0,2,0,0"/>
+
+            <!-- ── 高考倒计时区 ── -->
+            <StackPanel Grid.Row="2" VerticalAlignment="Center" Spacing="10">
+                <TextBlock Text="距离高考还有"
+                           FontSize="18" Foreground="#FFFFFFFF"
+                           HorizontalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="DaysTb" Text="0"
+                               FontSize="96" FontWeight="Bold"
+                               Foreground="#FF2B6CB0"/>
+                    <TextBlock Text="天" FontSize="26" Foreground="#FFFFFFFF"
+                               VerticalAlignment="Bottom" Margin="8,0,0,16"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                    <TextBlock x:Name="HoursTb" Text="00"
+                               FontSize="42" FontWeight="Bold" Foreground="#FF4CAF50"/>
+                    <TextBlock Text="小时" FontSize="15" Foreground="#AAFFFFFF"
+                               VerticalAlignment="Bottom" Margin="6,0,0,8"/>
+                    <TextBlock x:Name="MinutesTb" Text="00"
+                               FontSize="42" FontWeight="Bold" Foreground="#FF4CAF50" Margin="20,0,0,0"/>
+                    <TextBlock Text="分" FontSize="15" Foreground="#AAFFFFFF"
+                               VerticalAlignment="Bottom" Margin="6,0,0,8"/>
+                    <TextBlock x:Name="SecondsTb" Text="00"
+                               FontSize="42" FontWeight="Bold" Foreground="#FF4CAF50" Margin="20,0,0,0"/>
+                    <TextBlock Text="秒" FontSize="15" Foreground="#AAFFFFFF"
+                               VerticalAlignment="Bottom" Margin="6,0,0,8"/>
+                </StackPanel>
+
+                <!-- 进度条 -->
+                <ProgressBar x:Name="ProgressBar" Height="8"
+                             Margin="40,6,40,0" Minimum="0" Maximum="100" Value="35"/>
+                <TextBlock x:Name="ProgressText"
+                           Text="高中生活已过去 35.0%"
+                           FontSize="12" Foreground="#88FFFFFF"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- ── 演示区：Fluent 控件 + 四件套开关 ── -->
+            <Border Grid.Row="4" Margin="16,8,16,12" Padding="16,12"
+                    CornerRadius="8" Background="#22FFFFFF">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="阶段 0 验证：Fluent 控件 + 四件套"
+                               FontSize="12" Foreground="#AAFFFFFF"/>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="窗口置顶" FontSize="13" Foreground="#CCFFFFFF"
+                                   VerticalAlignment="Center"/>
+                        <ToggleSwitch x:Name="TopmostSwitch" IsChecked="True"
+                                      Checked="TopmostSwitch_Changed"
+                                      Unchecked="TopmostSwitch_Changed"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="12">
+                        <TextBlock Text="透明度" FontSize="13" Foreground="#CCFFFFFF"
+                                   VerticalAlignment="Center"/>
+                        <Slider x:Name="OpacitySlider" Minimum="0.3" Maximum="1"
+                                Value="1" Width="150"
+                                ValueChanged="OpacitySlider_ValueChanged"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <Button x:Name="ClickThroughBtn" Content="切换点击穿透"
+                                Click="ClickThroughBtn_Click"/>
+                        <Button Content="退出" Click="ExitBtn_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <TextBlock Grid.Row="5"
+                       Text="提示：开启点击穿透后窗口不再响应鼠标，按 Alt+F4 退出"
+                       FontSize="10" Foreground="#55FFFFFF"
+                       HorizontalAlignment="Center" Margin="0,0,0,8"/>
+        </Grid>
+    </Border>
+</ui:AppWindow>

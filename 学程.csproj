@@ -31,6 +31,11 @@
 		<Page Remove="ClassIsland-*\**" />
 		<ApplicationDefinition Remove="ClassIsland-*\**" />
 		<None Remove="ClassIsland-*\**" />
+		<!-- 排除 Avalonia 迁移原型工程（独立编译单元，待迁移完成后切换） -->
+		<Compile Remove="StudyJourney.Avalonia\**" />
+		<Page Remove="StudyJourney.Avalonia\**" />
+		<ApplicationDefinition Remove="StudyJourney.Avalonia\**" />
+		<None Remove="StudyJourney.Avalonia\**" />
 		<Compile Remove="Updater\**" />
 		<Content Include="icon.ico">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
