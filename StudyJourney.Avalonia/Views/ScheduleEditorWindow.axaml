@@ -2,8 +2,8 @@
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:dg="using:Avalonia.Controls"
-        Title="编辑课表"
-        Width="760" Height="520"
+        Title="编辑课表 / 考试"
+        Width="780" Height="560"
         WindowStartupLocation="CenterOwner"
         TransparencyLevelHint="Mica"
         Background="Transparent"
@@ -13,30 +13,60 @@
 
         <!-- 标题 -->
         <StackPanel Grid.Row="0" Spacing="4" Margin="0,8,0,12">
-            <TextBlock Text="编辑课表" FontSize="22" FontWeight="SemiBold"/>
-            <TextBlock Text="直接编辑 schedule.json 的课程条目（星期 1-7，节次从 1 开始）"
+            <TextBlock Text="编辑课表 / 考试" FontSize="22" FontWeight="SemiBold"/>
+            <TextBlock Text="直接编辑 schedule.json（课表条目与考试安排，保存后立即生效）"
                        FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
         </StackPanel>
 
-        <!-- 课表 DataGrid -->
-        <dg:DataGrid Grid.Row="1" x:Name="EntryGrid"
-                     AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
-                     SelectionMode="Single" Height="340">
-            <dg:DataGrid.Columns>
-                <dg:DataGridTextColumn Header="星期" Width="60" Binding="{Binding DayOfWeek}"/>
-                <dg:DataGridTextColumn Header="节次" Width="50" Binding="{Binding Period}"/>
-                <dg:DataGridTextColumn Header="科目" Width="*" Binding="{Binding Subject}"/>
-                <dg:DataGridTextColumn Header="开始" Width="70" Binding="{Binding StartTimeStr}"/>
-                <dg:DataGridTextColumn Header="结束" Width="70" Binding="{Binding EndTimeStr}"/>
-                <dg:DataGridTextColumn Header="类型" Width="90" Binding="{Binding Type}"/>
-            </dg:DataGrid.Columns>
-        </dg:DataGrid>
+        <!-- TabControl：课表 / 考试 -->
+        <TabControl Grid.Row="1">
+            <!-- ── 课表 Tab ── -->
+            <TabItem Header="课表">
+                <Grid RowDefinitions="*,Auto">
+                    <dg:DataGrid Grid.Row="0" x:Name="EntryGrid"
+                                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
+                                 SelectionMode="Single">
+                        <dg:DataGrid.Columns>
+                            <dg:DataGridTextColumn Header="星期" Width="60" Binding="{Binding DayOfWeek}"/>
+                            <dg:DataGridTextColumn Header="节次" Width="50" Binding="{Binding Period}"/>
+                            <dg:DataGridTextColumn Header="科目" Width="*" Binding="{Binding Subject}"/>
+                            <dg:DataGridTextColumn Header="开始" Width="70" Binding="{Binding StartTimeStr}"/>
+                            <dg:DataGridTextColumn Header="结束" Width="70" Binding="{Binding EndTimeStr}"/>
+                            <dg:DataGridTextColumn Header="类型" Width="90" Binding="{Binding Type}"/>
+                        </dg:DataGrid.Columns>
+                    </dg:DataGrid>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                        <Button Content="＋ 添加课程" Click="AddBtn_Click"/>
+                        <Button Content="－ 删除选中" Click="DeleteBtn_Click"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+
+            <!-- ── 考试 Tab ── -->
+            <TabItem Header="考试">
+                <Grid RowDefinitions="*,Auto">
+                    <dg:DataGrid Grid.Row="0" x:Name="ExamGrid"
+                                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
+                                 SelectionMode="Single">
+                        <dg:DataGrid.Columns>
+                            <dg:DataGridTextColumn Header="考试名称" Width="*" Binding="{Binding Name}"/>
+                            <dg:DataGridTextColumn Header="日期" Width="140" Binding="{Binding DateStr}"/>
+                        </dg:DataGrid.Columns>
+                    </dg:DataGrid>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                        <Button Content="＋ 添加考试" Click="AddExamBtn_Click"/>
+                        <Button Content="－ 删除选中" Click="DeleteExamBtn_Click"/>
+                        <TextBlock Text="科目在 schedule.json 的 subjects 数组中编辑"
+                                   FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                   VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </TabItem>
+        </TabControl>
 
         <!-- 底部操作 -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
-            <Button Content="＋ 添加课程" Click="AddBtn_Click"/>
-            <Button Content="－ 删除选中" Click="DeleteBtn_Click"/>
-            <Button Content="撤销修改" Click="CancelBtn_Click" Margin="20,0,0,0"/>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+            <Button Content="撤销修改" Click="CancelBtn_Click"/>
             <Button Content="保存到 schedule.json" Classes="accent" Click="SaveBtn_Click"/>
         </StackPanel>
     </Grid>

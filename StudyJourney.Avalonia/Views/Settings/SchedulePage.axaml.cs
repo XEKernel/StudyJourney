@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using StudyJourney.Avalonia.Models;
 
@@ -15,7 +16,20 @@ public partial class SchedulePage : UserControl, ISettingsPage
     private void EditScheduleBtn_Click(object? sender, RoutedEventArgs e)
     {
         var win = new Views.ScheduleEditorWindow();
-        win.Show();
+        var owner = TopLevel.GetTopLevel(this) as Window;
+        if (owner != null) win.Show(owner);
+        else win.Show();
+    }
+
+    // ── 滑条联动 ────────────────────────────────────────────
+    private void ScheduleBarOpacitySlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (ScheduleBarOpacityText != null) ScheduleBarOpacityText.Text = $"{e.NewValue * 100:F0}%";
+    }
+
+    private void ScheduleBarFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (ScheduleBarFontSizeText != null) ScheduleBarFontSizeText.Text = ((int)e.NewValue).ToString();
     }
 
     public void Load(AppSettings s)

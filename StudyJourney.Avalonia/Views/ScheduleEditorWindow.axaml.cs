@@ -6,15 +6,17 @@ using StudyJourney.Avalonia.Models;
 
 namespace StudyJourney.Avalonia.Views;
 
-/// <summary>课表编辑窗口：DataGrid 编辑 ScheduleData.Entries，保存写回 schedule.json</summary>
+/// <summary>课表/考试编辑窗口：DataGrid 编辑 schedule.json，保存写回</summary>
 public partial class ScheduleEditorWindow : Window
 {
     public ScheduleEditorWindow()
     {
         InitializeComponent();
         EntryGrid.ItemsSource = App.Schedule.Data.Entries;
+        ExamGrid.ItemsSource = App.Schedule.Data.Exams;
     }
 
+    // ── 课表 ────────────────────────────────────────────────
     private void AddBtn_Click(object? sender, RoutedEventArgs e)
     {
         App.Schedule.Data.Entries.Add(new ScheduleEntry
@@ -38,6 +40,28 @@ public partial class ScheduleEditorWindow : Window
         }
     }
 
+    // ── 考试 ────────────────────────────────────────────────
+    private void AddExamBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        App.Schedule.Data.Exams.Add(new ExamEntry
+        {
+            Name = "新考试",
+            DateStr = DateTime.Today.ToString("yyyy-MM-dd"),
+            Subjects = new() { new ExamSubject { Name = "科目", StartTimeStr = "09:00", EndTimeStr = "11:00" } }
+        });
+        RefreshExamGrid();
+    }
+
+    private void DeleteExamBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ExamGrid.SelectedItem is ExamEntry exam)
+        {
+            App.Schedule.Data.Exams.Remove(exam);
+            RefreshExamGrid();
+        }
+    }
+
+    // ── 公共 ────────────────────────────────────────────────
     private void SaveBtn_Click(object? sender, RoutedEventArgs e)
     {
         App.Schedule.Save();
@@ -57,14 +81,20 @@ public partial class ScheduleEditorWindow : Window
 
     private void CancelBtn_Click(object? sender, RoutedEventArgs e)
     {
-        // 撤销：重新从文件加载
         App.Schedule.Reload();
         RefreshGrid();
+        RefreshExamGrid();
     }
 
     private void RefreshGrid()
     {
         EntryGrid.ItemsSource = null;
         EntryGrid.ItemsSource = App.Schedule.Data.Entries;
+    }
+
+    private void RefreshExamGrid()
+    {
+        ExamGrid.ItemsSource = null;
+        ExamGrid.ItemsSource = App.Schedule.Data.Exams;
     }
 }

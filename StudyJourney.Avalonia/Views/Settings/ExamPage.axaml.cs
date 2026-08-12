@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using StudyJourney.Avalonia.Models;
 
@@ -16,6 +17,33 @@ public partial class ExamPage : UserControl, ISettingsPage
     {
         var win = new Views.ExamModeWindow();
         win.Show();
+    }
+
+    // ── 滑条联动 ────────────────────────────────────────────
+    private void ExamModeFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        => UpdateLabel(ExamModeFontSizeText, e.NewValue);
+
+    private void ExamSubjectFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        => UpdateLabel(ExamSubjectFontSizeText, e.NewValue);
+
+    private void ExamCountdownFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        => UpdateLabel(ExamCountdownFontSizeText, e.NewValue);
+
+    private void ExamNameFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        => UpdateLabel(ExamNameFontSizeText, e.NewValue);
+
+    private void ExamTimeInfoFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        => UpdateLabel(ExamTimeInfoFontSizeText, e.NewValue);
+
+    private void ExamNextSubjectFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        => UpdateLabel(ExamNextSubjectFontSizeText, e.NewValue);
+
+    private void ExamProgressBarHeightSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+        => UpdateLabel(ExamProgressBarHeightText, e.NewValue);
+
+    private static void UpdateLabel(TextBlock? tb, double value)
+    {
+        if (tb != null) tb.Text = ((int)value).ToString();
     }
 
     public void Load(AppSettings s)

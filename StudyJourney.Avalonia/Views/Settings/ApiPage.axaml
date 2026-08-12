@@ -23,15 +23,15 @@
                     <TextBlock Text="显示样式" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="70,*,80" Margin="0,2,0,6">
                         <TextBlock Text="字体大小" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="QuoteFontSizeSlider" Grid.Column="1" Minimum="8" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="QuoteFontSizeSlider" ValueChanged="QuoteFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="8" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="QuoteFontSizeText" Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="70,*,Auto" Margin="0,4,0,6">
                         <TextBlock Text="文字颜色" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <TextBox x:Name="QuoteForegroundBox" Grid.Column="1" Text="#FFAAAAAA"/>
                         <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
                             <Border Width="26" Height="26" CornerRadius="4" Background="#FFAAAAAA"/>
-                            <Button Content="选择…"/>
+                            <Button Content="选择…" Click="PickQuoteForeground_Click"/>
                         </StackPanel>
                     </Grid>
                     <CheckBox x:Name="QuoteItalicCheck" Content="斜体" IsChecked="True"/>
@@ -54,8 +54,8 @@
                     </Grid>
                     <Grid ColumnDefinitions="70,*,80" Margin="0,10,0,6">
                         <TextBlock Text="自动切换" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="QuoteRefreshIntervalSlider" Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="30秒" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="QuoteRefreshIntervalSlider" ValueChanged="QuoteRefreshIntervalSlider_ValueChanged" Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="QuoteRefreshIntervalText" Grid.Column="2" Text="30秒" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <TextBlock Text="0 = 不自动切换；设置后每隔 N 秒自动刷新一条新的一言"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -92,8 +92,8 @@
                     <TextBlock Text="文本字体大小" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <Grid ColumnDefinitions="70,*,50">
                         <TextBlock Text="字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="WeatherFontSizeSlider" Grid.Column="1" Minimum="10" Maximum="36" Value="14" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="14" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="WeatherFontSizeSlider" ValueChanged="WeatherFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="10" Maximum="36" Value="14" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="WeatherFontSizeText" Grid.Column="2" Text="14" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -103,27 +103,27 @@
                     <TextBlock Text="文字颜色" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                     <TextBlock Text="城市名颜色" FontSize="13" Margin="0,4,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FFFFFFFF"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="WeatherCityColorBox" Grid.Column="0" Text="#FFFFFFFF"/>
+                        <Border x:Name="WeatherCityColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Click="PickWeatherCityColor_Click" Margin="8,0,0,0"/>
                     </Grid>
                     <TextBlock Text="天气信息颜色（天气描述、风、湿度）" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FFCCCCDD"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFCCCCDD" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="WeatherInfoColorBox" Grid.Column="0" Text="#FFCCCCDD"/>
+                        <Border x:Name="WeatherInfoColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFCCCCDD" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Click="PickWeatherInfoColor_Click" Margin="8,0,0,0"/>
                     </Grid>
                     <TextBlock Text="温度颜色" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FFFF8844"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFF8844" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="WeatherTempColorBox" Grid.Column="0" Text="#FFFF8844"/>
+                        <Border x:Name="WeatherTempColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFF8844" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Click="PickWeatherTempColor_Click" Margin="8,0,0,0"/>
                     </Grid>
                     <TextBlock Text="天气图标颜色" FontSize="13" Margin="0,10,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" Text="#FFFFAA00"/>
-                        <Border Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFAA00" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0"/>
+                        <TextBox x:Name="WeatherIconColorBox" Grid.Column="0" Text="#FFFFAA00"/>
+                        <Border x:Name="WeatherIconColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFAA00" HorizontalAlignment="Left" Margin="8,0,0,0"/>
+                        <Button Grid.Column="2" Content="选择…" Click="PickWeatherIconColor_Click" Margin="8,0,0,0"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -133,8 +133,8 @@
                     <TextBlock Text="其他选项" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                     <Grid ColumnDefinitions="70,*,80" Margin="0,2,0,6">
                         <TextBlock Text="刷新间隔" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="WeatherRefreshIntervalSlider" Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="30分" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="WeatherRefreshIntervalSlider" ValueChanged="WeatherRefreshIntervalSlider_ValueChanged" Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="WeatherRefreshIntervalText" Grid.Column="2" Text="30分" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <TextBlock Text="0 = 不自动刷新；单位：分钟"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"

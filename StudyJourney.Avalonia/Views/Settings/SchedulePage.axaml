@@ -15,8 +15,8 @@
 
                     <Grid ColumnDefinitions="110,*,70" Margin="0,10,0,6">
                         <TextBlock Text="悬浮栏透明度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="ScheduleBarOpacitySlider" Grid.Column="1" Minimum="0.2" Maximum="1.0" Value="0.9" TickFrequency="0.1"/>
-                        <TextBlock Grid.Column="2" Text="90%" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="ScheduleBarOpacitySlider" ValueChanged="ScheduleBarOpacitySlider_ValueChanged" Grid.Column="1" Minimum="0.2" Maximum="1.0" Value="0.9" TickFrequency="0.1"/>
+                        <TextBlock x:Name="ScheduleBarOpacityText" Grid.Column="2" Text="90%" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,70" Margin="0,4,0,6">
                         <TextBlock Text="悬浮栏宽度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
@@ -24,8 +24,8 @@
                     </Grid>
                     <Grid ColumnDefinitions="110,*,70" Margin="0,4,0,6">
                         <TextBlock Text="文字字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="ScheduleBarFontSizeSlider" Grid.Column="1" Minimum="10" Maximum="24" Value="14" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="14" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="ScheduleBarFontSizeSlider" ValueChanged="ScheduleBarFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="10" Maximum="24" Value="14" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ScheduleBarFontSizeText" Grid.Column="2" Text="14" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
             </Border>

@@ -1,0 +1,24 @@
+<Window x:Class="StudyJourney.Avalonia.Views.ColorPickerDialog"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:cp="using:Avalonia.Controls"
+        Title="选择颜色"
+        Width="360" Height="440"
+        WindowStartupLocation="CenterOwner"
+        TransparencyLevelHint="Mica"
+        Background="Transparent">
+
+    <Grid RowDefinitions="*,Auto" Margin="18">
+
+        <!-- ColorView 控件（Avalonia.Controls.ColorPicker 包） -->
+        <cp:ColorView x:Name="Picker" Grid.Row="0"
+                      ColorSpectrumShape="Ring"
+                      VerticalAlignment="Stretch"/>
+
+        <!-- 操作 -->
+        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+            <Button Content="取消" Click="CancelBtn_Click"/>
+            <Button Content="确定" Classes="accent" Click="OkBtn_Click"/>
+        </StackPanel>
+    </Grid>
+</Window>

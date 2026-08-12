@@ -1,7 +1,10 @@
 using System;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
+using Avalonia.Media;
 using StudyJourney.Avalonia.Models;
+using StudyJourney.Avalonia.Views;
 
 namespace StudyJourney.Avalonia.Views.Settings;
 
@@ -31,6 +34,13 @@ public partial class CountdownPage : UserControl, ISettingsPage
         GaokaoDateBox.Text = s.GaokaoDateStr;
         StartDateBox.Text = s.StartDateStr;
         CustomCountdownGrid.ItemsSource = s.CustomCountdowns;
+
+        NumberColorBox.Text = s.NumberColor.ToString();
+        TextColorBox.Text = s.TextColor.ToString();
+        ProgressBarColorBox.Text = s.ProgressBarColor.ToString();
+        UpdateColorPreview(NumberColorPreview, NumberColorBox.Text);
+        UpdateColorPreview(TextColorPreview, TextColorBox.Text);
+        UpdateColorPreview(ProgressBarColorPreview, ProgressBarColorBox.Text);
     }
 
     public void Apply(AppSettings s)
@@ -48,7 +58,67 @@ public partial class CountdownPage : UserControl, ISettingsPage
         s.EnableAnimations = EnableAnimationsCheck.IsChecked == true;
         s.GaokaoDateStr = GaokaoDateBox.Text ?? "";
         s.StartDateStr = StartDateBox.Text ?? "";
+
+        if (TryParseColor(NumberColorBox.Text ?? "#FFFFFF", out var nc)) s.NumberColor = nc;
+        if (TryParseColor(TextColorBox.Text ?? "#FFFFFF", out var tc)) s.TextColor = tc;
+        if (TryParseColor(ProgressBarColorBox.Text ?? "#FFFFFF", out var pc)) s.ProgressBarColor = pc;
     }
+
+    // ── 滑条联动：数字随滑动实时更新 ────────────────────────
+    private void FontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (FontSizeText != null) FontSizeText.Text = ((int)e.NewValue).ToString();
+    }
+
+    private void OpacitySlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (OpacityText != null) OpacityText.Text = $"{e.NewValue * 100:F0}%";
+    }
+
+    private void DecimalSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (DecimalText != null) DecimalText.Text = ((int)e.NewValue).ToString();
+    }
+
+    // ── 颜色选择 ────────────────────────────────────────────
+    private void PickNumberColor_Click(object? sender, RoutedEventArgs e)
+        => PickColor(NumberColorBox, NumberColorPreview);
+
+    private void PickTextColor_Click(object? sender, RoutedEventArgs e)
+        => PickColor(TextColorBox, TextColorPreview);
+
+    private void PickProgressBarColor_Click(object? sender, RoutedEventArgs e)
+        => PickColor(ProgressBarColorBox, ProgressBarColorPreview);
+
+    private void PickColor(TextBox box, Border preview)
+    {
+        var dlg = new ColorPickerDialog(box.Text ?? "#FFFFFFFF");
+        var owner = GetWindow();
+        if (owner != null) dlg.ShowDialog(owner); else dlg.Show();
+        dlg.Closed += (_, _) =>
+        {
+            if (dlg.SelectedHex != null)
+            {
+                box.Text = dlg.SelectedHex;
+                UpdateColorPreview(preview, dlg.SelectedHex);
+            }
+        };
+    }
+
+    private static void UpdateColorPreview(Border? preview, string? hex)
+    {
+        if (preview == null || string.IsNullOrEmpty(hex)) return;
+        if (TryParseColor(hex, out var c))
+            preview.Background = new SolidColorBrush(c);
+    }
+
+    private static bool TryParseColor(string hex, out Color c)
+    {
+        try { c = Color.Parse(hex); return true; }
+        catch { c = Colors.White; return false; }
+    }
+
+    private Window? GetWindow() => TopLevel.GetTopLevel(this) as Window;
 
     // ── 自定义倒计时：增删 + 网格刷新（List 需手动刷新 ItemsSource）──
     private void AddCountdownBtn_Click(object? sender, RoutedEventArgs e)

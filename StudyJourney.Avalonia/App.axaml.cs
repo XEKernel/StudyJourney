@@ -38,6 +38,9 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        Helpers.AppLogger.EnableFileLogging();
+        Helpers.AppLogger.Info("学程 Avalonia 启动");
+
         Settings = AppSettings.Load();
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
@@ -64,7 +67,8 @@ public partial class App : Application
         try
         {
             // WindowIcon 从 avares 资源流加载（支持 .ico；Bitmap 不支持 ico 会抛异常）
-            using var stream = AssetLoader.Open(new Uri("avares://StudyJourney.Avalonia/Assets/icon.ico"));
+            // 注意：avares URI 用程序集名 StudyJourneyAvalonia（csproj AssemblyName）
+            using var stream = AssetLoader.Open(new Uri("avares://StudyJourneyAvalonia/Assets/icon.ico"));
             var icon = new WindowIcon(stream);
 
             var showItem = new NativeMenuItem("显示 / 隐藏窗口");

@@ -22,38 +22,38 @@
 
                     <Grid ColumnDefinitions="110,*,50" Margin="0,2,0,4">
                         <TextBlock Text="窗口字体" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="ExamModeFontSizeSlider" Grid.Column="1" Minimum="16" Maximum="72" Value="32" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="32" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="ExamModeFontSizeSlider" ValueChanged="ExamModeFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="16" Maximum="72" Value="32" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ExamModeFontSizeText" Grid.Column="2" Text="32" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="科目名字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="ExamSubjectFontSizeSlider" Grid.Column="1" Minimum="30" Maximum="120" Value="64" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="64" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="ExamSubjectFontSizeSlider" ValueChanged="ExamSubjectFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="30" Maximum="120" Value="64" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ExamSubjectFontSizeText" Grid.Column="2" Text="64" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="倒计时字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="ExamCountdownFontSizeSlider" Grid.Column="1" Minimum="60" Maximum="200" Value="120" TickFrequency="5" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="120" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="ExamCountdownFontSizeSlider" ValueChanged="ExamCountdownFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="60" Maximum="200" Value="120" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ExamCountdownFontSizeText" Grid.Column="2" Text="120" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="考试名称字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="ExamNameFontSizeSlider" Grid.Column="1" Minimum="12" Maximum="60" Value="28" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="28" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="ExamNameFontSizeSlider" ValueChanged="ExamNameFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="12" Maximum="60" Value="28" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ExamNameFontSizeText" Grid.Column="2" Text="28" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="时间信息字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="ExamTimeInfoFontSizeSlider" Grid.Column="1" Minimum="10" Maximum="40" Value="16" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="16" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="ExamTimeInfoFontSizeSlider" ValueChanged="ExamTimeInfoFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="10" Maximum="40" Value="16" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ExamTimeInfoFontSizeText" Grid.Column="2" Text="16" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,4">
                         <TextBlock Text="下一场字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="ExamNextSubjectFontSizeSlider" Grid.Column="1" Minimum="10" Maximum="48" Value="22" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="22" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="ExamNextSubjectFontSizeSlider" ValueChanged="ExamNextSubjectFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="10" Maximum="48" Value="22" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ExamNextSubjectFontSizeText" Grid.Column="2" Text="22" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,50" Margin="0,4,0,0">
                         <TextBlock Text="进度条高度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="ExamProgressBarHeightSlider" Grid.Column="1" Minimum="6" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                        <Slider x:Name="ExamProgressBarHeightSlider" ValueChanged="ExamProgressBarHeightSlider_ValueChanged" Grid.Column="1" Minimum="6" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="ExamProgressBarHeightText" Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
                 </StackPanel>
             </Border>
