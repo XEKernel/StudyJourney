@@ -28,7 +28,7 @@
             <!-- ── 课表 Tab ── -->
             <TabItem Header="课表">
                 <Grid RowDefinitions="*,Auto">
-                    <dg:DataGrid Grid.Row="0" x:Name="EntryGrid" ColumnHeaderHeight="34"
+                    <dg:DataGrid Grid.Row="0" x:Name="EntryGrid" ColumnHeaderHeight="34" CanUserResizeColumns="True"
                                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
                                  SelectionMode="Single">
                         <dg:DataGrid.Columns>
@@ -52,7 +52,7 @@
                 <Grid RowDefinitions="Auto,170,Auto,Auto,170,Auto" Margin="0,4,0,0">
                     <TextBlock Grid.Row="0" Text="考试列表（选中一场后，下方编辑其科目日程）"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,4"/>
-                    <dg:DataGrid Grid.Row="1" x:Name="ExamGrid" ColumnHeaderHeight="34"
+                    <dg:DataGrid Grid.Row="1" x:Name="ExamGrid" ColumnHeaderHeight="34" CanUserResizeColumns="True"
                                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
                                  SelectionMode="Single" SelectionChanged="ExamGrid_SelectionChanged">
                         <dg:DataGrid.Columns>
@@ -72,7 +72,7 @@
                         <Button Content="－ 删除科目" Click="DeleteExamSubjectBtn_Click"/>
                         <Button Content="保存考试" Classes="accent" Click="SaveExamsBtn_Click"/>
                     </StackPanel>
-                    <dg:DataGrid Grid.Row="4" x:Name="ExamSubjectGrid" ColumnHeaderHeight="34"
+                    <dg:DataGrid Grid.Row="4" x:Name="ExamSubjectGrid" ColumnHeaderHeight="34" CanUserResizeColumns="True"
                                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
                                  SelectionMode="Single">
                         <dg:DataGrid.Columns>
@@ -88,7 +88,7 @@
             </TabItem>
             <!-- ── 周视图 · 调课 Tab ── -->
             <TabItem Header="周视图 · 调课">
-                <Grid ColumnDefinitions="*,320" Margin="0,4,0,0">
+                <Grid ColumnDefinitions="*,360" Margin="0,4,0,0">
 
                     <!-- 左：课程表网格（代码动态构建，单击格子选源/目标） -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">

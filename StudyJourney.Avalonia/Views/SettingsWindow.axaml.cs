@@ -3,6 +3,9 @@ using Avalonia.Animation;
 using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
+using Avalonia.Platform;
 using Avalonia.Styling;
 using Avalonia.Threading;
 using FluentAvalonia.UI.Controls;
@@ -19,8 +22,20 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
     public SettingsWindow()
     {
         InitializeComponent();
+        Icon = LoadBitmapIcon();   // FAAppWindow.Icon 是 IImage，需用 PNG（Bitmap 不支持 ico）
         // 默认显示倒计时页（含数据加载）
         ShowPage(new CountdownPage());
+    }
+
+    /// <summary>FAAppWindow 标题栏图标（IImage，用 PNG）</summary>
+    private static IImage? LoadBitmapIcon()
+    {
+        try
+        {
+            using var stream = AssetLoader.Open(new Uri("avares://StudyJourneyAvalonia/Assets/icon.png"));
+            return new Bitmap(stream);
+        }
+        catch { return null; }
     }
 
     private void NavView_ItemInvoked(object? sender, FANavigationViewItemInvokedEventArgs e)

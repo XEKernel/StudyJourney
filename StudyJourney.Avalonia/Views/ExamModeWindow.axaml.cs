@@ -32,6 +32,7 @@ public partial class ExamModeWindow : Window
     public ExamModeWindow()
     {
         InitializeComponent();
+        Icon = App.AppIcon;
         ApplyStyles();
         Closed += (_, _) =>
         {

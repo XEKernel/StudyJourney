@@ -39,6 +39,9 @@ public partial class App : Application
     private NativeMenuItem? _trayScheduleItem;
     private Window? _mainWindow;
 
+    /// <summary>应用图标（各窗口标题栏/任务栏共用，从 avares 加载）</summary>
+    public static WindowIcon? AppIcon { get; private set; }
+
     // ── 全局快捷键 ID（与 WPF 版一致）────────────────────────
     private const int HotKeyToggleMain = 1;   // Ctrl+Shift+H
     private const int HotKeyToggleBar  = 2;   // Ctrl+Shift+B
@@ -46,6 +49,21 @@ public partial class App : Application
     private const uint VK_H = 0x48, VK_B = 0x42, VK_E = 0x45;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
+
+    /// <summary>从 avares 资源加载窗口图标</summary>
+    public static WindowIcon? LoadAppIcon()
+    {
+        try
+        {
+            using var stream = AssetLoader.Open(new Uri("avares://StudyJourneyAvalonia/Assets/icon.ico"));
+            return new WindowIcon(stream);
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn("加载窗口图标失败: " + ex.Message);
+            return null;
+        }
+    }
 
     public override void OnFrameworkInitializationCompleted()
     {
@@ -56,6 +74,7 @@ public partial class App : Application
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            AppIcon = LoadAppIcon();
             _mainWindow = new MainWindow();
             desktop.MainWindow = _mainWindow;
             desktop.ShutdownRequested += (_, _) => Cleanup();
@@ -111,6 +130,7 @@ public partial class App : Application
         var box = new Window
         {
             Title = title,
+            Icon = AppIcon,
             Width = 420,
             Height = 200,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,

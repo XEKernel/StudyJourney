@@ -21,6 +21,7 @@ public partial class ScheduleEditorWindow : Window
     public ScheduleEditorWindow()
     {
         InitializeComponent();
+        Icon = App.AppIcon;
         EntryGrid.ItemsSource = App.Schedule.Data.Entries;
         RefreshExamGrid();
 
@@ -313,7 +314,7 @@ public partial class ScheduleEditorWindow : Window
     {
         var box = new Window
         {
-            Title = "提示",
+            Title = "提示", Icon = App.AppIcon,
             Width = 360, Height = 130,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             CanResize = false,
@@ -663,27 +664,28 @@ public partial class ScheduleEditorWindow : Window
     private void BuildTemplateList()
     {
         TemplateHost.Content = null;
-        var panel = new StackPanel { Spacing = 4 };
+        var panel = new StackPanel { Spacing = 6 };
 
         foreach (var t in App.Schedule.Data.TimeTemplates)
         {
-            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("52,60,60,*,32") };
-            var periodBox = new TextBox { Text = t.Period.ToString(), FontSize = 13, MinHeight = 32, VerticalContentAlignment = VerticalAlignment.Center };
+            // 列：节次 / 开始 / 结束 / 类型(占剩余) / 删除
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("44,54,54,*,28") };
+            var periodBox = new TextBox { Text = t.Period.ToString(), FontSize = 13, MinHeight = 34, VerticalContentAlignment = VerticalAlignment.Center };
             periodBox.TextChanged += (_, _) =>
             { if (int.TryParse(periodBox.Text, out int p)) t.Period = p; };
 
-            var startBox = new TextBox { Text = t.StartTime, FontSize = 13, MinHeight = 32, VerticalContentAlignment = VerticalAlignment.Center };
+            var startBox = new TextBox { Text = t.StartTime, FontSize = 13, MinHeight = 34, VerticalContentAlignment = VerticalAlignment.Center };
             startBox.TextChanged += (_, _) => t.StartTime = startBox.Text ?? "08:00";
 
-            var endBox = new TextBox { Text = t.EndTime, FontSize = 13, MinHeight = 32, VerticalContentAlignment = VerticalAlignment.Center };
+            var endBox = new TextBox { Text = t.EndTime, FontSize = 13, MinHeight = 34, VerticalContentAlignment = VerticalAlignment.Center };
             endBox.TextChanged += (_, _) => t.EndTime = endBox.Text ?? "08:45";
 
-            var typeBox = new ComboBox { FontSize = 13, MinHeight = 32, ItemsSource = PeriodTypeItems };
+            var typeBox = new ComboBox { FontSize = 13, MinHeight = 34, ItemsSource = PeriodTypeItems, HorizontalAlignment = HorizontalAlignment.Stretch };
             typeBox.SelectedItem = PeriodTypeItems.FirstOrDefault(p => p.Value == t.Type);
             typeBox.SelectionChanged += (_, _) =>
             { if (typeBox.SelectedItem is PeriodTypeItem item) t.Type = item.Value; };
 
-            var delBtn = new Button { Content = "✕", Padding = new Thickness(6, 0), FontSize = 11, MinHeight = 32 };
+            var delBtn = new Button { Content = "✕", Padding = new Thickness(4, 0), FontSize = 11, MinHeight = 34 };
             delBtn.Click += (_, _) =>
             {
                 App.Schedule.Data.TimeTemplates.Remove(t);
@@ -755,7 +757,7 @@ public partial class ScheduleEditorWindow : Window
     {
         var box = new Window
         {
-            Title = title,
+            Title = title, Icon = App.AppIcon,
             Width = 400, Height = 170,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             CanResize = false,

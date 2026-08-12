@@ -110,6 +110,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        Icon = App.AppIcon;
         RefreshDates();
 
         // 设置变更 → 立即应用（设置窗口保存后触发）
