@@ -186,7 +186,7 @@ namespace GaokaoCountdown.Models
                 if (data == null) return (false, "JSON 格式无效");
                 // 防止 JSON 中 Entries/Exams 显式设为 null 导致后续崩溃
                 data.Entries ??= new List<ScheduleEntry>();
-                data.Exams  ??= new List<ExamEntry>();
+                data.Exams  ??= new System.Collections.ObjectModel.ObservableCollection<ExamEntry>();
                 _data = data;
                 _data.Save();
                 DataChanged?.Invoke();

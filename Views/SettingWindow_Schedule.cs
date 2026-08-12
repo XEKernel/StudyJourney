@@ -583,9 +583,8 @@ namespace GaokaoCountdown.Views
                 // 提交可能存在的待编辑，防止崩溃
                 ExamSubjectGrid.CommitEdit(DataGridEditingUnit.Row, true);
 
+                // ObservableCollection 自动通知 DataGrid 刷新，无需手动重置 ItemsSource
                 exam.Subjects.Add(new ExamSubject { Name = "新科目", StartTimeStr = "09:00", EndTimeStr = "11:00" });
-                ExamSubjectGrid.ItemsSource = null;
-                ExamSubjectGrid.ItemsSource = exam.Subjects;
             }
             catch (Exception ex)
             {
@@ -608,8 +607,6 @@ namespace GaokaoCountdown.Views
                 ExamSubjectGrid.CommitEdit(DataGridEditingUnit.Row, true);
 
                 exam.Subjects.Remove(sub);
-                ExamSubjectGrid.ItemsSource = null;
-                ExamSubjectGrid.ItemsSource = exam.Subjects;
             }
             catch (Exception ex)
             {

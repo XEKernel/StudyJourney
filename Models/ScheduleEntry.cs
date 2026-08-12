@@ -124,7 +124,8 @@ namespace GaokaoCountdown.Models
     {
         public string Name { get; set; } = string.Empty;
         public string DateStr { get; set; } = DateTime.Today.ToString("yyyy-MM-dd");
-        public List<ExamSubject> Subjects { get; set; } = new();
+        /// <summary>科目集合（ObservableCollection 使 DataGrid 增删自动刷新）</summary>
+        public System.Collections.ObjectModel.ObservableCollection<ExamSubject> Subjects { get; set; } = new();
 
         [JsonIgnore]
         public DateTime Date
@@ -182,7 +183,8 @@ namespace GaokaoCountdown.Models
     public class ScheduleData
     {
         public List<ScheduleEntry> Entries { get; set; } = new();
-        public List<ExamEntry> Exams { get; set; } = new();
+        /// <summary>考试集合（ObservableCollection 使 DataGrid 增删自动刷新）</summary>
+        public System.Collections.ObjectModel.ObservableCollection<ExamEntry> Exams { get; set; } = new();
         /// <summary>时段模板（课程表网格的行定义），若为空则自动从 Entries 推算</summary>
         public List<TimeTemplate> TimeTemplates { get; set; } = new();
 
