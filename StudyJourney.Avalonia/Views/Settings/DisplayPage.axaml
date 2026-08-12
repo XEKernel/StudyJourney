@@ -1,0 +1,79 @@
+<UserControl x:Class="StudyJourney.Avalonia.Views.Settings.DisplayPage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia">
+    <ScrollViewer>
+        <StackPanel Margin="0,8,16,16">
+
+            <!-- WinUI 3 卡片分组：倒计时数字显示 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel>
+                    <TextBlock Text="倒计时数字显示" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="选择主界面要显示的倒计时单位" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <StackPanel Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="显示天数" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="显示小时" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="显示分钟" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="显示秒数" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 进度显示 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel>
+                    <TextBlock Text="进度显示" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="高中生活进度条的显示选项" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <StackPanel Margin="0,10,0,0">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="显示进度条" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Text="显示英文进度" VerticalAlignment="Center"/>
+                            <ToggleSwitch Grid.Column="1" IsChecked="True"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*,Auto" Margin="0,8,0,0">
+                            <TextBlock Text="进度小数位数" VerticalAlignment="Center"/>
+                            <ComboBox Grid.Column="1" Width="120"
+                                      SelectedIndex="1">
+                                <ComboBoxItem Content="0 位"/>
+                                <ComboBoxItem Content="1 位"/>
+                                <ComboBoxItem Content="2 位"/>
+                            </ComboBox>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 透明度 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel>
+                    <TextBlock Text="窗口透明度" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="拖动滑杆调节主窗口不透明度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+                        <Slider Minimum="0.1" Maximum="1" Value="1"/>
+                        <TextBlock Grid.Column="1" Text="100%" Width="44"
+                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

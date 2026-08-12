@@ -1,0 +1,59 @@
+<UserControl x:Class="StudyJourney.Avalonia.Views.Settings.AppearancePage"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="clr-namespace:FluentAvalonia.UI.Controls;assembly=FluentAvalonia">
+    <ScrollViewer>
+        <StackPanel Margin="0,8,16,16">
+
+            <!-- 字号 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel>
+                    <TextBlock Text="倒计时字号" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="数字的显示大小（40 - 120）" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+                        <Slider Minimum="40" Maximum="120" Value="96"/>
+                        <TextBlock Grid.Column="1" Text="96" Width="44"
+                                   HorizontalAlignment="Right" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- 数字颜色 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel>
+                    <TextBlock Text="数字颜色" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="选择天数数字的高亮颜色" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Border Width="32" Height="32" CornerRadius="6" Background="#FF2B6CB0"/>
+                        <Border Width="32" Height="32" CornerRadius="6" Background="#FF4CAF50"/>
+                        <Border Width="32" Height="32" CornerRadius="6" Background="#FFFF4444"/>
+                        <Border Width="32" Height="32" CornerRadius="6" Background="#FFFF8844"/>
+                        <Border Width="32" Height="32" CornerRadius="6" Background="#FF00B4FF"/>
+                        <Button Content="自定义…" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- 字体 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" Padding="20,16">
+                <StackPanel>
+                    <TextBlock Text="中文字体" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="标签文字使用的字体" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,12,0,0">
+                        <TextBlock Text="默认字体" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" Width="180" SelectedIndex="0">
+                            <ComboBoxItem Content="默认字体"/>
+                            <ComboBoxItem Content="微软雅黑"/>
+                            <ComboBoxItem Content="宋体"/>
+                            <ComboBoxItem Content="黑体"/>
+                        </ComboBox>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

@@ -85,6 +85,7 @@
                 <StackPanel Orientation="Horizontal" Spacing="10">
                     <Button x:Name="ClickThroughBtn" Content="切换点击穿透"
                             Click="ClickThroughBtn_Click"/>
+                    <Button Content="打开设置" Click="OpenSettingsBtn_Click"/>
                     <Button Content="退出" Click="ExitBtn_Click"/>
                 </StackPanel>
             </StackPanel>

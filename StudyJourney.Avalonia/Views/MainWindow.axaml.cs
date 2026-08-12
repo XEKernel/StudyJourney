@@ -85,6 +85,12 @@ public partial class MainWindow : FAAppWindow
         Close();
     }
 
+    private void OpenSettingsBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        var win = new SettingsWindow();
+        win.Show(this);
+    }
+
     /// <summary>切换 WS_EX_TRANSPARENT 点击穿透（Avalonia 拿 HWND 后走 Win32）</summary>
     private void ToggleClickThrough()
     {
