@@ -33,8 +33,12 @@ namespace GaokaoCountdown.ViewModels
         {
             _manager = manager;
             _settings = settings;
+            Weather = new WeatherViewModel(settings);
             RefreshColors();
         }
+
+        /// <summary>共享天气（文本走绑定；样式由 View 应用）</summary>
+        public WeatherViewModel Weather { get; }
 
         /// <summary>设置变更后调用：重建倒计时颜色画刷</summary>
         public void RefreshColors()

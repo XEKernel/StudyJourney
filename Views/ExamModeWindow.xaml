@@ -99,12 +99,16 @@
             <!-- 天气信息行 -->
             <StackPanel x:Name="WeatherRow2" Visibility="Collapsed"
                         Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,6,0,0">
-                <TextBlock x:Name="W2IconTb" FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <TextBlock x:Name="W2CityTb" FontSize="12" Foreground="#88FFFFFF"
+                <TextBlock x:Name="W2IconTb" Text="{Binding Weather.IconText}"
+                           FontSize="14" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <TextBlock x:Name="W2CityTb" Text="{Binding Weather.City}"
+                           FontSize="12" Foreground="#88FFFFFF"
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock x:Name="W2WeatherTb" FontSize="12" Foreground="#88FFFFFF"
+                <TextBlock x:Name="W2WeatherTb" Text="{Binding Weather.Weather}"
+                           FontSize="12" Foreground="#88FFFFFF"
                            VerticalAlignment="Center" Margin="0,0,8,0"/>
-                <TextBlock x:Name="W2TempTb" FontSize="13" FontWeight="Bold"
+                <TextBlock x:Name="W2TempTb" Text="{Binding Weather.TempText}"
+                           FontSize="13" FontWeight="Bold"
                            Foreground="#FF88CCFF" VerticalAlignment="Center"/>
             </StackPanel>
             <!-- 时间提醒 -->

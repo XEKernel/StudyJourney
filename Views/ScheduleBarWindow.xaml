@@ -140,18 +140,24 @@
                     <StackPanel Grid.Column="3" x:Name="WeatherRow" Visibility="Collapsed"
                                 VerticalAlignment="Center" Margin="10,0,4,0">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="WeatherIconTb" FontSize="12"
+                            <TextBlock x:Name="WeatherIconTb" Text="{Binding Weather.IconText}"
+                                       FontSize="12"
                                        VerticalAlignment="Center" Margin="0,0,3,0"/>
-                            <TextBlock x:Name="WeatherTempTb" FontSize="11" FontWeight="Bold"
+                            <TextBlock x:Name="WeatherTempTb" Text="{Binding Weather.TempText}"
+                                       FontSize="11" FontWeight="Bold"
                                        Foreground="#FF88CCFF" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock x:Name="WeatherCityTb" FontSize="9"
+                        <TextBlock x:Name="WeatherCityTb" Text="{Binding Weather.City}"
+                                   FontSize="9"
                                    Foreground="#88FFFFFF" Margin="0,1,0,0"/>
-                        <TextBlock x:Name="WeatherTb" FontSize="9"
+                        <TextBlock x:Name="WeatherTb" Text="{Binding Weather.Weather}"
+                                   FontSize="9"
                                    Foreground="#88FFFFFF"/>
-                        <TextBlock x:Name="WeatherWindTb" FontSize="8"
+                        <TextBlock x:Name="WeatherWindTb" Text="{Binding Weather.WindText}"
+                                   FontSize="8"
                                    Foreground="#66FFFFFF" Visibility="Collapsed"/>
-                        <TextBlock x:Name="WeatherHumidityTb" FontSize="8"
+                        <TextBlock x:Name="WeatherHumidityTb" Text="{Binding Weather.HumidityText}"
+                                   FontSize="8"
                                    Foreground="#66FFFFFF" Visibility="Collapsed"/>
                     </StackPanel>
                 </Grid>

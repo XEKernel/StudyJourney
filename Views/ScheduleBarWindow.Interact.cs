@@ -224,52 +224,45 @@ namespace GaokaoCountdown.Views
             _expandTimer.Start();
         }
 
-        // ── 天气加载（复用 WeatherWindow 逻辑）───────────────
+        // ── 天气加载（文本由 WeatherViewModel 绑定，这里只做样式 + 显隐动画）──
         public async System.Threading.Tasks.Task LoadWeatherAsync()
         {
-            try
+            var weather = ViewModel?.Weather;
+            if (weather == null) return;
+
+            await weather.LoadAsync();
+            // 失败保持原样（City 为空 = 未取到数据）
+            if (string.IsNullOrEmpty(weather.City)) return;
+
+            await Dispatcher.InvokeAsync(() =>
             {
-                var result = await WeatherService.FetchAsync(_settings.WeatherCity, _settings.WeatherAdcode);
-                if (result == null) return;
+                double weatherFs = _settings.WeatherFontSize;
+                if (weatherFs <= 0) weatherFs = 14;
+                WeatherIconTb.FontSize = weatherFs * 0.86;
+                WeatherCityTb.FontSize = weatherFs * 0.72;
+                WeatherTb.FontSize = weatherFs * 0.72;
+                WeatherTempTb.FontSize = weatherFs * 0.8;
+                WeatherWindTb.FontSize = weatherFs * 0.65;
+                WeatherHumidityTb.FontSize = weatherFs * 0.65;
 
-                await Dispatcher.InvokeAsync(() =>
+                WeatherCityTb.Foreground = ColorUtils.ParseColor(_settings.WeatherCityColor, "#FFFFFFFF");
+                WeatherTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
+                WeatherWindTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
+                WeatherHumidityTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
+                WeatherTempTb.Foreground = ColorUtils.ParseColor(_settings.WeatherTempColor, "#FFFF8844");
+                WeatherIconTb.Foreground = ColorUtils.ParseColor(_settings.WeatherIconColor, "#FFFFAA00");
+
+                if (WeatherRow.Visibility != Visibility.Visible)
                 {
-                    double weatherFs = _settings.WeatherFontSize;
-                    if (weatherFs <= 0) weatherFs = 14;
-                    WeatherIconTb.FontSize = weatherFs * 0.86;
-                    WeatherCityTb.FontSize = weatherFs * 0.72;
-                    WeatherTb.FontSize = weatherFs * 0.72;
-                    WeatherTempTb.FontSize = weatherFs * 0.8;
-                    WeatherWindTb.FontSize = weatherFs * 0.65;
-                    WeatherHumidityTb.FontSize = weatherFs * 0.65;
-
-                    WeatherCityTb.Foreground = ColorUtils.ParseColor(_settings.WeatherCityColor, "#FFFFFFFF");
-                    WeatherTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
-                    WeatherWindTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
-                    WeatherHumidityTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
-                    WeatherTempTb.Foreground = ColorUtils.ParseColor(_settings.WeatherTempColor, "#FFFF8844");
-                    WeatherIconTb.Foreground = ColorUtils.ParseColor(_settings.WeatherIconColor, "#FFFFAA00");
-
-                    WeatherIconTb.Text = ColorUtils.GetWeatherEmoji(result.WeatherIcon);
-                    WeatherCityTb.Text = result.Location;
-                    WeatherTb.Text = result.Weather;
-                    WeatherTempTb.Text = $"{result.Temperature}°";
-                    WeatherWindTb.Text = !string.IsNullOrWhiteSpace(result.WindDirection)
-                        ? $"{result.WindDirection} {result.WindPower}".Trim() : "--";
-                    WeatherHumidityTb.Text = result.Humidity > 0 ? $"{result.Humidity}%" : "--";
-                    if (WeatherRow.Visibility != Visibility.Visible)
+                    WeatherRow.Visibility = Visibility.Visible;
+                    WeatherRow.Opacity = 0;
+                    var weatherFadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(500))
                     {
-                        WeatherRow.Visibility = Visibility.Visible;
-                        WeatherRow.Opacity = 0;
-                        var weatherFadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(500))
-                        {
-                            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-                        };
-                        WeatherRow.BeginAnimation(UIElement.OpacityProperty, weatherFadeIn);
-                    }
-                });
-            }
-            catch { /* 网络异常静默 */ }
+                        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+                    };
+                    WeatherRow.BeginAnimation(UIElement.OpacityProperty, weatherFadeIn);
+                }
+            });
         }
 
         private void StartWeatherTimer()

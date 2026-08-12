@@ -70,7 +70,7 @@ namespace GaokaoCountdown.Views
             InitializeComponent();
 
             // MVVM：状态文本/倒计时/进度绑定 ViewModel
-            ViewModel = new ViewModels.ScheduleBarViewModel(manager);
+            ViewModel = new ViewModels.ScheduleBarViewModel(manager, settings);
             DataContext = ViewModel;
 
             // 订阅 60 秒倒计时

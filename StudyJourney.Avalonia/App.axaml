@@ -1,10 +1,12 @@
 <Application x:Class="StudyJourney.Avalonia.App"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:styling="clr-namespace:FluentAvalonia.Styling;assembly=FluentAvalonia">
+             xmlns:styling="clr-namespace:FluentAvalonia.Styling;assembly=FluentAvalonia"
+             RequestedThemeVariant="Dark">
     <!--
         FluentAvalonia 主题 = WinUI 3 风格（ClassIsland 同款方案）
         CustomAccentColor 用学程品牌色 校园蓝 #2B6CB0（ClassIsland 是 DodgerBlue）
+        强制 Dark：保证 Mica 深色材质 + 白色前景
     -->
     <Application.Styles>
         <styling:FluentAvaloniaTheme CustomAccentColor="#2B6CB0"

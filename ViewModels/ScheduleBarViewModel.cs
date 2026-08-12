@@ -29,10 +29,14 @@ namespace GaokaoCountdown.ViewModels
             return br;
         }
 
-        public ScheduleBarViewModel(ScheduleManager manager)
+        public ScheduleBarViewModel(ScheduleManager manager, AppSettings settings)
         {
             _manager = manager;
+            Weather = new WeatherViewModel(settings);
         }
+
+        /// <summary>共享天气（文本走绑定；样式由 View 应用）</summary>
+        public WeatherViewModel Weather { get; }
 
         // ── 时间/日期 ─────────────────────────────────────────
         [ObservableProperty]

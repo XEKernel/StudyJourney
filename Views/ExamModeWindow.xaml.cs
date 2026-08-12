@@ -293,36 +293,32 @@ namespace GaokaoCountdown.Views
             }
         }
 
-        // ── 天气加载 ──────────────────────────────────────────
+        // ── 天气加载（文本由 WeatherViewModel 绑定，这里只做样式 + 显隐动画）──
         public async System.Threading.Tasks.Task LoadWeatherAsync()
         {
-            try
+            var weather = ViewModel?.Weather;
+            if (weather == null) return;
+
+            await weather.LoadAsync();
+            // 失败保持原样（City 为空 = 未取到数据）
+            if (string.IsNullOrEmpty(weather.City)) return;
+
+            await Dispatcher.InvokeAsync(() =>
             {
-                var result = await WeatherService.FetchAsync(_settings.WeatherCity, _settings.WeatherAdcode);
-                if (result == null) return;
+                double weatherFs = _settings.WeatherFontSize;
+                if (weatherFs <= 0) weatherFs = 14;
+                W2IconTb.FontSize = weatherFs * 1.0;
+                W2CityTb.FontSize = weatherFs * 0.86;
+                W2WeatherTb.FontSize = weatherFs * 0.86;
+                W2TempTb.FontSize = weatherFs * 0.93;
 
-                await Dispatcher.InvokeAsync(() =>
-                {
-                    double weatherFs = _settings.WeatherFontSize;
-                    if (weatherFs <= 0) weatherFs = 14;
-                    W2IconTb.FontSize = weatherFs * 1.0;
-                    W2CityTb.FontSize = weatherFs * 0.86;
-                    W2WeatherTb.FontSize = weatherFs * 0.86;
-                    W2TempTb.FontSize = weatherFs * 0.93;
+                W2CityTb.Foreground = ColorUtils.ParseColor(_settings.WeatherCityColor, "#FFFFFFFF");
+                W2WeatherTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
+                W2TempTb.Foreground = ColorUtils.ParseColor(_settings.WeatherTempColor, "#FFFF8844");
+                W2IconTb.Foreground = ColorUtils.ParseColor(_settings.WeatherIconColor, "#FFFFAA00");
 
-                    W2CityTb.Foreground = ColorUtils.ParseColor(_settings.WeatherCityColor, "#FFFFFFFF");
-                    W2WeatherTb.Foreground = ColorUtils.ParseColor(_settings.WeatherInfoColor, "#FFCCCCDD");
-                    W2TempTb.Foreground = ColorUtils.ParseColor(_settings.WeatherTempColor, "#FFFF8844");
-                    W2IconTb.Foreground = ColorUtils.ParseColor(_settings.WeatherIconColor, "#FFFFAA00");
-
-                    W2IconTb.Text = ColorUtils.GetWeatherEmoji(result.WeatherIcon);
-                    W2CityTb.Text = result.Location;
-                    W2WeatherTb.Text = result.Weather;
-                    W2TempTb.Text = $"{result.Temperature}°";
-                    WeatherRow2.Visibility = Visibility.Visible;
-                });
-            }
-            catch { }
+                WeatherRow2.Visibility = Visibility.Visible;
+            });
         }
 
         private void StartWeatherTimer()

@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
@@ -29,6 +30,9 @@ public partial class MainWindow : AppWindow
     public MainWindow()
     {
         InitializeComponent();
+
+        // 手动放到屏幕左下角，避开 IDE 桌面遮挡，方便截图与查看
+        Position = new global::Avalonia.PixelPoint(40, 480);
 
         // FA 标题栏：内容延伸到标题栏区域，WinUI 3 风格（ClassIsland 同款做法）
         TitleBar.ExtendsContentIntoTitleBar = true;
