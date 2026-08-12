@@ -1,11 +1,10 @@
-name: Build & Release
+name: Build & Release (Avalonia)
 
 on:
   push:
     branches: [ "main" ]
     paths-ignore:
       - '**.md'
-      - '**.txt'
       - 'schedule_example.json'
       - '.workbuddy/**'
       - '.gitignore'
@@ -22,9 +21,8 @@ jobs:
   build:
     runs-on: windows-latest
     env:
-      Solution_Name: 学程.sln
-      Project_Name: 学程.csproj
-      Project_Directory: .
+      Project_Path: StudyJourney.Avalonia/StudyJourney.Avalonia.csproj
+      Updater_Path: Updater/StudyJourney.Updater.csproj
 
     steps:
       - name: Checkout
@@ -32,117 +30,59 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup .NET 8
+      - name: Setup .NET 10
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
+      # 读取版本号（支持 2.0.0-beta 这种预发布格式），并判断是否 prerelease
       - name: Read version from csproj
         id: version
-        run: |
-          $xml = [xml](Get-Content "${{ env.Project_Name }}")
-          $propGroups = @($xml.Project.PropertyGroup)
-          $verNode = $propGroups |
-            ForEach-Object { $_.AssemblyVersion, $_.Version, $_.PackageVersion } |
-            Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } |
-            Select-Object -First 1
-          $ver = [string]$verNode
-          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = "1.7.0" }
-          if ($ver -match '(\d+\.\d+\.\d+)') { $ver = $Matches[1] } else { $ver = "1.7.0" }
-          echo "version=$ver" >> $env:GITHUB_OUTPUT
-          Write-Host "Version: $ver"
         shell: pwsh
+        run: |
+          $xml = [xml](Get-Content "${{ env.Project_Path }}")
+          $ver = [string]$xml.Project.PropertyGroup.Version
+          if ([string]::IsNullOrWhiteSpace($ver)) { $ver = "2.0.0-beta" }
+          $ver = $ver.Trim()
+          $isPre = $ver -match '(alpha|beta|rc|pre)'
+          echo "version=$ver" >> $env:GITHUB_OUTPUT
+          echo "prerelease=$isPre" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $ver (prerelease: $isPre)"
 
       - name: Restore
-        run: dotnet restore ${{ env.Solution_Name }}
+        run: dotnet restore ${{ env.Project_Path }}
 
       - name: Build (Debug)
-        run: dotnet build ${{ env.Solution_Name }} -c Debug --no-restore
+        run: dotnet build ${{ env.Project_Path }} -c Debug --no-restore
 
-      # ── 发布三个项目 ──
+      # ── 发布主应用（自包含 + 框架依赖） ──
       - name: Publish (Self-contained, x64)
-        run: dotnet publish ${{ env.Project_Name }} -c Release -r win-x64 --self-contained true -o publish/sc
+        run: dotnet publish ${{ env.Project_Path }} -c Release -r win-x64 --self-contained true -o publish/sc
 
       - name: Publish (Framework-dependent, x64)
-        run: dotnet publish ${{ env.Project_Name }} -c Release -r win-x64 --self-contained false -o publish/fd
+        run: dotnet publish ${{ env.Project_Path }} -c Release -r win-x64 --self-contained false -o publish/fd
 
-      - name: Publish Updater (SC)
-        run: dotnet publish Updater/StudyJourney.Updater.csproj -c Release -r win-x64 --self-contained true -o publish/updater
+      - name: Publish Updater
+        run: dotnet publish ${{ env.Updater_Path }} -c Release -r win-x64 --self-contained true -o publish/updater
 
       - name: Copy Updater to both outputs
+        shell: pwsh
         run: |
           Copy-Item -Path publish\updater\StudyJourney.Updater.exe -Destination publish\sc\ -Force
           Copy-Item -Path publish\updater\StudyJourney.Updater.exe -Destination publish\fd\ -Force
-        shell: pwsh
-
-      # ── 代码签名（两个版本） ──
-      - name: Import signing certificate
-        if: github.event_name == 'push'
-        run: |
-          $bytes = [System.Convert]::FromBase64String("${{ secrets.BASE64_ENCODED_PFX }}")
-          [System.IO.File]::WriteAllBytes("${{ env.Project_Directory }}\StudyJourney.pfx", $bytes)
-        shell: pwsh
-
-      - name: Find signtool
-        if: github.event_name == 'push'
-        id: find_signtool
-        run: |
-          $sdk = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*" -Directory | Sort-Object Name -Descending | Select-Object -First 1
-          $signtool = Join-Path $sdk.FullName "x64\signtool.exe"
-          echo "signtool_path=$signtool" >> $env:GITHUB_OUTPUT
-          Write-Host "signtool: $signtool"
-        shell: pwsh
-
-      - name: Sign SC binaries
-        if: github.event_name == 'push'
-        run: |
-          $tool = "${{ steps.find_signtool.outputs.signtool_path }}"
-          & $tool sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\sc\学程.exe"
-          & $tool sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\sc\学程.dll"
-        shell: pwsh
-
-      - name: Sign FD binaries
-        if: github.event_name == 'push'
-        run: |
-          $tool = "${{ steps.find_signtool.outputs.signtool_path }}"
-          & $tool sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\fd\学程.exe"
-          & $tool sign /fd SHA256 /f "${{ env.Project_Directory }}\StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "${{ env.Project_Directory }}\publish\fd\学程.dll"
-        shell: pwsh
-
-      - name: Verify SC signatures
-        if: github.event_name == 'push'
-        run: |
-          Import-PfxCertificate -FilePath "${{ env.Project_Directory }}\StudyJourney.pfx" -CertStoreLocation Cert:\LocalMachine\Root -Password (ConvertTo-SecureString -String "${{ secrets.PFX_PASSWORD }}" -AsPlainText -Force) -Exportable
-          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\sc\学程.exe"
-          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\sc\学程.dll"
-          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\fd\学程.exe"
-          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "${{ env.Project_Directory }}\publish\fd\学程.dll"
-        shell: pwsh
-
-      - name: Remove from trusted root
-        if: always() && github.event_name == 'push'
-        run: |
-          $certs = Get-ChildItem Cert:\LocalMachine\Root | Where-Object { $_.Subject -eq "CN=XEKernel, O=XEKernel, L=Anhui, C=CN" }
-          foreach ($c in $certs) { Remove-Item $c.PSPath -Force }
-        shell: pwsh
-
-      - name: Remove certificate
-        if: always() && github.event_name == 'push'
-        run: Remove-Item -Path "${{ env.Project_Directory }}\StudyJourney.pfx" -Force -ErrorAction SilentlyContinue
-        shell: pwsh
 
       # ── 打包（带版本号） ──
       - name: Pack SC zip
+        shell: pwsh
         run: |
           cd publish\sc
           powershell Compress-Archive -Path * -DestinationPath ..\..\StudyJourney-v${{ steps.version.outputs.version }}-win-x64.zip
-        shell: pwsh
 
       - name: Pack FD zip
+        shell: pwsh
         run: |
           cd publish\fd
           powershell Compress-Archive -Path * -DestinationPath ..\..\StudyJourney-v${{ steps.version.outputs.version }}-win-x64-fd.zip
-        shell: pwsh
 
       - name: Create Release & Upload
         if: github.event_name == 'push'
@@ -150,18 +90,20 @@ jobs:
         with:
           name: 学程 v${{ steps.version.outputs.version }}
           tag_name: v${{ steps.version.outputs.version }}
+          prerelease: ${{ steps.version.outputs.prerelease }}
           body: |
-            ## 学程 v${{ steps.version.outputs.version }}
+            ## 学程 v${{ steps.version.outputs.version }}（Avalonia 新框架）
 
             **自包含版** (`-win-x64.zip`)：无需安装 .NET，直接运行。体积较大。
-            **框架依赖版** (`-win-x64-fd.zip`)：需安装 [.NET 8 桌面运行时](https://dotnet.microsoft.com/download/dotnet/8.0)。体积较小。
+            **框架依赖版** (`-win-x64-fd.zip`)：需安装 [.NET 10 桌面运行时](https://dotnet.microsoft.com/download/dotnet/10.0)。体积较小。
+
+            ${{ steps.version.outputs.prerelease == 'true' && '> ⚠️ 这是预发布测试版，可能存在未修复的小问题。' || '' }}
 
             > 自动构建 · `${{ github.sha }}`
             > ${{ github.event.head_commit.message }}
           files: |
             StudyJourney-v${{ steps.version.outputs.version }}-win-x64.zip
             StudyJourney-v${{ steps.version.outputs.version }}-win-x64-fd.zip
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

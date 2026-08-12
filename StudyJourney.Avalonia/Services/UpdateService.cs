@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -28,15 +29,24 @@ public static class UpdateService
         DefaultRequestHeaders = { { "User-Agent", "StudyJourney-UpdateCheck" } }
     };
 
-    /// <summary>获取当前应用版本号（从 Assembly 读取）</summary>
+    /// <summary>获取当前应用版本号（优先 InformationalVersion，可含 -beta 后缀）</summary>
     private static readonly Lazy<string> _currentVersion = new(() =>
     {
         try
         {
-            var ver = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
-            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "1.7.0";
+            var asm = Assembly.GetExecutingAssembly();
+            // InformationalVersion = "2.0.0-beta" 或 "2.0.0-beta+hash"，取 + 之前
+            var info = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+            if (!string.IsNullOrWhiteSpace(info))
+            {
+                var idx = info.IndexOf('+');
+                if (idx >= 0) info = info[..idx];
+                if (!string.IsNullOrWhiteSpace(info)) return info.Trim();
+            }
+            var ver = asm.GetName().Version;
+            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.0.0-beta";
         }
-        catch { return "1.7.0"; }
+        catch { return "2.0.0-beta"; }
     });
 
     public static string CurrentVersion => _currentVersion.Value;
