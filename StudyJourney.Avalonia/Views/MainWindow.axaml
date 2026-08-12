@@ -1,99 +1,67 @@
-<ui:FAAppWindow x:Class="StudyJourney.Avalonia.Views.MainWindow"
+<Window x:Class="StudyJourney.Avalonia.Views.MainWindow"
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:ui="clr-namespace:FluentAvalonia.UI.Windowing;assembly=FluentAvalonia"
-        Title="学程 · Avalonia 原型"
-        Width="380" Height="540"
-        WindowStartupLocation="Manual"
+        Title="学程"
         WindowDecorations="None"
-        ExtendClientAreaToDecorationsHint="True"
-        TransparencyLevelHint="Mica"
+        TransparencyLevelHint="None"
         Background="Transparent"
-        Topmost="True"
-        Opened="Window_Opened">
+        SizeToContent="WidthAndHeight"
+        CanResize="False"
+        ShowInTaskbar="False"
+        Opened="Window_Opened"
+        PointerPressed="Window_PointerPressed">
 
-    <!--
-        阶段 0 骨架：WinUI 3 Mica 材质（Win11 系统级云母背景，ClassIsland 同款配方）
-        WinUI 3 风格：无外层卡片，内容直接铺在 Mica 材质上
-    -->
-    <Grid RowDefinitions="40,Auto,*,Auto,Auto,Auto">
+    <!-- 桌面小组件：圆角卡片 + 倒计时 + 进度 + 一言（对齐学程 WPF 主窗口布局） -->
+    <Border CornerRadius="12"
+            Background="#F21A1A2E"
+            BorderBrush="#33FFFFFF"
+            BorderThickness="1"
+            Padding="20,14"
+            BoxShadow="0 8 24 2 #66000000">
+        <StackPanel Spacing="4">
 
-        <!-- 顶部留白给 FA 内置 TitleBar（AppWindow 自带） -->
-        <Border Grid.Row="0" Background="Transparent"/>
-
-        <!-- 副标题行 -->
-        <TextBlock Grid.Row="1"
-                   Text="阶段 0 骨架验证 · Avalonia 11.3.17 + FluentAvaloniaUI 2.4.1"
-                   FontSize="11" Foreground="#88FFFFFF"
-                   HorizontalAlignment="Center" Margin="0,2,0,0"/>
-
-        <!-- ── 高考倒计时区 ── -->
-        <StackPanel Grid.Row="2" VerticalAlignment="Center" Spacing="10">
-            <TextBlock Text="距离高考还有"
-                       FontSize="18" Foreground="#FFFFFFFF"
-                       HorizontalAlignment="Center"/>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock x:Name="DaysTb" Text="0"
-                           FontSize="96" FontWeight="Bold"
-                           Foreground="#FF2B6CB0"/>
-                <TextBlock Text="天" FontSize="26" Foreground="#FFFFFFFF"
-                           VerticalAlignment="Bottom" Margin="8,0,0,16"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <TextBlock x:Name="HoursTb" Text="00"
-                           FontSize="42" FontWeight="Bold" Foreground="#FF4CAF50"/>
-                <TextBlock Text="小时" FontSize="15" Foreground="#AAFFFFFF"
-                           VerticalAlignment="Bottom" Margin="6,0,0,8"/>
-                <TextBlock x:Name="MinutesTb" Text="00"
-                           FontSize="42" FontWeight="Bold" Foreground="#FF4CAF50" Margin="20,0,0,0"/>
-                <TextBlock Text="分" FontSize="15" Foreground="#AAFFFFFF"
-                           VerticalAlignment="Bottom" Margin="6,0,0,8"/>
-                <TextBlock x:Name="SecondsTb" Text="00"
-                           FontSize="42" FontWeight="Bold" Foreground="#FF4CAF50" Margin="20,0,0,0"/>
-                <TextBlock Text="秒" FontSize="15" Foreground="#AAFFFFFF"
-                           VerticalAlignment="Bottom" Margin="6,0,0,8"/>
+            <!-- 中文倒计时行 -->
+            <StackPanel x:Name="ChineseRow" Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock x:Name="ChinesePrefixTb" Text="距离高考还有 " FontSize="40" Foreground="#FFFFFFFF"/>
+                <TextBlock x:Name="DaysTb" Text="0" FontSize="40" FontWeight="Bold" Foreground="#FF2B6CB0"/>
+                <TextBlock x:Name="ChineseDaysTb" Text="天 " FontSize="40" Foreground="#FFFFFFFF"/>
+                <TextBlock x:Name="HoursTb" Text="00" FontSize="40" FontWeight="Bold" Foreground="#FF2B6CB0"/>
+                <TextBlock x:Name="ChineseHoursTb" Text="小时 " FontSize="40" Foreground="#FFFFFFFF"/>
+                <TextBlock x:Name="MinutesTb" Text="00" FontSize="40" FontWeight="Bold" Foreground="#FF2B6CB0"/>
+                <TextBlock x:Name="ChineseMinutesTb" Text="分 " FontSize="40" Foreground="#FFFFFFFF"/>
+                <TextBlock x:Name="SecondsTb" Text="00" FontSize="40" FontWeight="Bold" Foreground="#FF2B6CB0"/>
+                <TextBlock x:Name="ChineseSecondsTb" Text="秒" FontSize="40" Foreground="#FFFFFFFF"/>
             </StackPanel>
 
             <!-- 进度条 -->
-            <ProgressBar x:Name="ProgressBar" Height="8"
-                         Margin="40,6,40,0" Minimum="0" Maximum="100" Value="35"/>
-            <TextBlock x:Name="ProgressText"
-                       Text="高中生活已过去 35.0%"
-                       FontSize="12" Foreground="#88FFFFFF"
-                       HorizontalAlignment="Center"/>
-        </StackPanel>
+            <ProgressBar x:Name="ProgressBar" Height="6" Minimum="0" Maximum="100" Margin="0,6,0,0"/>
 
-        <!-- ── 演示区：Fluent 控件（WinUI 3 分层面板）── -->
-        <Border Grid.Row="4" Margin="16,8,16,12" Padding="16,12"
-                CornerRadius="8" Background="#1AFFFFFF">
-            <StackPanel Spacing="12">
-                <TextBlock Text="阶段 0 验证：Mica 材质 + Fluent 控件"
-                           FontSize="12" Foreground="#AAFFFFFF"/>
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <TextBlock Text="窗口置顶" FontSize="13" Foreground="#CCFFFFFF"
-                               VerticalAlignment="Center"/>
-                    <ToggleSwitch x:Name="TopmostSwitch" IsChecked="True"
-                                  IsCheckedChanged="TopmostSwitch_Changed"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                    <TextBlock Text="透明度" FontSize="13" Foreground="#CCFFFFFF"
-                               VerticalAlignment="Center"/>
-                    <Slider x:Name="OpacitySlider" Minimum="0.3" Maximum="1"
-                            Value="1" Width="150"
-                            ValueChanged="OpacitySlider_ValueChanged"/>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Button x:Name="ClickThroughBtn" Content="切换点击穿透"
-                            Click="ClickThroughBtn_Click"/>
-                    <Button Content="打开设置" Click="OpenSettingsBtn_Click"/>
-                    <Button Content="退出" Click="ExitBtn_Click"/>
-                </StackPanel>
+            <!-- 中文进度文本 -->
+            <TextBlock x:Name="ProgressText" FontSize="12" Foreground="#FFFFFFFF"
+                       HorizontalAlignment="Center" Margin="0,2,0,0"/>
+
+            <!-- 英文倒计时行 -->
+            <StackPanel x:Name="EnglishRow" Orientation="Horizontal" HorizontalAlignment="Center">
+                <TextBlock x:Name="EnglishPrefixTb" Text="There are " FontSize="13" Foreground="#FFD3D3D3"/>
+                <TextBlock x:Name="DaysEnTb" Text="0" FontSize="13" FontWeight="Bold" Foreground="#FF2B6CB0"/>
+                <TextBlock x:Name="EnglishDaysTb" Text=", days " FontSize="13" Foreground="#FFD3D3D3"/>
+                <TextBlock x:Name="HoursEnTb" Text="00" FontSize="13" FontWeight="Bold" Foreground="#FF2B6CB0"/>
+                <TextBlock x:Name="EnglishHoursTb" Text=", hours " FontSize="13" Foreground="#FFD3D3D3"/>
+                <TextBlock x:Name="MinutesEnTb" Text="00" FontSize="13" FontWeight="Bold" Foreground="#FF2B6CB0"/>
+                <TextBlock x:Name="EnglishMinutesTb" Text=", minutes, and " FontSize="13" Foreground="#FFD3D3D3"/>
+                <TextBlock x:Name="SecondsEnTb" Text="00" FontSize="13" FontWeight="Bold" Foreground="#FF2B6CB0"/>
+                <TextBlock x:Name="EnglishSecondsTb" Text=" seconds." FontSize="13" Foreground="#FFD3D3D3"/>
             </StackPanel>
-        </Border>
 
-        <TextBlock Grid.Row="5"
-                   Text="提示：开启点击穿透后窗口不再响应鼠标，按 Alt+F4 退出"
-                   FontSize="10" Foreground="#55FFFFFF"
-                   HorizontalAlignment="Center" Margin="0,0,0,8"/>
-    </Grid>
-</ui:FAAppWindow>
+            <!-- 自定义倒计时 -->
+            <TextBlock x:Name="CustomCountdownTb" FontSize="12" Foreground="#FFFFCC88"
+                       HorizontalAlignment="Center" IsVisible="False"/>
+
+            <!-- 每日一言 -->
+            <TextBlock x:Name="DailyQuoteTb" FontSize="12" Foreground="#FFAAAAAA"
+                       FontStyle="Italic" HorizontalAlignment="Center"
+                       IsVisible="False" TextTrimming="CharacterEllipsis" MaxWidth="760"/>
+
+        </StackPanel>
+    </Border>
+</Window>

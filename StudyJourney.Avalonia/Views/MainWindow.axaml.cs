@@ -1,47 +1,56 @@
 using System;
-using System.Runtime.InteropServices;
+using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Threading;
 using Avalonia.Media;
-using FluentAvalonia.UI.Windowing;
+using Avalonia.Threading;
+using StudyJourney.Avalonia.Models;
+using StudyJourney.Avalonia.Views.Settings;
 
 namespace StudyJourney.Avalonia.Views;
 
-/// <summary>阶段 0 骨架窗口：验证 FluentAvalonia 主题 + 无边框透明置顶 + 点击穿透 + 倒计时渲染</summary>
-public partial class MainWindow : FAAppWindow
+/// <summary>
+/// 桌面小组件主窗口（对齐学程 WPF 主窗口）：
+/// 无边框圆角卡片 + 倒计时 + 进度 + 自定义倒计时 + 每日一言；
+/// 位置预设/透明度/字号/颜色/显示单位全部从 App.Settings 读取，设置保存后自动刷新。
+/// </summary>
+public partial class MainWindow : Window
 {
-    // ── Win32：点击穿透（与 WPF 版同一套 API）────────────────
-    [DllImport("user32.dll")]
-    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
-    [DllImport("user32.dll")]
-    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-
-    private const int GWL_EXSTYLE = -20;
-    private const int WS_EX_TRANSPARENT = 0x00000020;
-
-    private bool _clickThrough;
     private DispatcherTimer? _timer;
     private DateTime _gaokaoDate = new(2027, 6, 7, 9, 0, 0);
     private DateTime _startDate = new(2024, 8, 24);
+    private bool _draggable;   // 自定义位置模式可拖动
 
     public MainWindow()
     {
         InitializeComponent();
-
-        // 手动放到屏幕左下角，避开 IDE 桌面遮挡，方便截图与查看
-        Position = new global::Avalonia.PixelPoint(40, 480);
-
-        // FA 标题栏：内容延伸到标题栏区域，WinUI 3 风格（FA 3.x 无 TitleBarHitTestType）
-        TitleBar.ExtendsContentIntoTitleBar = true;
-
-        // 从全局设置加载真实日期
         RefreshDates();
+
+        // 设置变更 → 立即应用（设置窗口保存后触发）
+        App.SettingsChanged += OnSettingsChanged;
+        Closed += (_, _) => App.SettingsChanged -= OnSettingsChanged;
     }
 
-    /// <summary>从全局设置解析高考/起算日期（与 WPF 版一致）</summary>
+    private void Window_Opened(object? sender, EventArgs e)
+    {
+        ApplySettings();
+        PositionToPreset();
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _timer.Tick += (_, _) => Tick();
+        _timer.Start();
+        Tick();
+    }
+
+    private void OnSettingsChanged()
+    {
+        RefreshDates();
+        ApplySettings();
+        PositionToPreset();
+        Tick();
+    }
+
     private void RefreshDates()
     {
         var s = App.Settings;
@@ -49,76 +58,167 @@ public partial class MainWindow : FAAppWindow
         if (DateTime.TryParse(s.StartDateStr, out var d)) _startDate = d;
     }
 
-    private void Window_Opened(object? sender, EventArgs e)
+    /// <summary>应用静态样式（透明度/字号/颜色/置顶/显示单位）</summary>
+    private void ApplySettings()
     {
-        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _timer.Tick += (_, _) => Tick();
-        _timer.Start();
-        Tick();
+        var s = App.Settings;
+        Opacity = Math.Clamp(s.OverallOpacity, 0.1, 1.0);
+        Topmost = s.AlwaysOnTop;
+
+        double fs = s.FontSize;
+        if (fs <= 0) fs = 40;
+        ChinesePrefixTb.FontSize = fs;
+        DaysTb.FontSize = fs;
+        ChineseDaysTb.FontSize = fs;
+        HoursTb.FontSize = fs;
+        ChineseHoursTb.FontSize = fs;
+        MinutesTb.FontSize = fs;
+        ChineseMinutesTb.FontSize = fs;
+        SecondsTb.FontSize = fs;
+        ChineseSecondsTb.FontSize = fs;
+
+        DaysTb.Foreground = new SolidColorBrush(s.NumberColor);
+        HoursTb.Foreground = new SolidColorBrush(s.NumberColor);
+        MinutesTb.Foreground = new SolidColorBrush(s.NumberColor);
+        SecondsTb.Foreground = new SolidColorBrush(s.NumberColor);
+        ChinesePrefixTb.Foreground = new SolidColorBrush(s.TextColor);
+        ChineseDaysTb.Foreground = new SolidColorBrush(s.TextColor);
+        ChineseHoursTb.Foreground = new SolidColorBrush(s.TextColor);
+        ChineseMinutesTb.Foreground = new SolidColorBrush(s.TextColor);
+        ChineseSecondsTb.Foreground = new SolidColorBrush(s.TextColor);
+        ProgressBar.Foreground = new SolidColorBrush(s.ProgressBarColor);
+        ProgressText.Foreground = new SolidColorBrush(s.TextColor);
+
+        // 显示单位显隐
+        DaysTb.IsVisible = s.ShowDays;
+        ChineseDaysTb.IsVisible = s.ShowDays;
+        HoursTb.IsVisible = s.ShowHours;
+        ChineseHoursTb.IsVisible = s.ShowHours;
+        MinutesTb.IsVisible = s.ShowMinutes;
+        ChineseMinutesTb.IsVisible = s.ShowMinutes;
+        SecondsTb.IsVisible = s.ShowSeconds;
+        ChineseSecondsTb.IsVisible = s.ShowSeconds;
+
+        EnglishRow.IsVisible = s.ShowEnglishLine;
+        ProgressBar.IsVisible = s.ShowProgressBar;
+        ProgressText.IsVisible = s.ShowProgressText;
+
+        // 自定义位置模式可拖动
+        _draggable = s.PositionPreset == PositionPresetValues.Custom;
     }
 
-    /// <summary>每秒刷新倒计时（读全局 App.Settings 的真实日期与格式）</summary>
+    /// <summary>每秒刷新倒计时与进度</summary>
     private void Tick()
     {
         var now = DateTime.Now;
-        var timeLeft = _gaokaoDate - now;
-
         var s = App.Settings;
-        // 显示单位按设置过滤（天/时/分/秒）
-        if (s.ShowDays) DaysTb.Text = timeLeft.TotalSeconds > 0 ? timeLeft.Days.ToString() : "0";
-        if (s.ShowHours) HoursTb.Text = timeLeft.TotalSeconds > 0 ? timeLeft.Hours.ToString("00") : "00";
-        if (s.ShowMinutes) MinutesTb.Text = timeLeft.TotalSeconds > 0 ? timeLeft.Minutes.ToString("00") : "00";
-        if (s.ShowSeconds) SecondsTb.Text = timeLeft.TotalSeconds > 0 ? timeLeft.Seconds.ToString("00") : "00";
+        var timeLeft = _gaokaoDate - now;
+        bool positive = timeLeft.TotalSeconds > 0;
+
+        DaysTb.Text = positive ? timeLeft.Days.ToString() : "0";
+        HoursTb.Text = positive ? timeLeft.Hours.ToString("00") : "00";
+        MinutesTb.Text = positive ? timeLeft.Minutes.ToString("00") : "00";
+        SecondsTb.Text = positive ? timeLeft.Seconds.ToString("00") : "00";
+        DaysEnTb.Text = DaysTb.Text;
+        HoursEnTb.Text = HoursTb.Text;
+        MinutesEnTb.Text = MinutesTb.Text;
+        SecondsEnTb.Text = SecondsTb.Text;
 
         double totalDays = (_gaokaoDate - _startDate).TotalDays;
         double passed = (now - _startDate).TotalDays;
         double progress = Math.Clamp(passed / totalDays, 0, 1) * 100;
-        if (s.ShowProgressBar) ProgressBar.Value = progress;
-        if (s.ShowProgressText)
+        ProgressBar.Value = progress;
+        string fmt = "F" + s.ProgressDecimalDigits;
+        ProgressText.Text = $"高中生活已过去 {progress.ToString(fmt)}%";
+
+        UpdateCustomCountdown(now);
+    }
+
+    /// <summary>自定义倒计时（显示最近一个未来目标）</summary>
+    private void UpdateCustomCountdown(DateTime now)
+    {
+        var list = App.Settings.CustomCountdowns;
+        if (list == null || list.Count == 0)
         {
-            string fmt = "F" + s.ProgressDecimalDigits;
-            ProgressText.Text = $"高中生活已过去 {progress.ToString(fmt)}%";
+            CustomCountdownTb.IsVisible = false;
+            return;
+        }
+
+        DateTime? nearest = null;
+        string? name = null;
+        foreach (var cc in list)
+        {
+            if (DateTime.TryParse(cc.DateStr, out var dt) && dt > now &&
+                (nearest == null || dt < nearest))
+            {
+                nearest = dt;
+                name = cc.Name;
+            }
+        }
+
+        if (nearest == null)
+        {
+            CustomCountdownTb.IsVisible = false;
+            return;
+        }
+
+        var ts = nearest.Value - now;
+        CustomCountdownTb.Text = $"📅 {name} 还剩 {ts.Days} 天 {ts.Hours:D2}时{ts.Minutes:D2}分";
+        CustomCountdownTb.IsVisible = true;
+    }
+
+    // ── 位置预设（对齐学程 PositionWindow：0顶部/1中上/2居中/3中下/4底部/5自定义）──
+    private void PositionToPreset()
+    {
+        var s = App.Settings;
+        var area = Screens.Primary?.WorkingArea ?? new PixelRect(new PixelPoint(0, 0), new PixelSize(1920, 1080));
+
+        double x;
+        double y;
+        switch (s.PositionPreset)
+        {
+            case PositionPresetValues.Top:
+                x = (area.Width - Width) / 2; y = 10; break;
+            case PositionPresetValues.UpperCenter:
+                x = (area.Width - Width) / 2; y = area.Height / 25.0; break;
+            case PositionPresetValues.Center:
+                x = (area.Width - Width) / 2; y = (area.Height - Height) / 2; break;
+            case PositionPresetValues.LowerCenter:
+                x = (area.Width - Width) / 2; y = area.Height * 0.65; break;
+            case PositionPresetValues.Bottom:
+                x = (area.Width - Width) / 2; y = area.Height - Height - 40; break;
+            case PositionPresetValues.Custom:
+                double cx = s.CustomPositionX < 0 ? (area.Width - Width) / 2 : s.CustomPositionX;
+                double cy = s.CustomPositionY < 0 ? area.Height / 25.0 : s.CustomPositionY;
+                x = cx; y = cy; break;
+            default:
+                x = (area.Width - Width) / 2; y = area.Height / 25.0; break;
+        }
+
+        Position = new PixelPoint((int)x, (int)y);
+    }
+
+    // ── 交互：自定义位置可拖动；双击打开设置 ────────────────
+    private void Window_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        {
+            if (_draggable)
+            {
+                BeginMoveDrag(e);
+                return;
+            }
+            // 非自定义模式：双击打开设置
+            if (e.ClickCount >= 2)
+            {
+                OpenSettings();
+            }
         }
     }
 
-    // ── 四件套验证控件 ───────────────────────────────────────
-    private void TopmostSwitch_Changed(object? sender, RoutedEventArgs e)
-    {
-        Topmost = TopmostSwitch.IsChecked == true;
-    }
-
-    private void OpacitySlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-    {
-        Opacity = e.NewValue;
-    }
-
-    private void ClickThroughBtn_Click(object? sender, RoutedEventArgs e)
-    {
-        ToggleClickThrough();
-    }
-
-    private void ExitBtn_Click(object? sender, RoutedEventArgs e)
-    {
-        Close();
-    }
-
-    private void OpenSettingsBtn_Click(object? sender, RoutedEventArgs e)
+    private void OpenSettings()
     {
         var win = new SettingsWindow();
         win.Show(this);
-    }
-
-    /// <summary>切换 WS_EX_TRANSPARENT 点击穿透（Avalonia 拿 HWND 后走 Win32）</summary>
-    private void ToggleClickThrough()
-    {
-        var handle = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-        if (handle == IntPtr.Zero) return;
-
-        _clickThrough = !_clickThrough;
-        int ex = GetWindowLong(handle, GWL_EXSTYLE);
-        if (_clickThrough) ex |= WS_EX_TRANSPARENT;
-        else ex &= ~WS_EX_TRANSPARENT;
-        SetWindowLong(handle, GWL_EXSTYLE, ex);
-        ClickThroughBtn.Content = _clickThrough ? "点击穿透：开" : "点击穿透：关";
     }
 }

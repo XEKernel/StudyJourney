@@ -64,7 +64,7 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
         if (_currentPage is ISettingsPage sp)
         {
             sp.Apply(App.Settings);
-            App.Settings.Save();
+            App.SaveSettings();   // 保存并通知主窗口刷新
         }
         // 提示保存成功（简单处理：短暂改按钮文字）
         if (sender is Button btn)
