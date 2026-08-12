@@ -40,6 +40,26 @@ public partial class ExamModeWindow : Window
         _timer.Tick += (_, _) => Refresh();
         _timer.Start();
         Refresh();
+
+        _ = LoadWeatherAsync();
+    }
+
+    // ── 天气（下一场下方）────────────────────────────────────
+    private async System.Threading.Tasks.Task LoadWeatherAsync()
+    {
+        try
+        {
+            var s = App.Settings;
+            var result = await Services.WeatherService.FetchAsync(s.WeatherCity, s.WeatherAdcode);
+            if (result == null) return;
+
+            WeatherIconTb.Text = Helpers.ColorUtils.GetWeatherEmoji(result.WeatherIcon);
+            WeatherCityTb.Text = result.Location;
+            WeatherTb.Text = result.Weather;
+            WeatherTempTb.Text = $"{result.Temperature}°";
+            WeatherRow.IsVisible = true;
+        }
+        catch { }
     }
 
     private void ApplyStyles()

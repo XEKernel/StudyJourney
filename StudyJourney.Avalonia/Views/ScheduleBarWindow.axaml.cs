@@ -28,11 +28,27 @@ public partial class ScheduleBarWindow : Window
     {
         InitializeComponent();
         App.SettingsChanged += OnSettingsChanged;
+        if (App.Reminders != null) App.Reminders.Countdown60Tick += OnCountdown60Tick;
         Closed += (_, _) =>
         {
             App.SettingsChanged -= OnSettingsChanged;
+            if (App.Reminders != null) App.Reminders.Countdown60Tick -= OnCountdown60Tick;
             _weatherTimer?.Stop();
         };
+    }
+
+    /// <summary>60 秒下课倒计时（ReminderService 触发，剩余=0 隐藏）</summary>
+    private void OnCountdown60Tick(object? sender, int remaining)
+    {
+        if (remaining > 0)
+        {
+            Countdown60Tb.Text = $"⏰ 还有 {remaining}s 下课！";
+            Countdown60Tb.IsVisible = true;
+        }
+        else
+        {
+            Countdown60Tb.IsVisible = false;
+        }
     }
 
     private void Window_Opened(object? sender, EventArgs e)

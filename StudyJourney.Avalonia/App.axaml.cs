@@ -6,6 +6,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using StudyJourney.Avalonia.Models;
+using StudyJourney.Avalonia.Services;
 using StudyJourney.Avalonia.Views;
 
 namespace StudyJourney.Avalonia;
@@ -17,6 +18,9 @@ public partial class App : Application
 
     /// <summary>全局课表管理器（从 schedule.json 加载）</summary>
     public static ScheduleManager Schedule { get; private set; } = new();
+
+    /// <summary>全局提醒服务（上课/下课/60 秒倒计时）</summary>
+    public static ReminderService? Reminders { get; private set; }
 
     /// <summary>设置被保存后触发（主窗口/悬浮栏等订阅并刷新）</summary>
     public static event Action? SettingsChanged;
@@ -41,6 +45,11 @@ public partial class App : Application
         {
             _mainWindow = new MainWindow();
             desktop.MainWindow = _mainWindow;
+
+            // 提醒服务：课表/考试关键节点触发（声音 + 事件）
+            Reminders = new ReminderService(Schedule, Settings);
+            Reminders.Start();
+
             SetupTrayIcon();
 
             // 原型验证：启动后自动弹出 WinUI 3 风格设置窗口（方便直接查看设置页效果）

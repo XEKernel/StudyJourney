@@ -30,6 +30,8 @@
                                Foreground="#FFFF8844"/>
                     <TextBlock x:Name="NextCountdownTb" Text="" FontSize="13" Foreground="#FFFF8844"/>
                 </StackPanel>
+                <TextBlock x:Name="Countdown60Tb" Text="" FontSize="14" FontWeight="Bold"
+                           Foreground="#FFFF4444" HorizontalAlignment="Center" IsVisible="False"/>
                 <ProgressBar x:Name="ProgressBar" Height="5" Minimum="0" Maximum="100"
                              Margin="0,4,0,0" IsVisible="False"/>
             </StackPanel>

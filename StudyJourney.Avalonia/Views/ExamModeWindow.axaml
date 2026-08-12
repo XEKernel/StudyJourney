@@ -53,10 +53,18 @@
                        HorizontalAlignment="Right" Margin="0,4,0,0"/>
         </Grid>
 
-        <!-- 下一场 + 警告 -->
+        <!-- 下一场 + 天气 + 警告 -->
         <StackPanel Grid.Row="5" HorizontalAlignment="Center" Spacing="14">
             <TextBlock x:Name="NextSubjectTb" Text="" FontSize="20" Foreground="#88FFFFFF"
                        HorizontalAlignment="Center"/>
+            <StackPanel x:Name="WeatherRow" Orientation="Horizontal" Spacing="8" IsVisible="False"
+                        HorizontalAlignment="Center">
+                <TextBlock x:Name="WeatherIconTb" Text="☀️" FontSize="14"/>
+                <TextBlock x:Name="WeatherCityTb" Text="" FontSize="12" Foreground="#88FFFFFF"/>
+                <TextBlock x:Name="WeatherTb" Text="" FontSize="12" Foreground="#88FFFFFF"/>
+                <TextBlock x:Name="WeatherTempTb" Text="--°" FontSize="13" FontWeight="Bold"
+                           Foreground="#FF88CCFF"/>
+            </StackPanel>
             <TextBlock x:Name="WarningTb" Text="距离结束还有 15 分钟，请注意检查答卷"
                        FontSize="18" FontWeight="Bold" Foreground="#FFFFCC88"
                        HorizontalAlignment="Center" IsVisible="False"/>
