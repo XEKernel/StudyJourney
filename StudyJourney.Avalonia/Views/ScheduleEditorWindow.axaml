@@ -2,12 +2,17 @@
         xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:dg="using:Avalonia.Controls"
+        xmlns:local="using:StudyJourney.Avalonia.Views"
         Title="编辑课表 / 考试"
-        Width="780" Height="560"
+        Width="1040" Height="740"
         WindowStartupLocation="CenterOwner"
         TransparencyLevelHint="Mica"
         Background="Transparent"
         x:CompileBindings="False">
+
+    <Window.Resources>
+        <local:PeriodTypeConverter x:Key="PeriodTypeConverter"/>
+    </Window.Resources>
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="20">
 
@@ -23,16 +28,16 @@
             <!-- ── 课表 Tab ── -->
             <TabItem Header="课表">
                 <Grid RowDefinitions="*,Auto">
-                    <dg:DataGrid Grid.Row="0" x:Name="EntryGrid"
+                    <dg:DataGrid Grid.Row="0" x:Name="EntryGrid" ColumnHeaderHeight="34"
                                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
                                  SelectionMode="Single">
                         <dg:DataGrid.Columns>
-                            <dg:DataGridTextColumn Header="星期" Width="60" Binding="{Binding DayOfWeek}"/>
-                            <dg:DataGridTextColumn Header="节次" Width="50" Binding="{Binding Period}"/>
+                            <dg:DataGridTextColumn Header="星期" Width="72" Binding="{Binding DayOfWeek}"/>
+                            <dg:DataGridTextColumn Header="节次" Width="62" Binding="{Binding Period}"/>
                             <dg:DataGridTextColumn Header="科目" Width="*" Binding="{Binding Subject}"/>
-                            <dg:DataGridTextColumn Header="开始" Width="70" Binding="{Binding StartTimeStr}"/>
-                            <dg:DataGridTextColumn Header="结束" Width="70" Binding="{Binding EndTimeStr}"/>
-                            <dg:DataGridTextColumn Header="类型" Width="90" Binding="{Binding Type}"/>
+                            <dg:DataGridTextColumn Header="开始" Width="85" Binding="{Binding StartTimeStr}"/>
+                            <dg:DataGridTextColumn Header="结束" Width="85" Binding="{Binding EndTimeStr}"/>
+                            <dg:DataGridTextColumn Header="类型" Width="105" Binding="{Binding Type, Converter={StaticResource PeriodTypeConverter}}"/>
                         </dg:DataGrid.Columns>
                     </dg:DataGrid>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
@@ -44,15 +49,15 @@
 
             <!-- ── 考试 Tab（考试 + 科目日程两级编辑） ── -->
             <TabItem Header="考试">
-                <Grid RowDefinitions="Auto,140,Auto,Auto,140,Auto" Margin="0,4,0,0">
+                <Grid RowDefinitions="Auto,170,Auto,Auto,170,Auto" Margin="0,4,0,0">
                     <TextBlock Grid.Row="0" Text="考试列表（选中一场后，下方编辑其科目日程）"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,4"/>
-                    <dg:DataGrid Grid.Row="1" x:Name="ExamGrid"
+                    <dg:DataGrid Grid.Row="1" x:Name="ExamGrid" ColumnHeaderHeight="34"
                                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
                                  SelectionMode="Single" SelectionChanged="ExamGrid_SelectionChanged">
                         <dg:DataGrid.Columns>
                             <dg:DataGridTextColumn Header="考试名称" Width="*" Binding="{Binding Name}"/>
-                            <dg:DataGridTextColumn Header="日期" Width="140" Binding="{Binding DateStr}"/>
+                            <dg:DataGridTextColumn Header="日期" Width="160" Binding="{Binding DateStr}"/>
                         </dg:DataGrid.Columns>
                     </dg:DataGrid>
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
@@ -67,13 +72,13 @@
                         <Button Content="－ 删除科目" Click="DeleteExamSubjectBtn_Click"/>
                         <Button Content="保存考试" Classes="accent" Click="SaveExamsBtn_Click"/>
                     </StackPanel>
-                    <dg:DataGrid Grid.Row="4" x:Name="ExamSubjectGrid"
+                    <dg:DataGrid Grid.Row="4" x:Name="ExamSubjectGrid" ColumnHeaderHeight="34"
                                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
                                  SelectionMode="Single">
                         <dg:DataGrid.Columns>
                             <dg:DataGridTextColumn Header="科目名称" Width="*" Binding="{Binding Name}"/>
-                            <dg:DataGridTextColumn Header="开考" Width="100" Binding="{Binding StartTimeStr}"/>
-                            <dg:DataGridTextColumn Header="结束" Width="100" Binding="{Binding EndTimeStr}"/>
+                            <dg:DataGridTextColumn Header="开考时间" Width="120" Binding="{Binding StartTimeStr}"/>
+                            <dg:DataGridTextColumn Header="结束时间" Width="120" Binding="{Binding EndTimeStr}"/>
                         </dg:DataGrid.Columns>
                     </dg:DataGrid>
                     <TextBlock Grid.Row="5" x:Name="ExamStatusTb" Text="" FontSize="11"
@@ -83,7 +88,7 @@
             </TabItem>
             <!-- ── 周视图 · 调课 Tab ── -->
             <TabItem Header="周视图 · 调课">
-                <Grid ColumnDefinitions="*,290" Margin="0,4,0,0">
+                <Grid ColumnDefinitions="*,320" Margin="0,4,0,0">
 
                     <!-- 左：课程表网格（代码动态构建，单击格子选源/目标） -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
@@ -99,47 +104,50 @@
                                       HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"/>
                     </Grid>
 
-                    <!-- 右：调课操作 + 时段模板 + 调休 -->
-                    <StackPanel Grid.Column="1" Spacing="10" Margin="14,0,0,0">
+                    <!-- 右：调课操作 + 时段模板 + 调休（包滚动，内容超高时可滚） -->
+                    <ScrollViewer Grid.Column="1" Margin="14,0,0,0"
+                                  HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12">
 
-                        <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="14,12">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="调课操作" FontSize="14" FontWeight="SemiBold"/>
-                                <Button Content="⇄  交换两节课" Click="SwapCoursesBtn_Click"/>
-                                <Button Content="➜  移动课程" Click="MoveCourseBtn_Click"/>
-                                <Button Content="👨‍🏫  代课" Click="SubstituteCourseBtn_Click"/>
-                                <Button Content="✕  清除选择" Click="ClearSwapSelBtn_Click"/>
+                        <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="18,16">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="调课操作" FontSize="15" FontWeight="SemiBold"/>
+                                <Button Content="⇄  交换两节课" Click="SwapCoursesBtn_Click" Padding="12,8" HorizontalAlignment="Stretch"/>
+                                <Button Content="➜  移动课程" Click="MoveCourseBtn_Click" Padding="12,8" HorizontalAlignment="Stretch"/>
+                                <Button Content="👨‍🏫  代课" Click="SubstituteCourseBtn_Click" Padding="12,8" HorizontalAlignment="Stretch"/>
+                                <Button Content="✕  清除选择" Click="ClearSwapSelBtn_Click" Padding="12,8" HorizontalAlignment="Stretch"/>
                             </StackPanel>
                         </Border>
 
-                        <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="14,12">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="时段模板" FontSize="14" FontWeight="SemiBold"/>
+                        <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="18,16">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="时段模板" FontSize="15" FontWeight="SemiBold"/>
                                 <TextBlock Text="定义每个时段的起止时间与类型，决定网格行" FontSize="11"
                                            Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap"/>
-                                <ScrollViewer x:Name="TemplateHost" MaxHeight="190" VerticalScrollBarVisibility="Auto"/>
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <Button Content="＋ 时段" Click="AddTimeSlotBtn_Click"/>
-                                    <Button Content="应用" Click="ApplyTemplateBtn_Click" ToolTip.Tip="用模板重建网格行"/>
+                                <ScrollViewer x:Name="TemplateHost" MaxHeight="200" VerticalScrollBarVisibility="Auto"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button Content="＋ 时段" Click="AddTimeSlotBtn_Click" Padding="12,6"/>
+                                    <Button Content="应用" Click="ApplyTemplateBtn_Click" Padding="12,6" ToolTip.Tip="用模板重建网格行"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
 
-                        <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="14,12">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="调休顺延" FontSize="14" FontWeight="SemiBold"/>
+                        <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="18,16">
+                            <StackPanel Spacing="8">
+                                <TextBlock Text="调休顺延" FontSize="15" FontWeight="SemiBold"/>
                                 <Grid ColumnDefinitions="Auto,*,Auto,*">
                                     <TextBlock Text="从" FontSize="12" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="AdjustFromDayCb" Grid.Column="1" Margin="6,0,0,0"/>
-                                    <TextBlock Grid.Column="2" Text="到" FontSize="12" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                                    <TextBlock Grid.Column="2" Text="到" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0"/>
                                     <ComboBox x:Name="AdjustToDayCb" Grid.Column="3" Margin="6,0,0,0"/>
                                 </Grid>
-                                <Button Content="复制课程（调休）" Click="ShiftRestBtn_Click"/>
+                                <Button Content="复制课程（调休）" Click="ShiftRestBtn_Click" Padding="12,8" HorizontalAlignment="Stretch"/>
                             </StackPanel>
                         </Border>
 
-                        <Button Content="保存课表网格" Classes="accent" Click="SaveScheduleBtn_Click"/>
+                        <Button Content="保存课表网格" Classes="accent" Click="SaveScheduleBtn_Click" Padding="12,10" HorizontalAlignment="Stretch"/>
                     </StackPanel>
+                    </ScrollViewer>
                 </Grid>
             </TabItem>
         </TabControl>

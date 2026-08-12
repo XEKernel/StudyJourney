@@ -1,8 +1,11 @@
 using System;
+using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data.Converters;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -664,23 +667,23 @@ public partial class ScheduleEditorWindow : Window
 
         foreach (var t in App.Schedule.Data.TimeTemplates)
         {
-            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("50,58,58,*,30") };
-            var periodBox = new TextBox { Text = t.Period.ToString(), FontSize = 12, VerticalContentAlignment = VerticalAlignment.Center };
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("52,60,60,*,32") };
+            var periodBox = new TextBox { Text = t.Period.ToString(), FontSize = 13, MinHeight = 32, VerticalContentAlignment = VerticalAlignment.Center };
             periodBox.TextChanged += (_, _) =>
             { if (int.TryParse(periodBox.Text, out int p)) t.Period = p; };
 
-            var startBox = new TextBox { Text = t.StartTime, FontSize = 12, VerticalContentAlignment = VerticalAlignment.Center };
+            var startBox = new TextBox { Text = t.StartTime, FontSize = 13, MinHeight = 32, VerticalContentAlignment = VerticalAlignment.Center };
             startBox.TextChanged += (_, _) => t.StartTime = startBox.Text ?? "08:00";
 
-            var endBox = new TextBox { Text = t.EndTime, FontSize = 12, VerticalContentAlignment = VerticalAlignment.Center };
+            var endBox = new TextBox { Text = t.EndTime, FontSize = 13, MinHeight = 32, VerticalContentAlignment = VerticalAlignment.Center };
             endBox.TextChanged += (_, _) => t.EndTime = endBox.Text ?? "08:45";
 
-            var typeBox = new ComboBox { FontSize = 12, ItemsSource = PeriodTypeItems };
+            var typeBox = new ComboBox { FontSize = 13, MinHeight = 32, ItemsSource = PeriodTypeItems };
             typeBox.SelectedItem = PeriodTypeItems.FirstOrDefault(p => p.Value == t.Type);
             typeBox.SelectionChanged += (_, _) =>
             { if (typeBox.SelectedItem is PeriodTypeItem item) t.Type = item.Value; };
 
-            var delBtn = new Button { Content = "✕", Padding = new Thickness(6, 0), FontSize = 11 };
+            var delBtn = new Button { Content = "✕", Padding = new Thickness(6, 0), FontSize = 11, MinHeight = 32 };
             delBtn.Click += (_, _) =>
             {
                 App.Schedule.Data.TimeTemplates.Remove(t);
@@ -786,4 +789,31 @@ public partial class ScheduleEditorWindow : Window
         await box.ShowDialog(this);
         return ok;
     }
+}
+
+/// <summary>PeriodType 枚举 ↔ 中文名转换（课表 DataGrid 类型列显示用）</summary>
+public class PeriodTypeConverter : IValueConverter
+{
+    private static readonly System.Collections.Generic.Dictionary<string, PeriodType> Map = new()
+    {
+        { "普通课", PeriodType.Normal },
+        { "早自习", PeriodType.Morning },
+        { "晚自习", PeriodType.Evening },
+        { "晚读", PeriodType.Reading },
+        { "午休", PeriodType.Noon },
+    };
+
+    public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is PeriodType t)
+        {
+            foreach (var kv in Map)
+                if (kv.Value == t) return kv.Key;
+            return t.ToString();
+        }
+        return value;
+    }
+
+    public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+        => value is string s && Map.TryGetValue(s, out var t) ? t : value;
 }
