@@ -39,14 +39,35 @@ public partial class MainWindow : Window
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
         int X, int Y, int cx, int cy, uint uFlags);
+    [DllImport("user32.dll")]
+    private static extern IntPtr CallWindowProcW(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg,
+        IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")]
+    private static extern IntPtr DefWindowProcW(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    [DllImport("user32.dll")]
+    private static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint crKey, byte bAlpha, uint dwFlags);
 
     private const int GWL_EXSTYLE = -20;
+    private const int GWLP_WNDPROC = -4;
+    private const uint WM_NCHITTEST = 0x84;
+    private const uint WM_MOUSEACTIVATE = 0x21;
+    private const int HT_TRANSPARENT = -1;
+    private const int MA_NOACTIVATE = 3;
     private static readonly IntPtr WS_EX_TRANSPARENT = new(0x20);
+    private static readonly IntPtr WS_EX_NOACTIVATE = new(0x08000000);
+    private static readonly IntPtr WS_EX_LAYERED = new(0x80000);
+    private const uint LWA_ALPHA = 0x2;
     private const uint SWP_FRAMECHANGED = 0x0020;
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOACTIVATE = 0x0010;
     private static readonly IntPtr HWND_BOTTOM = new(1);
+
+    // WndProc 子类化：Avalonia 12 的 WndProc 自行处理 WM_NCHITTEST 返回 HT_CLIENT，
+    // 会覆盖 WS_EX_TRANSPARENT 的默认穿透行为，必须在这里主动返回 HT_TRANSPARENT。
+    private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+    private IntPtr _originalWndProc;
+    private WndProcDelegate? _wndProcDelegate;   // 必须持有引用，防止委托被 GC 导致 WndProc 指针失效
 
     // ── 隐藏状态跟踪 ─────────────────────────────────────────
     private bool _hiddenByMaximize;
@@ -797,14 +818,54 @@ public partial class MainWindow : Window
         // handle 未就绪时不要更新状态，否则穿透永远不会被应用（后续调用会因状态一致而跳过）
         if (hwnd == IntPtr.Zero) return;
 
+        // 先安装 WndProc 子类化：仅设 WS_EX_TRANSPARENT 会被 Avalonia 的 WM_NCHITTEST 覆盖
+        EnsureSubclassed(hwnd);
+
         _clickThroughEnabled = shouldEnable;
 
         IntPtr exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
-        if (shouldEnable) exStyle |= WS_EX_TRANSPARENT;
-        else exStyle &= ~WS_EX_TRANSPARENT;
+        if (shouldEnable)
+        {
+            // 微软要求点击穿透 = WS_EX_TRANSPARENT + WS_EX_LAYERED 组合
+            // （单独 TRANSPARENT 只影响绘制顺序，不影响命中测试，点击仍会被窗口吃掉）
+            exStyle |= WS_EX_TRANSPARENT;
+            exStyle |= WS_EX_LAYERED;
+            exStyle |= WS_EX_NOACTIVATE;    // 系统级禁止激活，点击不抢焦点
+            SetLayeredWindowAttributes(hwnd, 0, 255, LWA_ALPHA);  // 全不透明，保持正常显示
+        }
+        else
+        {
+            exStyle &= ~WS_EX_TRANSPARENT;
+            exStyle &= ~WS_EX_LAYERED;
+            exStyle &= ~WS_EX_NOACTIVATE;
+        }
         SetWindowLongPtr(hwnd, GWL_EXSTYLE, exStyle);
         SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0,
             SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+
+    /// <summary>安装 WndProc 子类化（幂等）：穿透时 WM_NCHITTEST 返回 HT_TRANSPARENT</summary>
+    private void EnsureSubclassed(IntPtr hwnd)
+    {
+        if (_wndProcDelegate != null) return;
+        _originalWndProc = GetWindowLongPtr(hwnd, GWLP_WNDPROC);
+        if (_originalWndProc == IntPtr.Zero) return;
+        _wndProcDelegate = WndProc;
+        SetWindowLongPtr(hwnd, GWLP_WNDPROC,
+            Marshal.GetFunctionPointerForDelegate(_wndProcDelegate));
+    }
+
+    private IntPtr WndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        if (_clickThroughEnabled)
+        {
+            // 穿透开启：
+            // 1) WM_NCHITTEST 转给 DefWindowProc（让系统按 WS_EX_TRANSPARENT 标准处理）
+            // 2) WM_MOUSEACTIVATE 返回 MA_NOACTIVATE，点击不抢焦点
+            if (msg == WM_NCHITTEST) return DefWindowProcW(hWnd, msg, wParam, lParam);
+            if (msg == WM_MOUSEACTIVATE) return new IntPtr(MA_NOACTIVATE);
+        }
+        return CallWindowProcW(_originalWndProc, hWnd, msg, wParam, lParam);
     }
 
     private void ApplyWindowLayer()
