@@ -57,7 +57,8 @@ public partial class MainWindow : Window
     private bool _clickThroughEnabled;
     private bool _isPositioning;
     private bool _firstLayoutPositioned;   // 首次布局完成后的定位标志（修复首开偏移）
-    private bool _lastCompact;             // 上次视图状态（紧凑/完整），切换时重定位
+    private bool _lastCompact;             // 上次视图状态（紧凑/完整），切换时标记重定位
+    private bool _pendingReposition;       // 视图切换后待重定位（等布局完成、宽度就绪）
 
     // ── 关闭淡出 ─────────────────────────────────────────────
     private bool _isExiting;
@@ -147,13 +148,22 @@ public partial class MainWindow : Window
         PositionToPreset();
         ApplyClickThrough();
 
-        // 首次布局完成后重新定位 + 应用点击穿透（此时窗口句柄已就绪）
+        // 首次布局完成后重新定位 + 应用点击穿透（此时窗口句柄已就绪）；
+        // 之后每次尺寸变化（下课/上课视图切换）都检查待重定位标记，
+        // 确保用新宽度计算居中位置（避免切换瞬间 Bounds 未就绪导致的偏移）
         SizeChanged += (_, _) =>
         {
-            if (_firstLayoutPositioned) return;
-            _firstLayoutPositioned = true;
-            PositionToPreset();
-            ApplyClickThrough();
+            if (!_firstLayoutPositioned)
+            {
+                _firstLayoutPositioned = true;
+                PositionToPreset();
+                ApplyClickThrough();
+            }
+            else if (_pendingReposition)
+            {
+                _pendingReposition = false;
+                PositionToPreset();
+            }
         };
 
         // 上课/下课等提醒：弹非模态小窗（3 秒自动关闭）
@@ -407,11 +417,13 @@ public partial class MainWindow : Window
         // 上课进度条置顶单独控制；完整视图跟随 AlwaysOnTop；用户主动显示时豁免
         if (!_suppressAutoHide)
             Topmost = compact ? App.Settings.CompactProgressTopmost : App.Settings.AlwaysOnTop;
-        // 视图切换时窗口尺寸变化（SizeToContent），重新定位避免下课后位置偏移
+        // 视图切换时窗口尺寸变化（SizeToContent 异步布局）：
+        // 只标记待重定位，等布局完成（SizeChanged、Bounds.Width 就绪）后再定位，
+        // 否则切换瞬间用的是旧视图宽度，位置会偏移
         if (compact != _lastCompact)
         {
             _lastCompact = compact;
-            PositionToPreset();
+            _pendingReposition = true;
         }
 
         // 左：已上科目（跨天课用真实结束时刻，避免误归入"已上"）
@@ -492,13 +504,21 @@ public partial class MainWindow : Window
         ClassProgressBar.Value = 0;
     }
 
-    /// <summary>上课/下课等提醒：弹出胶囊风格提醒（与顶栏同款样式），3 秒后淡出关闭</summary>
+    /// <summary>上课/下课等提醒：按设置二选一（胶囊弹窗 / Windows 通知）</summary>
     private void OnReminder(object? sender, ReminderEventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
         {
             try
             {
+                // Windows 通知：走系统托盘气泡，不弹窗
+                if (App.Settings.ReminderStyle == 1)
+                {
+                    App.ShowSystemNotification(e.Title, e.Message);
+                    return;
+                }
+
+                // 胶囊弹窗（与顶栏同款样式），3 秒后淡出关闭
                 var box = new Window
                 {
                     Width = 380,

@@ -35,6 +35,16 @@ public partial class App : Application
         SettingsChanged?.Invoke();
     }
 
+    /// <summary>通过系统托盘发送 Windows 通知（提醒方式=Windows 通知时使用）</summary>
+    public static void ShowSystemNotification(string title, string message)
+    {
+        try
+        {
+            Helpers.SystemToast.Show(title, message);
+        }
+        catch { /* 系统通知失败静默 */ }
+    }
+
     private TrayIcon? _trayIcon;
     private Window? _mainWindow;
 

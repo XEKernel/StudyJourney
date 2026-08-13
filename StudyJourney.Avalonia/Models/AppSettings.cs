@@ -135,6 +135,8 @@ namespace StudyJourney.Avalonia.Models
         // ── 提醒开关 ──────────────────────────────────────────
         public bool EnableReminderSound  { get; set; } = true;
         public string ReminderSoundPath  { get; set; } = string.Empty;  // 空=系统提示音
+        /// <summary>提醒方式：0=胶囊弹窗（默认），1=Windows 通知</summary>
+        public int ReminderStyle         { get; set; } = 0;
         public bool RemindClassStart     { get; set; } = true;
         public bool RemindClassMid       { get; set; } = false;
         public bool RemindClassEndSoon   { get; set; } = true;

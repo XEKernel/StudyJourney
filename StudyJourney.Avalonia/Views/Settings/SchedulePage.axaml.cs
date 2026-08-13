@@ -58,6 +58,8 @@ public partial class SchedulePage : UserControl, ISettingsPage
         RemindNextClassSoonCheck.IsChecked = s.RemindNextClassSoon;
         RemindDayEndCheck.IsChecked = s.RemindDayEnd;
         RemindSpecialPeriodCheck.IsChecked = s.RemindSpecialPeriod;
+        ReminderStyleCapsule.IsChecked = s.ReminderStyle != 1;
+        ReminderStyleToast.IsChecked = s.ReminderStyle == 1;
     }
 
     public void Apply(AppSettings s)
@@ -71,5 +73,6 @@ public partial class SchedulePage : UserControl, ISettingsPage
         s.RemindNextClassSoon = RemindNextClassSoonCheck.IsChecked == true;
         s.RemindDayEnd = RemindDayEndCheck.IsChecked == true;
         s.RemindSpecialPeriod = RemindSpecialPeriodCheck.IsChecked == true;
+        s.ReminderStyle = ReminderStyleToast.IsChecked == true ? 1 : 0;
     }
 }

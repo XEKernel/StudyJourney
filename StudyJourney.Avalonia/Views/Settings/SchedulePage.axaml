@@ -21,6 +21,12 @@
                         <TextBox x:Name="ReminderSoundPathBox" PlaceholderText="留空使用系统默认音"/>
                         <Button Grid.Column="1" Content="浏览…" Margin="8,0,0,0" Click="BrowseReminderSound_Click"/>
                     </Grid>
+
+                    <TextBlock Text="提醒方式" FontSize="13" Margin="0,10,0,4"/>
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <RadioButton x:Name="ReminderStyleCapsule" Content="胶囊弹窗" GroupName="ReminderStyle" IsChecked="True"/>
+                        <RadioButton x:Name="ReminderStyleToast" Content="Windows 通知" GroupName="ReminderStyle"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
