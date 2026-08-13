@@ -63,12 +63,7 @@ public class ReminderService : IDisposable
     private List<ScheduleEntry> _cachedEntries = new();
     private readonly Action _onDataChanged;
 
-    private DispatcherTimer? _countdown60Timer;
-    private int _countdown60Remaining;
-
     public event EventHandler<ReminderEventArgs>? Reminder;
-    /// <summary>60 秒倒计时每秒更新（参数=剩余秒数），倒计时结束时参数=0</summary>
-    public event EventHandler<int>? Countdown60Tick;
 
     public ReminderService(ScheduleManager manager, AppSettings settings)
     {
@@ -124,11 +119,8 @@ public class ReminderService : IDisposable
 
         if (_settings.RemindClassEndSoon)
         {
-            if (TryFire($"{prefix}_endsoon", now, endDt, TimeSpan.FromMinutes(-1),
-                ReminderType.ClassEndSoon, "即将下课", $"{entry.Subject} 还有 1 分钟下课"))
-            {
-                StartCountdown60();
-            }
+            TryFire($"{prefix}_endsoon", now, endDt, TimeSpan.FromMinutes(-1),
+                ReminderType.ClassEndSoon, "即将下课", $"{entry.Subject} 还有 1 分钟下课");
         }
 
         if (_settings.RemindClassEnd)
@@ -230,30 +222,10 @@ public class ReminderService : IDisposable
         catch { }
     }
 
-    private void StartCountdown60()
-    {
-        _countdown60Timer?.Stop();
-        _countdown60Timer = null;
-        _countdown60Remaining = 60;
-        Countdown60Tick?.Invoke(this, _countdown60Remaining);
-
-        _countdown60Timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        _countdown60Timer.Tick += (s, e) =>
-        {
-            _countdown60Remaining--;
-            Countdown60Tick?.Invoke(this, _countdown60Remaining);
-            if (_countdown60Remaining <= 0)
-                _countdown60Timer?.Stop();
-        };
-        _countdown60Timer.Start();
-    }
-
     public void Dispose()
     {
         _timer.Tick -= OnTick;
         _timer.Stop();
-        _countdown60Timer?.Stop();
-        _countdown60Timer = null;
         _manager.DataChanged -= _onDataChanged;
     }
 }

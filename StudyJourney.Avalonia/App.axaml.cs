@@ -36,7 +36,6 @@ public partial class App : Application
     }
 
     private TrayIcon? _trayIcon;
-    private NativeMenuItem? _trayScheduleItem;
     private Window? _mainWindow;
 
     /// <summary>应用图标（各窗口标题栏/任务栏共用，从 avares 加载）</summary>
@@ -44,9 +43,8 @@ public partial class App : Application
 
     // ── 全局快捷键 ID（与 WPF 版一致）────────────────────────
     private const int HotKeyToggleMain = 1;   // Ctrl+Shift+H
-    private const int HotKeyToggleBar  = 2;   // Ctrl+Shift+B
     private const int HotKeyExamMode   = 3;   // Ctrl+Shift+E
-    private const uint VK_H = 0x48, VK_B = 0x42, VK_E = 0x45;
+    private const uint VK_H = 0x48, VK_E = 0x45;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -225,18 +223,13 @@ public partial class App : Application
                 () => Dispatcher.UIThread.Post(() => ToggleMainWindow())))
             Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+H 注册失败（可能被其他程序占用）");
 
-        // Ctrl+Shift+B 切换课表栏
-        if (!GlobalHotKeyManager.Register(HotKeyToggleBar, VK_B, true, true, false,
-                () => Dispatcher.UIThread.Post(() => ToggleScheduleBarViaHotkey())))
-            Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+B 注册失败（可能被其他程序占用）");
-
         // Ctrl+Shift+E 进入考试模式
         if (!GlobalHotKeyManager.Register(HotKeyExamMode, VK_E, true, true, false,
                 () => Dispatcher.UIThread.Post(() => EnterExamMode())))
             Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+E 注册失败（可能被其他程序占用）");
     }
 
-    /// <summary>统一入口：进入考试模式（托盘/快捷键/设置页共用，含课表栏互斥）</summary>
+    /// <summary>统一入口：进入考试模式（托盘/快捷键/设置页共用）</summary>
     public static void EnterExamModeGlobal()
     {
         if (Current is App app && app._mainWindow is MainWindow mw) mw.EnterExamMode();
@@ -260,12 +253,6 @@ public partial class App : Application
         EnterExamModeGlobal();
     }
 
-    private void ToggleScheduleBarViaHotkey()
-    {
-        if (_mainWindow is MainWindow mw) mw.ToggleScheduleBarViaHotkey();
-        SyncTrayScheduleItem();
-    }
-
     /// <summary>系统托盘图标（替代 WPF Hardcodet.NotifyIcon；Avalonia 内置 TrayIcon + NativeMenu）</summary>
     private void SetupTrayIcon()
     {
@@ -277,10 +264,6 @@ public partial class App : Application
 
             var showItem = new NativeMenuItem("显示 / 隐藏窗口");
             showItem.Click += (_, _) => ToggleMainWindow();
-
-            var scheduleItem = new NativeMenuItem("课表栏");
-            _trayScheduleItem = scheduleItem;
-            scheduleItem.Click += (_, _) => ToggleScheduleBarViaHotkey();
 
             var examItem = new NativeMenuItem("进入考试模式");
             examItem.Click += (_, _) => EnterExamMode();
@@ -296,7 +279,6 @@ public partial class App : Application
 
             var menu = new NativeMenu();
             menu.Add(showItem);
-            menu.Add(scheduleItem);
             menu.Add(examItem);
             menu.Add(settingsItem);
             menu.Add(debugItem);
@@ -316,12 +298,6 @@ public partial class App : Application
         {
             Helpers.AppLogger.Error("托盘图标初始化失败", ex);
         }
-    }
-
-    private void SyncTrayScheduleItem()
-    {
-        if (_trayScheduleItem == null || _mainWindow is not MainWindow mw) return;
-        _trayScheduleItem.Header = mw.IsScheduleBarVisible ? "课表栏 ✓" : "课表栏";
     }
 
     private void ToggleMainWindow()

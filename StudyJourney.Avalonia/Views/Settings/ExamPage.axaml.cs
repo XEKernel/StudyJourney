@@ -17,7 +17,7 @@ public partial class ExamPage : UserControl, ISettingsPage
         InitializeComponent();
     }
 
-    /// <summary>立即进入考试模式（统一入口，含课表栏互斥联动）</summary>
+    /// <summary>立即进入考试模式（统一入口）</summary>
     private void EnterExamModeBtn_Click(object? sender, RoutedEventArgs e)
     {
         App.EnterExamModeGlobal();

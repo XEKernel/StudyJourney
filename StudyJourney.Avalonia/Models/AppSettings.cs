@@ -132,22 +132,6 @@ namespace StudyJourney.Avalonia.Models
         // 上课时隐藏窗口的科目列表（逗号分隔，如"数学,物理"），空=所有科目都隐藏
         public string HideSubjects { get; set; } = "";
 
-        // ── 课表栏 ────────────────────────────────────────────
-        public bool   ShowScheduleBar          { get; set; } = false;
-        public double ScheduleBarOpacity       { get; set; } = 0.92;
-        public bool   ScheduleBarAlwaysOnTop   { get; set; } = false;
-        public bool   ScheduleBarClickThrough  { get; set; } = false;
-        /// <summary>0 = 全屏宽度</summary>
-        public double ScheduleBarWidth         { get; set; } = 0;
-        /// <summary>课表栏基础字体大小（默认 14）</summary>
-        public double ScheduleBarFontSize      { get; set; } = 14;
-        /// <summary>上课时课表栏自动收缩为进度条</summary>
-        public bool   ScheduleBarAutoCollapse   { get; set; } = true;
-        /// <summary>下课倒计时展开秒数（30 或 60）</summary>
-        public int    CountdownExpandSeconds    { get; set; } = 30;
-        /// <summary>展开倒计时时播放提示音</summary>
-        public bool   EnableCountdownSound      { get; set; } = false;
-
         // ── 提醒开关 ──────────────────────────────────────────
         public bool EnableReminderSound  { get; set; } = true;
         public string ReminderSoundPath  { get; set; } = string.Empty;  // 空=系统提示音

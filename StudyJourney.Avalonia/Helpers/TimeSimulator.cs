@@ -4,7 +4,7 @@ namespace StudyJourney.Avalonia.Helpers;
 
 /// <summary>
 /// 时间模拟器（调试用）：给全应用加一个时间偏移，
-/// 可快速跳到"快下课/下课后/快上课"等关键时刻观察提醒与课表栏效果。
+/// 可快速跳到"快下课/下课后/快上课"等关键时刻观察提醒与上课隐藏效果。
 /// </summary>
 public static class TimeSimulator
 {

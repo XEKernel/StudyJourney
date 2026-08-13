@@ -6,7 +6,7 @@ namespace StudyJourney.Avalonia.Helpers;
 
 /// <summary>
 /// 窗口层级辅助：桌面小组件「桌面同一层」行为。
-/// 提供前台窗口检测（是否桌面 / 是否最大化），供倒计时窗口与课表栏判断显隐。
+/// 提供前台窗口检测（是否桌面 / 是否最大化），供桌面小组件判断显隐。
 /// </summary>
 public static class WindowLayerHelper
 {

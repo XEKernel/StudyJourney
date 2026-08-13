@@ -47,28 +47,8 @@ public partial class SchedulePage : UserControl, ISettingsPage
         catch { }
     }
 
-    // ── 滑条联动 ────────────────────────────────────────────
-    private void ScheduleBarOpacitySlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-    {
-        if (ScheduleBarOpacityText != null) ScheduleBarOpacityText.Text = $"{e.NewValue * 100:F0}%";
-    }
-
-    private void ScheduleBarFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-    {
-        if (ScheduleBarFontSizeText != null) ScheduleBarFontSizeText.Text = ((int)e.NewValue).ToString();
-    }
-
     public void Load(AppSettings s)
     {
-        ShowScheduleBarCheck.IsChecked = s.ShowScheduleBar;
-        ScheduleBarAlwaysOnTopCheck.IsChecked = s.ScheduleBarAlwaysOnTop;
-        ScheduleBarClickThroughCheck.IsChecked = s.ScheduleBarClickThrough;
-        ScheduleBarAutoCollapseCheck.IsChecked = s.ScheduleBarAutoCollapse;
-        ScheduleBarOpacitySlider.Value = s.ScheduleBarOpacity;
-        ScheduleBarWidthBox.Text = s.ScheduleBarWidth.ToString();
-        ScheduleBarFontSizeSlider.Value = s.ScheduleBarFontSize;
-        CountdownExpandCb.SelectedIndex = s.CountdownExpandSeconds >= 60 ? 1 : 0;
-        EnableCountdownSoundCheck.IsChecked = s.EnableCountdownSound;
         EnableReminderSoundCheck.IsChecked = s.EnableReminderSound;
         ReminderSoundPathBox.Text = s.ReminderSoundPath;
         RemindClassStartCheck.IsChecked = s.RemindClassStart;
@@ -82,15 +62,6 @@ public partial class SchedulePage : UserControl, ISettingsPage
 
     public void Apply(AppSettings s)
     {
-        s.ShowScheduleBar = ShowScheduleBarCheck.IsChecked == true;
-        s.ScheduleBarAlwaysOnTop = ScheduleBarAlwaysOnTopCheck.IsChecked == true;
-        s.ScheduleBarClickThrough = ScheduleBarClickThroughCheck.IsChecked == true;
-        s.ScheduleBarAutoCollapse = ScheduleBarAutoCollapseCheck.IsChecked == true;
-        s.ScheduleBarOpacity = ScheduleBarOpacitySlider.Value;
-        if (double.TryParse(ScheduleBarWidthBox.Text, out var w)) s.ScheduleBarWidth = w;
-        s.ScheduleBarFontSize = ScheduleBarFontSizeSlider.Value;
-        s.CountdownExpandSeconds = CountdownExpandCb.SelectedIndex == 1 ? 60 : 30;
-        s.EnableCountdownSound = EnableCountdownSoundCheck.IsChecked == true;
         s.EnableReminderSound = EnableReminderSoundCheck.IsChecked == true;
         s.ReminderSoundPath = ReminderSoundPathBox.Text ?? "";
         s.RemindClassStart = RemindClassStartCheck.IsChecked == true;
