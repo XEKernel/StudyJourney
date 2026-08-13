@@ -138,6 +138,8 @@ public partial class App : Application
     {
         var win = (Current as App)?._mainWindow;
         if (win == null) return false;
+
+        Button cancelBtn, okBtn;
         var box = new Window
         {
             Title = title,
@@ -161,21 +163,16 @@ public partial class App : Application
                         Spacing = 8,
                         Children =
                         {
-                            new Button { Content = cancelText, MinWidth = 80 },
-                            new Button { Content = okText, Classes = { "accent" }, MinWidth = 80 }
+                            (cancelBtn = new Button { Content = cancelText, MinWidth = 80 }),
+                            (okBtn = new Button { Content = okText, Classes = { "accent" }, MinWidth = 80 })
                         }
                     }
                 }
             }
         };
         bool result = false;
-        if (box.Content is StackPanel root)
-        {
-            var cancelBtn = (Button)((StackPanel)root.Children[1]).Children[0];
-            var okBtn = (Button)((StackPanel)root.Children[1]).Children[1];
-            cancelBtn.Click += (_, _) => box.Close();
-            okBtn.Click += (_, _) => { result = true; box.Close(); };
-        }
+        cancelBtn.Click += (_, _) => box.Close();
+        okBtn.Click += (_, _) => { result = true; box.Close(); };
         await box.ShowDialog(win);
         return result;
     }
@@ -184,6 +181,7 @@ public partial class App : Application
     public static async System.Threading.Tasks.Task ShowMessageAsync(string title, string message)
     {
         var win = (Current as App)?._mainWindow;
+        Button okBtn;
         var box = new Window
         {
             Title = title,
@@ -200,18 +198,17 @@ public partial class App : Application
                 Children =
                 {
                     new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
-                    new Button
+                    (okBtn = new Button
                     {
                         Content = "确定",
                         Classes = { "accent" },
                         MinWidth = 76,
                         HorizontalAlignment = HorizontalAlignment.Right
-                    }
+                    })
                 }
             }
         };
-        if (box.Content is StackPanel root)
-            ((Button)root.Children[1]).Click += (_, _) => box.Close();
+        okBtn.Click += (_, _) => box.Close();
         if (win != null && win.IsVisible) await box.ShowDialog(win);
         else box.Show();
     }
@@ -302,13 +299,9 @@ public partial class App : Application
 
     private void ToggleMainWindow()
     {
-        if (_mainWindow == null) return;
-        if (_mainWindow.IsVisible) _mainWindow.Hide();
-        else
-        {
-            _mainWindow.Show();
-            _mainWindow.Activate();
-        }
+        // 复用 MainWindow.ToggleVisibility（含 _suppressAutoHide 豁免 + 临时置顶，
+        // 避免"显示窗口被 MaximizeCheckTimer 立即隐藏"的闪退问题）
+        if (_mainWindow is MainWindow mw) mw.ToggleVisibility();
     }
 
     /// <summary>打开时间模拟调试窗口（主窗口隐藏时不用它做 owner）</summary>

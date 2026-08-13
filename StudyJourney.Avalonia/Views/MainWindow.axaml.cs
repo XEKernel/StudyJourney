@@ -51,6 +51,7 @@ public partial class MainWindow : Window
     // ── 隐藏状态跟踪 ─────────────────────────────────────────
     private bool _hiddenByMaximize;
     private bool _hiddenByScheduleOrExam;
+    private bool _suppressAutoHide;   // 用户主动显示时豁免自动隐藏
     private string? _cachedHideSubjects;
     private HashSet<string> _cachedHiddenSet = new(StringComparer.OrdinalIgnoreCase);
 
@@ -88,8 +89,21 @@ public partial class MainWindow : Window
     // ── App 调用的公开接口（快捷键/托盘）────────────────────
     public void ToggleVisibility()
     {
-        if (IsVisible) Hide();
-        else { Show(); Activate(); ApplyWindowLayer(); }
+        if (IsVisible)
+        {
+            // 用户主动隐藏：恢复桌面层 + 自动隐藏
+            _suppressAutoHide = false;
+            Hide();
+            ApplyWindowLayer();
+        }
+        else
+        {
+            // 用户主动显示：临时置顶确保可见，并豁免自动隐藏
+            _suppressAutoHide = true;
+            Topmost = true;
+            Show();
+            Activate();
+        }
     }
 
     public void EnterExamMode()
@@ -149,15 +163,18 @@ public partial class MainWindow : Window
     // ── 桌面小组件：前台有窗口时隐藏（桌面同一层，不挡其他窗口）──
     private void MaximizeCheckTimer_Tick()
     {
+        if (_suppressAutoHide) return;   // 用户主动显示时豁免
         if (App.Settings.AlwaysOnTop) return;
         if (!App.Settings.HideWhenMaximized) return;
 
         var myHwnd = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
         IntPtr foreground = Helpers.WindowLayerHelper.ForegroundWindow;
 
+        // 只有当"前台是可见的、非最小化的、非系统的应用窗口"时才视为有窗口遮挡
         bool hasOtherWindow = foreground != IntPtr.Zero &&
                               foreground != myHwnd &&
-                              !Helpers.WindowLayerHelper.IsDesktop(foreground);
+                              !Helpers.WindowLayerHelper.IsSystemShell(foreground) &&
+                              !Helpers.WindowLayerHelper.IsMinimized(foreground);
 
         if (hasOtherWindow && IsVisible)
         {
@@ -370,9 +387,9 @@ public partial class MainWindow : Window
         var manager = App.Schedule;
         var today = manager.GetTodayEntries(now.Date);
 
-        // 左：已上科目
+        // 左：已上科目（跨天课用真实结束时刻，避免误归入"已上"）
         var prevSubjects = today
-            .Where(e => e.GetEndDateTime(now.Date) <= now)
+            .Where(e => e.GetEndDateTimeActual(now.Date) <= now)
             .OrderBy(e => e.EndTime)
             .Select(e => e.Subject);
         PrevSubjectsTb.Text = string.Join("  ", prevSubjects);
@@ -423,12 +440,12 @@ public partial class MainWindow : Window
         if (next != null)
         {
             var prev = App.Schedule.GetTodayEntries(now.Date)
-                .Where(e => e.GetEndDateTime(now.Date) <= now)
+                .Where(e => e.GetEndDateTimeActual(now.Date) <= now)
                 .OrderByDescending(e => e.EndTime)
                 .FirstOrDefault();
             if (prev != null)
             {
-                var breakStart = prev.GetEndDateTime(now.Date);
+                var breakStart = prev.GetEndDateTimeActual(now.Date);
                 var breakTotal = next.GetStartDateTime(now.Date) - breakStart;
                 ClassProgressBar.Value = breakTotal.TotalSeconds > 0
                     ? Math.Clamp((now - breakStart).TotalSeconds / breakTotal.TotalSeconds, 0, 1) * 100

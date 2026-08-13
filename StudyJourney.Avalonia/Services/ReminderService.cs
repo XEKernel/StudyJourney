@@ -106,7 +106,8 @@ public class ReminderService : IDisposable
     private void CheckClassReminders(ScheduleEntry entry, DateTime now, List<ScheduleEntry> allEntries)
     {
         var startDt = entry.GetStartDateTime(now.Date);
-        var endDt = entry.GetEndDateTime(now.Date);
+        // 跨天课（EndTime < StartTime）的真实结束时刻在次日，否则下课/放学提醒永不触发
+        var endDt = entry.GetEndDateTimeActual(now.Date);
         string prefix = $"{now:yyyyMMdd}_{entry.DayOfWeek}_{entry.Period}";
 
         if (_settings.RemindClassStart)

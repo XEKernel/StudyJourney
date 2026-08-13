@@ -61,11 +61,10 @@ public static class GlobalHotKeyManager
 
     private static bool _initialized;
 
-    /// <summary>初始化隐藏消息窗口（幂等）</summary>
+    /// <summary>初始化隐藏消息窗口（幂等；失败不置位，允许下次重试）</summary>
     private static bool EnsureWindow()
     {
         if (_initialized) return _hwnd != IntPtr.Zero;
-        _initialized = true;
 
         try
         {
@@ -81,7 +80,10 @@ public static class GlobalHotKeyManager
 
             _hwnd = CreateWindowExW(0, wc.lpszClassName, "StudyJourneyHotKeyWindow", 0,
                 0, 0, 0, 0, IntPtr.Zero, IntPtr.Zero, wc.hInstance, IntPtr.Zero);
-            return _hwnd != IntPtr.Zero;
+            if (_hwnd == IntPtr.Zero) return false;
+
+            _initialized = true;
+            return true;
         }
         catch
         {

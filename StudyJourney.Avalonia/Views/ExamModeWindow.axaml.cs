@@ -38,6 +38,7 @@ public partial class ExamModeWindow : Window
         {
             _timer?.Stop();
             _weatherTimer?.Stop();
+            _escResetTimer?.Stop();
         };
     }
 
@@ -271,11 +272,20 @@ public partial class ExamModeWindow : Window
         {
             if (!string.IsNullOrEmpty(_currentSubjectName))
             {
-                // 简单确认：ESC 双击退出（第一次提示）
+                // 简单确认：2 秒内连续 ESC 两次退出（第一次仅提示，超时自动重置）
                 if (!_escPressed)
                 {
                     _escPressed = true;
                     EscHintTb.Text = "再按一次 ESC 退出考试模式";
+                    _escResetTimer?.Stop();
+                    _escResetTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+                    _escResetTimer.Tick += (_, _) =>
+                    {
+                        _escResetTimer?.Stop();
+                        _escResetTimer = null;
+                        _escPressed = false;
+                    };
+                    _escResetTimer.Start();
                     return;
                 }
             }
@@ -287,6 +297,7 @@ public partial class ExamModeWindow : Window
         }
     }
     private bool _escPressed;
+    private DispatcherTimer? _escResetTimer;
 
     /// <summary>双击切换全屏（对齐 WPF MouseDoubleClick）</summary>
     private void Window_PointerPressed(object? sender, PointerPressedEventArgs e)

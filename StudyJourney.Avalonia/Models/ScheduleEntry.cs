@@ -91,6 +91,14 @@ namespace StudyJourney.Avalonia.Models
             var d = (date ?? DateTime.Today).Date;
             return d + EndTime;
         }
+
+        /// <summary>返回真实结束时刻（跨天课 EndTime &lt; StartTime 时为次日凌晨）</summary>
+        public DateTime GetEndDateTimeActual(DateTime? date = null)
+        {
+            var end = GetEndDateTime(date);
+            if (EndTime < StartTime) end = end.AddDays(1);
+            return end;
+        }
     }
 
     // ── 考试科目 ───────────────────────────────────────────

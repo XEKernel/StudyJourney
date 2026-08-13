@@ -53,16 +53,25 @@ namespace StudyJourney.Avalonia.Models
         {
             var dt = now ?? DateTime.Now;
             var tod = dt.TimeOfDay;
+            var prep = TimeSpan.FromMinutes(2);
+
             // 预备铃提前2分钟，老师即到，进入上课模式
+            // 今天的课：普通课 [start-prep, end)；跨天课从 start-prep 起延续到次日凌晨
+            var today = GetTodayEntries(dt.Date).Where(e =>
+                e.EndTime < e.StartTime
+                    ? tod >= e.StartTime - prep
+                    : tod >= e.StartTime - prep && tod < e.EndTime);
+
+            // 昨天跨天课的凌晨延续（如昨晚 22:00-00:30 → 今天 00:00-00:30 仍在上）
+            var yesterday = Enumerable.Empty<ScheduleEntry>();
+            if (tod < TimeSpan.FromHours(6))
+            {
+                yesterday = GetTodayEntries(dt.Date.AddDays(-1))
+                    .Where(e => e.EndTime < e.StartTime && tod < e.EndTime);
+            }
+
             // 重叠时优先高节次（下一节的预备铃覆盖上一节的末尾）
-            return GetTodayEntries(dt.Date)
-                .Where(e =>
-                {
-                    // 跨天课（EndTime < StartTime，如晚自习 22:00-00:30）特殊处理
-                    if (e.EndTime < e.StartTime)
-                        return tod >= e.StartTime - TimeSpan.FromMinutes(2) || tod < e.EndTime;
-                    return tod >= e.StartTime - TimeSpan.FromMinutes(2) && tod < e.EndTime;
-                })
+            return today.Concat(yesterday)
                 .OrderByDescending(e => e.Period)
                 .FirstOrDefault();
         }
@@ -98,9 +107,7 @@ namespace StudyJourney.Avalonia.Models
             var dt = now ?? DateTime.Now;
             var cur = GetCurrentEntry(dt);
             if (cur == null) return null;
-            var endDt = cur.GetEndDateTime(dt.Date);
-            // 跨天课（EndTime < StartTime）：结束时刻在次日
-            if (cur.EndTime < cur.StartTime) endDt = endDt.AddDays(1);
+            var endDt = cur.GetEndDateTimeActual(dt.Date);
             var remaining = endDt - dt;
             return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
         }
