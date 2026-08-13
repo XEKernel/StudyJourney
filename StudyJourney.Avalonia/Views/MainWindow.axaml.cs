@@ -56,6 +56,8 @@ public partial class MainWindow : Window
     // ── 点击穿透 / 定位 ──────────────────────────────────────
     private bool _clickThroughEnabled;
     private bool _isPositioning;
+    private bool _firstLayoutPositioned;   // 首次布局完成后的定位标志（修复首开偏移）
+    private bool _lastCompact;             // 上次视图状态（紧凑/完整），切换时重定位
 
     // ── 关闭淡出 ─────────────────────────────────────────────
     private bool _isExiting;
@@ -76,6 +78,7 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             App.SettingsChanged -= OnSettingsChanged;
+            if (App.Reminders != null) App.Reminders.Reminder -= OnReminder;
             _maximizeCheckTimer?.Stop();
             _classEndRestoreTimer?.Stop();
             _weatherTimer?.Stop();
@@ -143,6 +146,19 @@ public partial class MainWindow : Window
         ApplySettings();
         PositionToPreset();
         ApplyClickThrough();
+
+        // 首次布局完成后重新定位 + 应用点击穿透（此时窗口句柄已就绪）
+        SizeChanged += (_, _) =>
+        {
+            if (_firstLayoutPositioned) return;
+            _firstLayoutPositioned = true;
+            PositionToPreset();
+            ApplyClickThrough();
+        };
+
+        // 上课/下课等提醒：弹非模态小窗（3 秒自动关闭）
+        if (App.Reminders != null)
+            App.Reminders.Reminder += OnReminder;
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += (_, _) => Tick();
@@ -381,6 +397,15 @@ public partial class MainWindow : Window
         bool compact = App.Settings.HideDuringClass && cur != null;
         OuterCapsule.IsVisible = !compact;
         CompactCapsule.IsVisible = compact;
+        // 上课进度条置顶单独控制；完整视图跟随 AlwaysOnTop；用户主动显示时豁免
+        if (!_suppressAutoHide)
+            Topmost = compact ? App.Settings.CompactProgressTopmost : App.Settings.AlwaysOnTop;
+        // 视图切换时窗口尺寸变化（SizeToContent），重新定位避免下课后位置偏移
+        if (compact != _lastCompact)
+        {
+            _lastCompact = compact;
+            PositionToPreset();
+        }
 
         // 左：已上科目（跨天课用真实结束时刻，避免误归入"已上"）
         var prevSubjects = today
@@ -460,20 +485,61 @@ public partial class MainWindow : Window
         ClassProgressBar.Value = 0;
     }
 
+    /// <summary>上课/下课等提醒：弹非模态小窗，3 秒自动关闭</summary>
+    private void OnReminder(object? sender, ReminderEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            try
+            {
+                var box = new Window
+                {
+                    Title = e.Title,
+                    Icon = App.AppIcon,
+                    Width = 300,
+                    Height = 130,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                    CanResize = false,
+                    ShowInTaskbar = false,
+                    Topmost = true,
+                    WindowDecorations = WindowDecorations.Full,
+                    Content = new StackPanel
+                    {
+                        Margin = new Thickness(18),
+                        Spacing = 10,
+                        Children =
+                        {
+                            new TextBlock { Text = e.Title, FontSize = 15, FontWeight = FontWeight.SemiBold },
+                            new TextBlock { Text = e.Message, TextWrapping = TextWrapping.Wrap, FontSize = 13 }
+                        }
+                    }
+                };
+                box.Show();
+                var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+                t.Tick += (_, _) => { t.Stop(); box.Close(); };
+                t.Start();
+            }
+            catch { /* 提醒窗口失败静默 */ }
+        });
+    }
+
     /// <summary>圆环配色（自定义倒计时轮换）</summary>
     private static readonly string[] RingColors = { "#FFEB3B", "#4CAF50", "#2B6CB0" };
 
-    /// <summary>模块三：高考（固定）+ 自定义倒计时（动态）；文字/百分比/进度条按设置显隐</summary>
+    /// <summary>模块三：高考（固定）+ 自定义倒计时（动态）；环形/条形可切换，进度数字在环旁</summary>
     private void UpdateCountdownRings(DateTime now)
     {
         var s = App.Settings;
+        bool bar = s.CountdownProgressBarStyle;
 
         if (DateTime.TryParse(s.GaokaoDateStr, out var gao))
         {
             GaokaoTb.Text = FormatCountdownText("高考", gao, now);
             double progress = ComputeProgress(gao, s.StartDateStr, now);
+            GaokaoRing.IsVisible = !bar && s.ShowProgressBar;
+            GaokaoBar.IsVisible = bar && s.ShowProgressBar;
             GaokaoBar.Value = progress * 100;
-            GaokaoBar.IsVisible = s.ShowProgressBar;
+            GaokaoRingArc.SweepAngle = progress * 360;
             GaokaoPctTb.Text = $"{progress * 100:F1}%";
             GaokaoPctTb.IsVisible = s.ShowProgressText;
         }
@@ -525,13 +591,14 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>构建单个自定义倒计时（文字/百分比/进度条按设置显隐；分离模式=独立胶囊）</summary>
+    /// <summary>构建单个自定义倒计时（环形/条形可切换，进度数字在环旁；分离模式=独立胶囊）</summary>
     private static Control BuildCustomRing(string name, DateTime target, DateTime now, string colorHex)
     {
         var color = Color.Parse(colorHex);
         var progressBrush = new SolidColorBrush(color);
         double progress = ComputeProgress(target, null, now);
         string text = FormatCountdownText(name, target, now);
+        bool bar = App.Settings.CountdownProgressBarStyle;
 
         var panel = new StackPanel
         {
@@ -546,24 +613,55 @@ public partial class MainWindow : Window
             HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center
         });
 
-        if (App.Settings.ShowProgressText)
+        if (App.Settings.ShowProgressBar || App.Settings.ShowProgressText)
         {
-            panel.Children.Add(new TextBlock
+            var row = new StackPanel
             {
-                Text = $"{progress * 100:F1}%", FontSize = 9,
-                Foreground = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
+                Orientation = global::Avalonia.Layout.Orientation.Horizontal,
+                Spacing = 5,
                 HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center
-            });
-        }
+            };
 
-        if (App.Settings.ShowProgressBar)
-        {
-            panel.Children.Add(new ProgressBar
+            if (bar)
             {
-                Width = 70, Height = 3, Minimum = 0, Maximum = 100, Value = progress * 100,
-                Foreground = progressBrush,
-                Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF))
-            });
+                row.Children.Add(new ProgressBar
+                {
+                    Width = 70, Height = 3, Minimum = 0, Maximum = 100, Value = progress * 100,
+                    Foreground = progressBrush,
+                    Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+                    VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+                });
+            }
+            else if (App.Settings.ShowProgressBar)
+            {
+                // 环形 + 进度数字
+                var bgArc = new Arc
+                {
+                    StartAngle = 0, SweepAngle = 360,
+                    Stroke = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF)), StrokeThickness = 3
+                };
+                var progArc = new Arc
+                {
+                    StartAngle = -90, SweepAngle = progress * 360,
+                    Stroke = progressBrush, StrokeThickness = 3, StrokeLineCap = PenLineCap.Round
+                };
+                var ring = new Grid { Width = 22, Height = 22 };
+                ring.Children.Add(bgArc);
+                ring.Children.Add(progArc);
+                row.Children.Add(ring);
+            }
+
+            if (App.Settings.ShowProgressText)
+            {
+                row.Children.Add(new TextBlock
+                {
+                    Text = $"{progress * 100:F1}%", FontSize = 9,
+                    Foreground = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
+                    VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+                });
+            }
+
+            panel.Children.Add(row);
         }
 
         if (App.Settings.IslandSeparated)
@@ -619,7 +717,7 @@ public partial class MainWindow : Window
         }
 
         _isPositioning = true;
-        Position = new PixelPoint((int)x, (int)(y + s.PositionOffsetY));
+        Position = new PixelPoint((int)(x + s.PositionOffsetX), (int)(y + s.PositionOffsetY));
         _isPositioning = false;
     }
 
@@ -634,12 +732,16 @@ public partial class MainWindow : Window
     // ── 点击穿透 ────────────────────────────────────────────
     private void ApplyClickThrough()
     {
-        bool shouldEnable = App.Settings.PositionPreset != PositionPresetValues.Custom;
+        // 开关控制穿透；自定义坐标模式始终可交互（需要拖动定位）
+        bool shouldEnable = App.Settings.ClickThrough &&
+                            App.Settings.PositionPreset != PositionPresetValues.Custom;
         if (_clickThroughEnabled == shouldEnable) return;
-        _clickThroughEnabled = shouldEnable;
 
         var hwnd = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        // handle 未就绪时不要更新状态，否则穿透永远不会被应用（后续调用会因状态一致而跳过）
         if (hwnd == IntPtr.Zero) return;
+
+        _clickThroughEnabled = shouldEnable;
 
         IntPtr exStyle = GetWindowLongPtr(hwnd, GWL_EXSTYLE);
         if (shouldEnable) exStyle |= WS_EX_TRANSPARENT;
@@ -722,6 +824,8 @@ public partial class MainWindow : Window
             catch { _settingWindow = null; }
         }
         _settingWindow = new SettingsWindow();
+        // 主窗口置顶时设置窗口也置顶：否则顶栏会盖住设置窗口及其弹窗（颜色选择/课表编辑）
+        _settingWindow.Topmost = App.Settings.AlwaysOnTop;
         _settingWindow.Closed += (_, _) => _settingWindow = null;
         if (IsVisible) _settingWindow.Show(this);
         else _settingWindow.Show();

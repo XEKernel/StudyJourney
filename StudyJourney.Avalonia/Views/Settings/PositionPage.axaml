@@ -22,6 +22,7 @@
                     <TextBlock Text="0=直角，20=完全胶囊。圆角对两种胶囊样式同时生效。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="0,2,0,0" TextWrapping="Wrap"/>
+                    <CheckBox x:Name="CountdownBarCheck" Content="倒计时进度条用条形（默认环形，进度数字在环旁）" Margin="0,10,0,0"/>
 
                 </StackPanel>
             </Border>
@@ -50,7 +51,9 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="微调" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                    <TextBlock Text="垂直偏移像素（负值=上移，正值=下移）" FontSize="13" Margin="0,0,0,4"/>
+                    <TextBlock Text="水平偏移像素（负值=左移，正值=右移）" FontSize="13" Margin="0,0,0,4"/>
+                    <TextBox x:Name="OffsetXBox" Text="0" Width="90"/>
+                    <TextBlock Text="垂直偏移像素（负值=上移，正值=下移）" FontSize="13" Margin="0,8,0,4"/>
                     <TextBox x:Name="OffsetYBox" Text="0" Width="90"/>
                 </StackPanel>
             </Border>
@@ -61,6 +64,14 @@
                     <TextBlock Text="窗口层级" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <CheckBox x:Name="AlwaysOnTopCheck" Content="始终置顶（覆盖在其他窗口上方）" IsChecked="True"/>
                     <TextBlock Text="关闭后窗口位于桌面壁纸上方、其他窗口下方"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Margin="24,0,0,0" TextWrapping="Wrap"/>
+                    <CheckBox x:Name="CompactTopmostCheck" Content="上课进度条置顶" Margin="0,10,0,0"/>
+                    <TextBlock Text="上课收起为进度条时也置顶显示（不影响完整视图的「始终置顶」）"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Margin="24,0,0,0" TextWrapping="Wrap"/>
+                    <CheckBox x:Name="ClickThroughCheck" Content="点击穿透（鼠标点击穿过窗口）" Margin="0,10,0,0"/>
+                    <TextBlock Text="开启后鼠标点击不会落在顶栏上；自定义坐标模式始终可交互。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
                 </StackPanel>

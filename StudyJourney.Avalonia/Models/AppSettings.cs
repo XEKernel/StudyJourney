@@ -76,8 +76,13 @@ namespace StudyJourney.Avalonia.Models
         public int PositionPreset { get; set; } = PositionPresetValues.UpperCenter;
         public double CustomPositionX { get; set; } = -1;   // -1 表示居中
         public double CustomPositionY { get; set; } = -1;   // -1 表示自动
-        public double PositionOffsetY { get; set; } = 0;    // 垂直偏移（像素）
+        public double PositionOffsetX { get; set; } = 0;    // 水平偏移（像素，负=左移，正=右移）
+        public double PositionOffsetY { get; set; } = 0;    // 垂直偏移（像素，负=上移，正=下移）
         public bool AlwaysOnTop { get; set; } = false;
+        /// <summary>上课收起为进度条时是否置顶（不影响完整视图的 AlwaysOnTop）</summary>
+        public bool CompactProgressTopmost { get; set; } = true;
+        /// <summary>点击穿透：鼠标点击穿过窗口（自定义坐标模式始终可交互）</summary>
+        public bool ClickThrough { get; set; } = true;
 
         // ── 灵动岛外观 ──────────────────────────────────────
         /// <summary>胶囊圆角（px，0=直角，20=完全胶囊）</summary>
@@ -92,6 +97,8 @@ namespace StudyJourney.Avalonia.Models
         public string StartDateStr { get; set; } = "2024-08-24";
 
         // ── 倒计时显示 ────────────────────────────────────────
+        /// <summary>倒计时进度条样式：false=环形（进度数字在环旁），true=条形</summary>
+        public bool CountdownProgressBarStyle { get; set; } = false;
         // （时间单位天/时/分/秒 的显示开关见「时间精度」ShowDays 等；进度条/百分比见 ShowProgressBar/ShowProgressText）
 
         // ── 每日一言 ──────────────────────────────────────────
