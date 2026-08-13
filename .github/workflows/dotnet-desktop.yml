@@ -74,6 +74,51 @@ jobs:
           Copy-Item -Path publish\updater-sc\* -Destination publish\sc\ -Recurse -Force
           Copy-Item -Path publish\updater-fd\* -Destination publish\fd\ -Recurse -Force
 
+      # ── 代码签名（自签名证书 CN=XEKernel，来自 GitHub Secrets） ──
+      - name: Import signing certificate
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          $bytes = [System.Convert]::FromBase64String("${{ secrets.BASE64_ENCODED_PFX }}")
+          [System.IO.File]::WriteAllBytes("StudyJourney.pfx", $bytes)
+
+      - name: Find signtool
+        if: github.event_name == 'push'
+        id: find_signtool
+        shell: pwsh
+        run: |
+          $sdk = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\10.*" -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          $signtool = Join-Path $sdk.FullName "x64\signtool.exe"
+          echo "signtool_path=$signtool" >> $env:GITHUB_OUTPUT
+          Write-Host "signtool: $signtool"
+
+      - name: Sign binaries (Self-contained)
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "publish\sc\StudyJourneyAvalonia.exe"
+          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "publish\sc\StudyJourneyAvalonia.dll"
+
+      - name: Sign binaries (Framework-dependent)
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "publish\fd\StudyJourneyAvalonia.exe"
+          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "publish\fd\StudyJourneyAvalonia.dll"
+
+      - name: Verify signatures
+        if: github.event_name == 'push'
+        shell: pwsh
+        run: |
+          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /v "publish\sc\StudyJourneyAvalonia.exe"
+          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /v "publish\fd\StudyJourneyAvalonia.exe"
+          Write-Host "签名验证通过（CN=XEKernel）"
+
+      - name: Remove certificate
+        if: always() && github.event_name == 'push'
+        shell: pwsh
+        run: Remove-Item -Path "StudyJourney.pfx" -Force -ErrorAction SilentlyContinue
+
       # ── 打包（带版本号） ──
       - name: Pack SC zip
         shell: pwsh

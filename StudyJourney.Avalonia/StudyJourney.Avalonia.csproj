@@ -34,4 +34,34 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
+  <!-- ── 代码签名配置（自签名证书 CN=XEKernel，密码来自环境变量 SIGN_PASSWORD；CI 用 Secrets 自动签名） ── -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <SignCertificate>$(MSBuildProjectDirectory)\..\StudyJourney.pfx</SignCertificate>
+    <SignPassword Condition="'$(SignPassword)' == ''">$(SIGN_PASSWORD)</SignPassword>
+    <SignTimestampUrl>http://timestamp.digicert.com</SignTimestampUrl>
+  </PropertyGroup>
+
+  <!-- Release 构建后自动签名（需要 Windows SDK signtool.exe + 本地密码；本地未设密码时跳过，CI 构建将自动签名） -->
+  <Target Name="SignOutput" AfterTargets="AfterBuild"
+          Condition="'$(Configuration)' == 'Release' And '$(SignPassword)' != '' And Exists('$(SignCertificate)')">
+    <Message Text="[Sign] 正在签名: $(TargetPath)" Importance="high" />
+    <Exec Command="signtool sign /fd SHA256 /f &quot;$(SignCertificate)&quot; /p $(SignPassword) /tr $(SignTimestampUrl) /td SHA256 /v &quot;$(TargetPath)&quot;"
+          IgnoreExitCode="true" ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="SignExitCode" />
+    </Exec>
+    <Warning Condition="'$(SignExitCode)' != '0'" Text="本地签名失败(缺少 Windows SDK 或密码错误)，CI 构建将自动签名" />
+  </Target>
+
+  <!-- Release 发布输出自动签名（exe + dll） -->
+  <Target Name="SignPublishOutput" AfterTargets="AfterPublish"
+          Condition="'$(Configuration)' == 'Release' And '$(SignPassword)' != '' And Exists('$(SignCertificate)')">
+    <Message Text="[Sign] 正在签名发布输出: $(PublishDir)" Importance="high" />
+    <Exec Command="signtool sign /fd SHA256 /f &quot;$(SignCertificate)&quot; /p $(SignPassword) /tr $(SignTimestampUrl) /td SHA256 /v &quot;$(PublishDir)StudyJourneyAvalonia.exe&quot;"
+          IgnoreExitCode="true" ContinueOnError="true">
+      <Output TaskParameter="ExitCode" PropertyName="SignExitCode2" />
+    </Exec>
+    <Exec Command="signtool sign /fd SHA256 /f &quot;$(SignCertificate)&quot; /p $(SignPassword) /tr $(SignTimestampUrl) /td SHA256 /v &quot;$(PublishDir)StudyJourneyAvalonia.dll&quot;"
+          IgnoreExitCode="true" ContinueOnError="true" Condition="'$(SignExitCode2)' == '0'" />
+  </Target>
+
 </Project>
