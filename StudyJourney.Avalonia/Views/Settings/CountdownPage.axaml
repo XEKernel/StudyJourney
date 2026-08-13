@@ -65,8 +65,7 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="可见内容" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="ShowEnglishCheck" Content="显示英文倒计时行" IsChecked="True"/>
-                    <CheckBox x:Name="ShowProgressBarCheck" Content="显示进度条" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="ShowProgressBarCheck" Content="显示进度条" IsChecked="True"/>
                     <CheckBox x:Name="ShowProgressTextCheck" Content="显示进度百分比文字" IsChecked="True" Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
@@ -82,35 +81,6 @@
                     <CheckBox x:Name="ShowHoursCheck" Content="⏰  小时（Hours）" IsChecked="True" Margin="0,6,0,0"/>
                     <CheckBox x:Name="ShowMinutesCheck" Content="⏱  分钟（Minutes）" IsChecked="True" Margin="0,6,0,0"/>
                     <CheckBox x:Name="ShowSecondsCheck" Content="⌛  秒（Seconds）" IsChecked="True" Margin="0,6,0,0"/>
-                </StackPanel>
-            </Border>
-
-            <!-- 进度百分比精度 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="进度百分比精度" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBlock Text="小数位数（0 ～ 10）" FontSize="13"/>
-                    <Grid ColumnDefinitions="*,56" Margin="0,6,0,0">
-                        <Slider x:Name="DecimalSlider" ValueChanged="DecimalSlider_ValueChanged" Minimum="0" Maximum="10" Value="7" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock x:Name="DecimalText" Grid.Column="1" Text="7" FontSize="13"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
-
-            <!-- 动画 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="动画" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="EnableAnimationsCheck" Content="启用数字脉冲动画 &amp; 进度条平滑过渡" IsChecked="True"/>
-                    <TextBlock Text="关闭后数字每秒直接更新，进度条直接跳转，性能更节省"
-                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                               Margin="24,0,0,6" TextWrapping="Wrap"/>
-                    <CheckBox Content="启用设置窗口 Tab 切换滑动动画" IsChecked="True" Margin="0,6,0,0"/>
-                    <TextBlock Text="关闭后 Tab 切换直接显示，无过渡效果"
-                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                               Margin="24,0,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
 
@@ -150,23 +120,6 @@
                     <TextBox x:Name="ChineseMinutesBox" Text="分 "/>
                     <TextBlock Text="秒 的后缀" FontSize="13" Margin="0,6,0,0"/>
                     <TextBox x:Name="ChineseSecondsBox" Text="秒"/>
-                </StackPanel>
-            </Border>
-
-            <!-- 英文文本 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="英文文本" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBlock Text="前缀" FontSize="13"/>
-                    <TextBox x:Name="EnglishPrefixBox" Text="There are "/>
-                    <TextBlock Text="天（days）后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox x:Name="EnglishDaysBox" Text=", days "/>
-                    <TextBlock Text="小时（hours）后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox x:Name="EnglishHoursBox" Text=", hours "/>
-                    <TextBlock Text="分钟（minutes）后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox x:Name="EnglishMinutesBox" Text=", minutes, and "/>
-                    <TextBlock Text="秒（seconds）后缀 / 结尾" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox x:Name="EnglishSecondsBox" Text=" seconds."/>
                 </StackPanel>
             </Border>
 

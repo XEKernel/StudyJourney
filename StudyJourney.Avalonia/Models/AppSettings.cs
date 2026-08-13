@@ -25,13 +25,6 @@ namespace StudyJourney.Avalonia.Models
         public string ChineseMinutesText { get; set; } = "分 ";
         public string ChineseSecondsText { get; set; } = "秒";
 
-        // ── 英文文本 ─────────────────────────────────────────
-        public string EnglishPrefix { get; set; } = "There are ";
-        public string EnglishDaysText { get; set; } = " days, ";
-        public string EnglishHoursText { get; set; } = " hours, ";
-        public string EnglishMinutesText { get; set; } = " minutes, and ";
-        public string EnglishSecondsText { get; set; } = " seconds until the college entrance examination.";
-
         // ── 字体 ─────────────────────────────────────────────
         public string FontFamily { get; set; } = "Arial";
         public int FontSize { get; set; } = 40;
@@ -66,7 +59,6 @@ namespace StudyJourney.Avalonia.Models
         }
 
         // ── 显示选项 ─────────────────────────────────────────
-        public bool ShowEnglishLine { get; set; } = true;
         public bool ShowProgressBar { get; set; } = true;
         public bool ShowProgressText { get; set; } = true;
 
@@ -99,19 +91,8 @@ namespace StudyJourney.Avalonia.Models
         // 进度条起算日期
         public string StartDateStr { get; set; } = "2024-08-24";
 
-        // ── 进度条样式 ────────────────────────────────────────
-        // 进度文本精度（小数位数）
-        public int ProgressDecimalDigits { get; set; } = 7;
-
         // ── 倒计时显示 ────────────────────────────────────────
-        /// <summary>倒计时显示精确到时分秒（默认只显示天数）</summary>
-        public bool CountdownShowPrecise { get; set; } = false;
-        /// <summary>倒计时进度条样式：false=环形，true=条形</summary>
-        public bool CountdownProgressBarStyle { get; set; } = false;
-
-        // ── 动画 ─────────────────────────────────────────────
-        // 是否启用主窗口数字脉冲 & 进度条平滑动画
-        public bool EnableAnimations { get; set; } = true;
+        // （时间单位天/时/分/秒 的显示开关见「时间精度」ShowDays 等；进度条/百分比见 ShowProgressBar/ShowProgressText）
 
         // ── 每日一言 ──────────────────────────────────────────
         public bool   ShowDailyQuote            { get; set; } = true;
@@ -133,18 +114,16 @@ namespace StudyJourney.Avalonia.Models
         public string WeatherTempColor        { get; set; } = "#FFFF8844";  // 温度
         public string WeatherTimeColor        { get; set; } = "#66AAAAAA";  // 更新时间
         public string WeatherIconColor        { get; set; } = "#FFFFAA00";  // 天气图标
-        /// <summary>天气胶囊显示详细信息（描述/湿度/风力/城市）</summary>
-        public bool WeatherShowDetail         { get; set; } = false;
+        /// <summary>天气详细度：0=简洁（emoji+温度），1=标准（+描述），2=详细（+城市/湿度/风力）</summary>
+        public int WeatherDetailLevel        { get; set; } = 1;
 
         // ── 系统 ─────────────────────────────────────────────
         // 是否开机自启动（写注册表 HKCU\Run）
         public bool AutoStart { get; set; } = false;
         // 有其他窗口（非桌面）时自动隐藏倒计时（桌面同一层，默认开启）
         public bool HideWhenMaximized { get; set; } = true;
-        // 上课期间隐藏高考倒计时主窗口
+        // 上课时收起为进度条（只留进度条+上课进度；false 则上课时保持完整显示）
         public bool HideDuringClass { get; set; } = true;
-        // 上课时隐藏窗口的科目列表（逗号分隔，如"数学,物理"），空=所有科目都隐藏
-        public string HideSubjects { get; set; } = "";
 
         // ── 提醒开关 ──────────────────────────────────────────
         public bool EnableReminderSound  { get; set; } = true;

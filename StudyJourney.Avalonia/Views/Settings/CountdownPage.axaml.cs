@@ -29,16 +29,12 @@ public partial class CountdownPage : UserControl, ISettingsPage
         FontSizeText.Text = ((int)s.FontSize).ToString();
         OpacitySlider.Value = s.OverallOpacity;
         OpacityText.Text = $"{s.OverallOpacity * 100:F0}%";
-        ShowEnglishCheck.IsChecked = s.ShowEnglishLine;
         ShowProgressBarCheck.IsChecked = s.ShowProgressBar;
         ShowProgressTextCheck.IsChecked = s.ShowProgressText;
         ShowDaysCheck.IsChecked = s.ShowDays;
         ShowHoursCheck.IsChecked = s.ShowHours;
         ShowMinutesCheck.IsChecked = s.ShowMinutes;
         ShowSecondsCheck.IsChecked = s.ShowSeconds;
-        DecimalSlider.Value = s.ProgressDecimalDigits;
-        DecimalText.Text = s.ProgressDecimalDigits.ToString();
-        EnableAnimationsCheck.IsChecked = s.EnableAnimations;
         GaokaoDateBox.Text = s.GaokaoDateStr;
         StartDateBox.Text = s.StartDateStr;
         CustomCountdownGrid.ItemsSource = s.CustomCountdowns;
@@ -49,11 +45,6 @@ public partial class CountdownPage : UserControl, ISettingsPage
         ChineseHoursBox.Text = s.ChineseHoursText;
         ChineseMinutesBox.Text = s.ChineseMinutesText;
         ChineseSecondsBox.Text = s.ChineseSecondsText;
-        EnglishPrefixBox.Text = s.EnglishPrefix;
-        EnglishDaysBox.Text = s.EnglishDaysText;
-        EnglishHoursBox.Text = s.EnglishHoursText;
-        EnglishMinutesBox.Text = s.EnglishMinutesText;
-        EnglishSecondsBox.Text = s.EnglishSecondsText;
 
         NumberColorBox.Text = s.NumberColor.ToString();
         TextColorBox.Text = s.TextColor.ToString();
@@ -70,15 +61,12 @@ public partial class CountdownPage : UserControl, ISettingsPage
 
         s.FontSize = (int)FontSizeSlider.Value;
         s.OverallOpacity = OpacitySlider.Value;
-        s.ShowEnglishLine = ShowEnglishCheck.IsChecked == true;
         s.ShowProgressBar = ShowProgressBarCheck.IsChecked == true;
         s.ShowProgressText = ShowProgressTextCheck.IsChecked == true;
         s.ShowDays = ShowDaysCheck.IsChecked == true;
         s.ShowHours = ShowHoursCheck.IsChecked == true;
         s.ShowMinutes = ShowMinutesCheck.IsChecked == true;
         s.ShowSeconds = ShowSecondsCheck.IsChecked == true;
-        s.ProgressDecimalDigits = (int)DecimalSlider.Value;
-        s.EnableAnimations = EnableAnimationsCheck.IsChecked == true;
         s.GaokaoDateStr = GaokaoDateBox.Text ?? "";
         s.StartDateStr = StartDateBox.Text ?? "";
 
@@ -88,11 +76,6 @@ public partial class CountdownPage : UserControl, ISettingsPage
         s.ChineseHoursText = ChineseHoursBox.Text ?? s.ChineseHoursText;
         s.ChineseMinutesText = ChineseMinutesBox.Text ?? s.ChineseMinutesText;
         s.ChineseSecondsText = ChineseSecondsBox.Text ?? s.ChineseSecondsText;
-        s.EnglishPrefix = EnglishPrefixBox.Text ?? s.EnglishPrefix;
-        s.EnglishDaysText = EnglishDaysBox.Text ?? s.EnglishDaysText;
-        s.EnglishHoursText = EnglishHoursBox.Text ?? s.EnglishHoursText;
-        s.EnglishMinutesText = EnglishMinutesBox.Text ?? s.EnglishMinutesText;
-        s.EnglishSecondsText = EnglishSecondsBox.Text ?? s.EnglishSecondsText;
 
         if (TryParseColor(NumberColorBox.Text ?? "#FFFFFF", out var nc)) s.NumberColor = nc;
         if (TryParseColor(TextColorBox.Text ?? "#FFFFFF", out var tc)) s.TextColor = tc;
@@ -108,11 +91,6 @@ public partial class CountdownPage : UserControl, ISettingsPage
     private void OpacitySlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
     {
         if (OpacityText != null) OpacityText.Text = $"{e.NewValue * 100:F0}%";
-    }
-
-    private void DecimalSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-    {
-        if (DecimalText != null) DecimalText.Text = ((int)e.NewValue).ToString();
     }
 
     // ── 颜色选择 ────────────────────────────────────────────

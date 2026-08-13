@@ -16,9 +16,6 @@ public partial class PositionPage : UserControl, ISettingsPage
         CapsuleMerged.IsChecked = !s.IslandSeparated;
         CapsuleSeparated.IsChecked = s.IslandSeparated;
         CornerRadiusSlider.Value = s.MainWindowCornerRadius;
-        CountdownPreciseCheck.IsChecked = s.CountdownShowPrecise;
-        CountdownBarCheck.IsChecked = s.CountdownProgressBarStyle;
-
         PosTop.IsChecked = s.PositionPreset == PositionPresetValues.Top;
         PosUpperCenter.IsChecked = s.PositionPreset == PositionPresetValues.UpperCenter;
         PosCenter.IsChecked = s.PositionPreset == PositionPresetValues.Center;
@@ -32,7 +29,6 @@ public partial class PositionPage : UserControl, ISettingsPage
         AutoStartCheck.IsChecked = s.AutoStart;
         HideWhenMaximizedCheck.IsChecked = s.HideWhenMaximized;
         HideDuringClassCheck.IsChecked = s.HideDuringClass;
-        HideSubjectsBox.Text = s.HideSubjects;
     }
 
     private void CornerRadiusSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
@@ -44,8 +40,6 @@ public partial class PositionPage : UserControl, ISettingsPage
     {
         s.IslandSeparated = CapsuleSeparated.IsChecked == true;
         s.MainWindowCornerRadius = CornerRadiusSlider.Value;
-        s.CountdownShowPrecise = CountdownPreciseCheck.IsChecked == true;
-        s.CountdownProgressBarStyle = CountdownBarCheck.IsChecked == true;
 
         s.PositionPreset = PosTop.IsChecked == true ? PositionPresetValues.Top
             : PosUpperCenter.IsChecked == true ? PositionPresetValues.UpperCenter
@@ -63,6 +57,5 @@ public partial class PositionPage : UserControl, ISettingsPage
         s.AutoStart = AutoStartCheck.IsChecked == true;
         s.HideWhenMaximized = HideWhenMaximizedCheck.IsChecked == true;
         s.HideDuringClass = HideDuringClassCheck.IsChecked == true;
-        s.HideSubjects = HideSubjectsBox.Text ?? "";
     }
 }

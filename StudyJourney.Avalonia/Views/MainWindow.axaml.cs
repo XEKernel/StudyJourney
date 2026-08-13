@@ -52,8 +52,6 @@ public partial class MainWindow : Window
     private bool _hiddenByMaximize;
     private bool _hiddenByScheduleOrExam;
     private bool _suppressAutoHide;   // 用户主动显示时豁免自动隐藏
-    private string? _cachedHideSubjects;
-    private HashSet<string> _cachedHiddenSet = new(StringComparer.OrdinalIgnoreCase);
 
     // ── 点击穿透 / 定位 ──────────────────────────────────────
     private bool _clickThroughEnabled;
@@ -199,16 +197,21 @@ public partial class MainWindow : Window
             if (result == null) return;
             string emoji = Helpers.ColorUtils.GetWeatherEmoji(result.WeatherIcon);
 
-            if (s.WeatherShowDetail)
+            switch (s.WeatherDetailLevel)
             {
-                WeatherTb.Text = $"{emoji} {result.Temperature}° {result.Weather}";
-                WeatherMetaTb.Text = $"{result.Location}  湿度 {result.Humidity}%  {result.WindDirection}{result.WindPower}";
-                WeatherMetaTb.IsVisible = true;
-            }
-            else
-            {
-                WeatherTb.Text = $"{emoji} {result.Temperature}°";
-                WeatherMetaTb.IsVisible = false;
+                case 0: // 简洁：emoji + 温度
+                    WeatherTb.Text = $"{emoji} {result.Temperature}°";
+                    WeatherMetaTb.IsVisible = false;
+                    break;
+                case 2: // 详细：+ 描述 + 城市/湿度/风力
+                    WeatherTb.Text = $"{emoji} {result.Temperature}° {result.Weather}";
+                    WeatherMetaTb.Text = $"{result.Location}  湿度 {result.Humidity}%  {result.WindDirection}{result.WindPower}";
+                    WeatherMetaTb.IsVisible = true;
+                    break;
+                default: // 标准（1）：emoji + 温度 + 描述
+                    WeatherTb.Text = $"{emoji} {result.Temperature}° {result.Weather}";
+                    WeatherMetaTb.IsVisible = false;
+                    break;
             }
         }
         catch { /* 网络异常静默 */ }
@@ -319,29 +322,14 @@ public partial class MainWindow : Window
     private void Tick()
     {
         var now = Helpers.TimeSimulator.Now;
-        var s = App.Settings;
 
         // 时间（模块一）
         TimeTb.Text = now.ToString("HH:mm:ss");
 
-        // 上课/考试期间隐藏主窗口（可设置科目白名单）
-        var curEntry = App.Schedule.GetCurrentEntry(now);
-        bool isInClass = s.HideDuringClass && curEntry != null;
-        if (isInClass && !string.IsNullOrWhiteSpace(s.HideSubjects))
-        {
-            if (s.HideSubjects != _cachedHideSubjects)
-            {
-                _cachedHideSubjects = s.HideSubjects;
-                _cachedHiddenSet = s.HideSubjects
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            }
-            isInClass = curEntry != null && _cachedHiddenSet.Contains(curEntry.Subject);
-        }
+        // 仅考试模式（全屏考试窗口）时隐藏主窗口；上课不再隐藏，改为顶部显示进度条
         bool isInExam = _examModeWindow != null;
-        bool shouldHide = isInClass || isInExam;
 
-        if (shouldHide)
+        if (isInExam)
         {
             _classEndRestoreTimer?.Stop();
             _classEndRestoreTimer = null;
@@ -381,11 +369,18 @@ public partial class MainWindow : Window
         UpdateCountdownRings(now);
     }
 
-    /// <summary>模块二：课程栏（已上科目 | 当前状态 | 未来科目）</summary>
+    /// <summary>模块二：课程栏（已上科目 | 当前状态 | 未来科目）；上课可收起为紧凑视图</summary>
     private void UpdateScheduleInfo(DateTime now)
     {
         var manager = App.Schedule;
         var today = manager.GetTodayEntries(now.Date);
+        var cur = manager.GetCurrentEntry(now);
+        var next = manager.GetNextEntry(now);
+
+        // 上课收起：HideDuringClass 开启且正在上课 → 切到紧凑视图（只留进度条+上课进度）
+        bool compact = App.Settings.HideDuringClass && cur != null;
+        OuterCapsule.IsVisible = !compact;
+        CompactCapsule.IsVisible = compact;
 
         // 左：已上科目（跨天课用真实结束时刻，避免误归入"已上"）
         var prevSubjects = today
@@ -395,8 +390,6 @@ public partial class MainWindow : Window
         PrevSubjectsTb.Text = string.Join("  ", prevSubjects);
 
         // 中：当前状态 + 倒计时
-        var cur = manager.GetCurrentEntry(now);
-        var next = manager.GetNextEntry(now);
         if (cur != null)
         {
             var remain = manager.GetTimeToEndOfCurrent(now);
@@ -423,17 +416,28 @@ public partial class MainWindow : Window
             .Select(e => e.Subject);
         NextSubjectsTb.Text = string.Join("  ", nextSubjects);
 
-        // 底部浅蓝进度条：上课进度 / 课间休息进度
+        // 紧凑视图文字（上课进度）
+        if (compact && cur != null)
+        {
+            var remain = manager.GetTimeToEndOfCurrent(now);
+            CompactStatusTb.Text = remain.HasValue
+                ? $"{cur.Subject} 剩余 {FormatDuration(remain.Value)}"
+                : cur.Subject;
+        }
+
+        // 底部浅蓝进度条：上课进度 / 课间休息进度（紧凑进度条一并更新）
         UpdateClassProgress(now, cur, next);
     }
 
-    /// <summary>课程栏底部进度条：上课进度 / 课间休息进度</summary>
+    /// <summary>课程栏进度条：上课进度 / 课间休息进度（紧凑视图进度条同步）</summary>
     private void UpdateClassProgress(DateTime now, ScheduleEntry? cur, ScheduleEntry? next)
     {
         if (cur != null)
         {
             var pct = App.Schedule.GetCurrentProgress(now);
-            ClassProgressBar.Value = pct.HasValue ? pct.Value * 100 : 0;
+            var v = pct.HasValue ? pct.Value * 100 : 0;
+            ClassProgressBar.Value = v;
+            CompactProgressBar.Value = v;
             return;
         }
 
@@ -459,37 +463,38 @@ public partial class MainWindow : Window
     /// <summary>圆环配色（自定义倒计时轮换）</summary>
     private static readonly string[] RingColors = { "#FFEB3B", "#4CAF50", "#2B6CB0" };
 
-    /// <summary>模块三：高考（固定）+ 自定义倒计时（动态）</summary>
+    /// <summary>模块三：高考（固定）+ 自定义倒计时（动态）；文字/百分比/进度条按设置显隐</summary>
     private void UpdateCountdownRings(DateTime now)
     {
         var s = App.Settings;
-        bool bar = s.CountdownProgressBarStyle;
-
-        // 高考：环形 / 条形切换
-        GaokaoRing.IsVisible = !bar;
-        GaokaoBar.IsVisible = bar;
 
         if (DateTime.TryParse(s.GaokaoDateStr, out var gao))
         {
-            GaokaoTb.Text = FormatCountdownText("高考", gao, now, s.CountdownShowPrecise);
+            GaokaoTb.Text = FormatCountdownText("高考", gao, now);
             double progress = ComputeProgress(gao, s.StartDateStr, now);
-            if (bar) GaokaoBar.Value = progress * 100;
-            else GaokaoRingArc.SweepAngle = progress * 360;
+            GaokaoBar.Value = progress * 100;
+            GaokaoBar.IsVisible = s.ShowProgressBar;
+            GaokaoPctTb.Text = $"{progress * 100:F1}%";
+            GaokaoPctTb.IsVisible = s.ShowProgressText;
         }
 
         // 自定义倒计时（动态）
         RebuildCustomRings(now);
     }
 
-    /// <summary>倒计时文本：普通="X天"，精确="X天 HH:MM:SS"</summary>
-    private static string FormatCountdownText(string label, DateTime target, DateTime now, bool precise)
+    /// <summary>倒计时文本：按设置的时间精度（天/时/分/秒）拼接单位</summary>
+    private static string FormatCountdownText(string label, DateTime target, DateTime now)
     {
         var remaining = target - now;
         if (remaining.TotalSeconds <= 0) return $"{label} 0天";
-        if (!precise)
-            return $"{label} {(int)Math.Ceiling(remaining.TotalDays)}天";
-        int days = (int)Math.Floor(remaining.TotalDays);
-        return $"{label} {days}天 {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+        var s = App.Settings;
+        var parts = new List<string>();
+        if (s.ShowDays) parts.Add($"{(int)Math.Floor(remaining.TotalDays)}天");
+        if (s.ShowHours) parts.Add($"{remaining.Hours}时");
+        if (s.ShowMinutes) parts.Add($"{remaining.Minutes}分");
+        if (s.ShowSeconds) parts.Add($"{remaining.Seconds}秒");
+        if (parts.Count == 0) parts.Add("即将到来");
+        return $"{label} {string.Join(" ", parts)}";
     }
 
     /// <summary>倒计时进度：起点 → 目标日期的已过比例（0~1）</summary>
@@ -520,67 +525,46 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>构建单个自定义倒计时（环形/条形 + 精确时间；分离模式=独立胶囊）</summary>
+    /// <summary>构建单个自定义倒计时（文字/百分比/进度条按设置显隐；分离模式=独立胶囊）</summary>
     private static Control BuildCustomRing(string name, DateTime target, DateTime now, string colorHex)
     {
         var color = Color.Parse(colorHex);
         var progressBrush = new SolidColorBrush(color);
         double progress = ComputeProgress(target, null, now);
-        string text = FormatCountdownText(name, target, now, App.Settings.CountdownShowPrecise);
-
-        var textTb = new TextBlock
-        {
-            Text = text, FontSize = 12,
-            Foreground = Brushes.White,
-            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
-        };
+        string text = FormatCountdownText(name, target, now);
 
         var panel = new StackPanel
         {
-            Orientation = global::Avalonia.Layout.Orientation.Horizontal,
-            Spacing = 5,
+            Spacing = 3,
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
         };
 
-        if (App.Settings.CountdownProgressBarStyle)
+        panel.Children.Add(new TextBlock
         {
-            // 条形进度条
-            var bar = new ProgressBar
-            {
-                Width = 50, Height = 4, Minimum = 0, Maximum = 100, Value = progress * 100,
-                Foreground = progressBrush,
-                Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
-                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
-            };
-            panel.Children.Add(bar);
-        }
-        else
+            Text = text, FontSize = 12,
+            Foreground = Brushes.White,
+            HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center
+        });
+
+        if (App.Settings.ShowProgressText)
         {
-            // 环形进度条（圆环 + 图标）
-            var bgArc = new Arc
+            panel.Children.Add(new TextBlock
             {
-                StartAngle = 0, SweepAngle = 360,
-                Stroke = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF)), StrokeThickness = 3
-            };
-            var progArc = new Arc
-            {
-                StartAngle = -90, SweepAngle = progress * 360,
-                Stroke = progressBrush, StrokeThickness = 3, StrokeLineCap = PenLineCap.Round
-            };
-            var iconTb = new TextBlock
-            {
-                Text = "📅", FontSize = 11,
-                HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
-                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
-            };
-            var ring = new Grid { Width = 22, Height = 22 };
-            ring.Children.Add(bgArc);
-            ring.Children.Add(progArc);
-            ring.Children.Add(iconTb);
-            panel.Children.Add(ring);
+                Text = $"{progress * 100:F1}%", FontSize = 9,
+                Foreground = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
+                HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center
+            });
         }
 
-        panel.Children.Add(textTb);
+        if (App.Settings.ShowProgressBar)
+        {
+            panel.Children.Add(new ProgressBar
+            {
+                Width = 70, Height = 3, Minimum = 0, Maximum = 100, Value = progress * 100,
+                Foreground = progressBrush,
+                Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF))
+            });
+        }
 
         if (App.Settings.IslandSeparated)
         {
@@ -591,7 +575,7 @@ public partial class MainWindow : Window
                 Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x20, 0x20, 0x20)),
                 BorderBrush = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(12, 8),
+                Padding = new Thickness(12, 6),
                 Effect = new DropShadowEffect
                 {
                     OffsetY = 3, BlurRadius = 10, Opacity = 0.23, Color = Colors.Black

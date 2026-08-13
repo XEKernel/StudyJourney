@@ -23,8 +23,6 @@
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="0,2,0,0" TextWrapping="Wrap"/>
 
-                    <CheckBox x:Name="CountdownPreciseCheck" Content="倒计时显示精确到时分秒" Margin="0,12,0,0"/>
-                    <CheckBox x:Name="CountdownBarCheck" Content="倒计时进度条用条形（默认环形）" Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -77,12 +75,13 @@
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,8" TextWrapping="Wrap"/>
                     <CheckBox x:Name="HideWhenMaximizedCheck" Content="有其他窗口时自动隐藏（桌面同一层）" Margin="0,6,0,0"/>
-                    <CheckBox x:Name="HideDuringClassCheck" Content="上课/考试时自动隐藏倒计时窗口" Margin="0,8,0,0"/>
                     <TextBlock Text="桌面有应用窗口时自动隐藏倒计时，回到纯桌面时重新显示。&#10;开启「始终置顶」后此隐藏不生效。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,4" TextWrapping="Wrap"/>
-                    <TextBlock Text="仅对以下科目隐藏（逗号分隔，留空则全部隐藏）" FontSize="13" Margin="0,8,0,2"/>
-                    <TextBox x:Name="HideSubjectsBox" Width="220" PlaceholderText="数学,物理,英语"/>
+                    <CheckBox x:Name="HideDuringClassCheck" Content="上课时收起为进度条" Margin="0,8,0,0"/>
+                    <TextBlock Text="上课期间整栏收起，只保留一条进度条和当前课进度；下课后自动展开。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Margin="24,0,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
             </Border>
         </StackPanel>

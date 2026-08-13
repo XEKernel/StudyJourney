@@ -13,88 +13,102 @@
 
     <!-- 胶囊样式可在「设置 → 位置与外观」切换：
          单条大胶囊（IslandSeparated=false）/ 多块胶囊（IslandSeparated=true）。
-         各块背景、圆角、阴影、竖线由 MainWindow.ApplyCapsuleStyle() 统一控制 -->
-    <Border x:Name="OuterCapsule" CornerRadius="12" Background="#E6202020" BorderBrush="#14FFFFFF"
-            BorderThickness="1" Padding="16,10">
-        <Border.ContextMenu>
-            <ContextMenu>
-                <MenuItem Header="进入考试模式" Click="ExamModeMenuItem_Click"/>
-                <MenuItem Header="打开设置" Click="OpenSettingsMenuItem_Click"/>
-                <Separator/>
-                <MenuItem Header="退出" Click="ExitMenuItem_Click"/>
-            </ContextMenu>
-        </Border.ContextMenu>
+         各块背景、圆角、阴影、竖线由 MainWindow.ApplyCapsuleStyle() 统一控制。
+         上课时整栏收起为 CompactCapsule（只留进度条+上课进度）。 -->
+    <Grid>
 
-        <StackPanel Spacing="8">
+        <!-- ══ 完整视图 ══ -->
+        <Border x:Name="OuterCapsule" CornerRadius="12" Background="#E6202020" BorderBrush="#14FFFFFF"
+                BorderThickness="1" Padding="16,10">
+            <Border.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="进入考试模式" Click="ExamModeMenuItem_Click"/>
+                    <MenuItem Header="打开设置" Click="OpenSettingsMenuItem_Click"/>
+                    <Separator/>
+                    <MenuItem Header="退出" Click="ExitMenuItem_Click"/>
+                </ContextMenu>
+            </Border.ContextMenu>
 
-            <!-- ══ 第一行：时间 | 课表 | 天气 ══ -->
-            <StackPanel x:Name="Row1" Orientation="Horizontal" Spacing="8">
+            <StackPanel Spacing="8">
 
-                <Border x:Name="TimeCapsule" CornerRadius="12" Padding="14,10">
-                    <TextBlock x:Name="TimeTb" Text="12:30:44" FontSize="15" FontWeight="SemiBold"
-                               Foreground="#FFFFFFFF" FontFamily="Consolas" VerticalAlignment="Center"/>
-                </Border>
+                <!-- ══ 第一行：时间 | 课表 | 天气 ══ -->
+                <StackPanel x:Name="Row1" Orientation="Horizontal" Spacing="8">
 
-                <Border x:Name="Sep1" Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"
-                        IsVisible="False"/>
+                    <Border x:Name="TimeCapsule" CornerRadius="12" Padding="14,6">
+                        <TextBlock x:Name="TimeTb" Text="12:30:44" FontSize="15" FontWeight="SemiBold"
+                                   Foreground="#FFFFFFFF" FontFamily="Consolas" VerticalAlignment="Center"/>
+                    </Border>
 
-                <Border x:Name="ScheduleCapsule" CornerRadius="12" Padding="16,10">
-                    <StackPanel Spacing="6">
-                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                            <TextBlock x:Name="PrevSubjectsTb" Text="语 数 美 历 英" FontSize="14"
-                                       Foreground="#E6FFFFFF" VerticalAlignment="Center"/>
-                            <Border Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="StatusTb" Text="课间休息" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
-                            <Border Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="NextSubjectsTb" Text="生 政 自 自" FontSize="14"
-                                       Foreground="#B0FFFFFF" VerticalAlignment="Center"/>
+                    <Border x:Name="Sep1" Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"
+                            IsVisible="False"/>
+
+                    <Border x:Name="ScheduleCapsule" CornerRadius="12" Padding="16,6">
+                        <StackPanel Spacing="4">
+                            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                                <TextBlock x:Name="PrevSubjectsTb" Text="语 数 美 历 英" FontSize="14"
+                                           Foreground="#E6FFFFFF" VerticalAlignment="Center"/>
+                                <Border Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="StatusTb" Text="课间休息" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                                <Border Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="NextSubjectsTb" Text="生 政 自 自" FontSize="14"
+                                           Foreground="#B0FFFFFF" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <ProgressBar x:Name="ClassProgressBar" Height="3" Minimum="0" Maximum="100"
+                                         Foreground="#4DD0E1" Background="#22FFFFFF"/>
                         </StackPanel>
-                        <ProgressBar x:Name="ClassProgressBar" Height="3" Minimum="0" Maximum="100"
-                                     Foreground="#4DD0E1" Background="#22FFFFFF"/>
-                    </StackPanel>
-                </Border>
+                    </Border>
 
-                <Border x:Name="Sep2" Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"
-                        IsVisible="False"/>
+                    <Border x:Name="Sep2" Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"
+                            IsVisible="False"/>
 
-                <Border x:Name="WeatherCapsule" CornerRadius="12" Padding="14,10">
-                    <StackPanel Spacing="2">
-                        <TextBlock x:Name="WeatherTb" Text="☀ 18°C" FontSize="14"
-                                   Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
-                        <TextBlock x:Name="WeatherMetaTb" Text="" FontSize="10"
-                                   Foreground="#AAFFFFFF" IsVisible="False"/>
-                    </StackPanel>
-                </Border>
+                    <Border x:Name="WeatherCapsule" CornerRadius="12" Padding="14,6">
+                        <StackPanel Spacing="2">
+                            <TextBlock x:Name="WeatherTb" Text="☀ 18°C" FontSize="14"
+                                       Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="WeatherMetaTb" Text="" FontSize="10"
+                                       Foreground="#AAFFFFFF" IsVisible="False"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ══ 第二行：倒计时（高考 + 自定义），文字在上、进度条在下 ══ -->
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+
+                    <Border x:Name="GaokaoCapsule" CornerRadius="12" Padding="12,6">
+                        <StackPanel Spacing="3">
+                            <TextBlock x:Name="GaokaoTb" Text="高考 216天" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#FFFFFFFF" HorizontalAlignment="Center"/>
+                            <TextBlock x:Name="GaokaoPctTb" Text="" FontSize="9" Foreground="#AAFFFFFF"
+                                       HorizontalAlignment="Center" IsVisible="False"/>
+                            <ProgressBar x:Name="GaokaoBar" Width="70" Height="3" Minimum="0" Maximum="100"
+                                         Foreground="#FF2B6CB0" Background="#22FFFFFF"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 自定义倒计时（动态，来自设置页「自定义倒计时」） -->
+                    <StackPanel x:Name="RingHost" Orientation="Horizontal" Spacing="8"/>
+                </StackPanel>
             </StackPanel>
+        </Border>
 
-            <!-- ══ 第二行：倒计时（高考 + 自定义） ══ -->
-            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-
-                <Border x:Name="GaokaoCapsule" CornerRadius="12" Padding="12,8">
-                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                        <Grid x:Name="GaokaoRing" Width="22" Height="22">
-                            <Arc StartAngle="0" SweepAngle="360" Stroke="#24FFFFFF" StrokeThickness="3"/>
-                            <Arc x:Name="GaokaoRingArc" StartAngle="-90" SweepAngle="0"
-                                 Stroke="#FF2B6CB0" StrokeThickness="3" StrokeLineCap="Round"/>
-                            <TextBlock Text="🎓" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <Border Width="9" Height="9" CornerRadius="5" Background="#FFE53935"
-                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-3,0">
-                                <TextBlock Text="6" FontSize="6" FontWeight="Bold" Foreground="#FFFFFFFF"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            </Border>
-                        </Grid>
-                        <ProgressBar x:Name="GaokaoBar" Width="50" Height="4" Minimum="0" Maximum="100"
-                                     IsVisible="False" Foreground="#FF2B6CB0" Background="#22FFFFFF"
-                                     VerticalAlignment="Center"/>
-                        <TextBlock x:Name="GaokaoTb" Text="高考 216天" FontSize="12" FontWeight="SemiBold"
-                                   Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Border>
-
-                <!-- 自定义倒计时（动态，来自设置页「自定义倒计时」） -->
-                <StackPanel x:Name="RingHost" Orientation="Horizontal" Spacing="8"/>
+        <!-- ══ 紧凑视图（上课时）：只留上课进度 + 进度条 ══ -->
+        <Border x:Name="CompactCapsule" CornerRadius="12" Background="#E6202020" BorderBrush="#14FFFFFF"
+                BorderThickness="1" Padding="14,8" IsVisible="False">
+            <Border.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="进入考试模式" Click="ExamModeMenuItem_Click"/>
+                    <MenuItem Header="打开设置" Click="OpenSettingsMenuItem_Click"/>
+                    <Separator/>
+                    <MenuItem Header="退出" Click="ExitMenuItem_Click"/>
+                </ContextMenu>
+            </Border.ContextMenu>
+            <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <TextBlock x:Name="CompactStatusTb" Text="数学 剩余 12:34" FontSize="13" FontWeight="SemiBold"
+                           Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                <ProgressBar x:Name="CompactProgressBar" Width="80" Height="3" Minimum="0" Maximum="100"
+                             Foreground="#4DD0E1" Background="#22FFFFFF"/>
             </StackPanel>
-        </StackPanel>
-    </Border>
+        </Border>
+    </Grid>
 </Window>
