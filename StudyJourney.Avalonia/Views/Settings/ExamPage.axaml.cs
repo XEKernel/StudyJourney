@@ -23,6 +23,12 @@ public partial class ExamPage : UserControl, ISettingsPage
         App.EnterExamModeGlobal();
     }
 
+    /// <summary>退出考试模式（对齐 WPF ExitExamMode_Click）</summary>
+    private void ExitExamModeBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        App.ExitExamModeGlobal();
+    }
+
     // ── 滑条联动 ────────────────────────────────────────────
     private void ExamModeFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
         => UpdateLabel(ExamModeFontSizeText, e.NewValue);

@@ -8,6 +8,9 @@ namespace StudyJourney.Avalonia.Views;
 /// <summary>颜色选择对话框（Avalonia ColorPicker 控件封装，返回 #AARRGGBB 字符串）</summary>
 public partial class ColorPickerDialog : Window
 {
+    /// <summary>无参构造（供 Avalonia XAML 加载器识别，消除 AVLN3001）</summary>
+    public ColorPickerDialog() : this("#FFFFFFFF") { }
+
     public ColorPickerDialog(string initialHex)
     {
         InitializeComponent();

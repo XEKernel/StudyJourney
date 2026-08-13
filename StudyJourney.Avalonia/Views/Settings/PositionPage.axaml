@@ -58,7 +58,7 @@
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,4" TextWrapping="Wrap"/>
                     <TextBlock Text="仅对以下科目隐藏（逗号分隔，留空则全部隐藏）" FontSize="13" Margin="0,8,0,2"/>
-                    <TextBox x:Name="HideSubjectsBox" Width="220" Watermark="数学,物理,英语"/>
+                    <TextBox x:Name="HideSubjectsBox" Width="220" PlaceholderText="数学,物理,英语"/>
                 </StackPanel>
             </Border>
         </StackPanel>

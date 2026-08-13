@@ -20,7 +20,7 @@
                     </Grid>
                     <Grid ColumnDefinitions="110,*,70" Margin="0,4,0,6">
                         <TextBlock Text="悬浮栏宽度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <TextBox x:Name="ScheduleBarWidthBox" Grid.Column="1" Text="0" Watermark="0 = 铺满屏幕"/>
+                        <TextBox x:Name="ScheduleBarWidthBox" Grid.Column="1" Text="0" PlaceholderText="0 = 铺满屏幕"/>
                     </Grid>
                     <Grid ColumnDefinitions="110,*,70" Margin="0,4,0,6">
                         <TextBlock Text="文字字号" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
@@ -59,7 +59,7 @@
 
                     <CheckBox x:Name="EnableReminderSoundCheck" Content="启用提醒提示音" Margin="0,10,0,0"/>
                     <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
-                        <TextBox x:Name="ReminderSoundPathBox" Watermark="留空使用系统默认音"/>
+                        <TextBox x:Name="ReminderSoundPathBox" PlaceholderText="留空使用系统默认音"/>
                         <Button Grid.Column="1" Content="浏览…" Margin="8,0,0,0" Click="BrowseReminderSound_Click"/>
                     </Grid>
                 </StackPanel>

@@ -90,6 +90,11 @@ public partial class App : Application
             if (Settings.AutoCheckUpdate)
                 _ = CheckUpdateDelayedAsync();
 
+            // 当天有考试且开启自动进入 → 延迟 2 秒进入考试模式（对齐 WPF）
+            if (Settings.AutoEnterExamMode && Settings.EnableExamMode &&
+                Schedule.GetTodayExams().Count > 0)
+                _ = EnterExamModeDelayedAsync();
+
             _mainWindow.Show();
         }
 
@@ -109,7 +114,7 @@ public partial class App : Application
                           $"将自动下载 {mode}\n\n是否立即更新？";
                 await Dispatcher.UIThread.InvokeAsync(async () =>
                 {
-                    var ok = await ShowConfirmAsync("学程 — 发现新版本", msg);
+                    var ok = await ConfirmAsync("学程 — 发现新版本", msg, "立即更新", "取消");
                     if (ok)
                     {
                         var result = await UpdateService.StartUpdateAsync(info.DownloadUrl,
@@ -122,8 +127,16 @@ public partial class App : Application
         catch { /* 网络不可用，静默 */ }
     }
 
-    /// <summary>简易确认弹窗（Avalonia 无内置 MessageBox，用系统消息框）</summary>
-    private static async System.Threading.Tasks.Task<bool> ShowConfirmAsync(string title, string message)
+    /// <summary>开考自动进入考试模式：延迟 2 秒（对齐 WPF MainWindow.Schedule.cs）</summary>
+    private async System.Threading.Tasks.Task EnterExamModeDelayedAsync()
+    {
+        await System.Threading.Tasks.Task.Delay(2000);
+        Dispatcher.UIThread.Post(EnterExamMode);
+    }
+
+    /// <summary>通用确认弹窗（Avalonia 无内置 MessageBox，用系统消息框）</summary>
+    public static async System.Threading.Tasks.Task<bool> ConfirmAsync(string title, string message,
+        string okText = "确定", string cancelText = "取消")
     {
         var win = (Current as App)?._mainWindow;
         if (win == null) return false;
@@ -150,8 +163,8 @@ public partial class App : Application
                         Spacing = 8,
                         Children =
                         {
-                            new Button { Content = "取消", MinWidth = 80 },
-                            new Button { Content = "立即更新", Classes = { "accent" }, MinWidth = 80 }
+                            new Button { Content = cancelText, MinWidth = 80 },
+                            new Button { Content = okText, Classes = { "accent" }, MinWidth = 80 }
                         }
                     }
                 }
@@ -167,6 +180,42 @@ public partial class App : Application
         }
         await box.ShowDialog(win);
         return result;
+    }
+
+    /// <summary>简易提示弹窗（单一"确定"按钮；主窗口隐藏时降级为非模态）</summary>
+    public static async System.Threading.Tasks.Task ShowMessageAsync(string title, string message)
+    {
+        var win = (Current as App)?._mainWindow;
+        var box = new Window
+        {
+            Title = title,
+            Icon = AppIcon,
+            Width = 380,
+            Height = 150,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            CanResize = false,
+            WindowDecorations = WindowDecorations.Full,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(20),
+                Spacing = 14,
+                Children =
+                {
+                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
+                    new Button
+                    {
+                        Content = "确定",
+                        Classes = { "accent" },
+                        MinWidth = 76,
+                        HorizontalAlignment = HorizontalAlignment.Right
+                    }
+                }
+            }
+        };
+        if (box.Content is StackPanel root)
+            ((Button)root.Children[1]).Click += (_, _) => box.Close();
+        if (win != null && win.IsVisible) await box.ShowDialog(win);
+        else box.Show();
     }
 
     private void SetupGlobalHotKeys()
@@ -191,6 +240,12 @@ public partial class App : Application
     public static void EnterExamModeGlobal()
     {
         if (Current is App app && app._mainWindow is MainWindow mw) mw.EnterExamMode();
+    }
+
+    /// <summary>统一入口：退出考试模式（设置页"退出考试模式"按钮）</summary>
+    public static void ExitExamModeGlobal()
+    {
+        if (Current is App app && app._mainWindow is MainWindow mw) mw.ExitExamMode();
     }
 
     /// <summary>统一入口：打开设置（单例）</summary>

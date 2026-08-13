@@ -52,26 +52,46 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
         });
     }
 
-    /// <summary>切换页面：Load 当前设置 + 淡入动画</summary>
+    /// <summary>切换页面：Load 当前设置 + 淡入动画（可用「页面动画」开关关闭）</summary>
     private void ShowPage(Control page)
     {
         _currentPage = page;
         if (page is ISettingsPage sp) sp.Load(App.Settings);
 
-        PageHost.Opacity = 0;
         PageHost.Child = page;
-        var fade = new Animation
+        if (PageAnimationsCheck.IsChecked == true)
         {
-            Duration = TimeSpan.FromMilliseconds(180),
-            Easing = new CubicEaseOut(),
-            FillMode = FillMode.Forward,
-            Children =
+            PageHost.Opacity = 0;
+            var fade = new Animation
             {
-                new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 0d) } },
-                new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 1d) } }
-            }
-        };
-        fade.RunAsync(PageHost);
+                Duration = TimeSpan.FromMilliseconds(180),
+                Easing = new CubicEaseOut(),
+                FillMode = FillMode.Forward,
+                Children =
+                {
+                    new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 0d) } },
+                    new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 1d) } }
+                }
+            };
+            fade.RunAsync(PageHost);
+        }
+        else
+        {
+            PageHost.Opacity = 1;
+        }
+    }
+
+    /// <summary>恢复默认设置（对齐 WPF ResetButton_Click）：重置为 new AppSettings() 并广播刷新</summary>
+    private async void ResetBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        var ok = await App.ConfirmAsync("重置确认", "确定要将所有设置恢复为默认值吗？");
+        if (!ok) return;
+
+        App.Settings = new AppSettings();
+        App.SaveSettings();
+
+        // 刷新当前页面显示为默认值
+        if (_currentPage is ISettingsPage sp) sp.Load(App.Settings);
     }
 
     private void SaveBtn_Click(object? sender, RoutedEventArgs e)

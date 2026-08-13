@@ -582,6 +582,7 @@ public partial class ScheduleEditorWindow : Window
         };
     }
 
+    [System.Diagnostics.CodeAnalysis.MemberNotNullWhen(true, nameof(_swapSource), nameof(_swapTarget))]
     private bool ValidateSwapSelection()
     {
         if (_swapSource == null || _swapTarget == null)

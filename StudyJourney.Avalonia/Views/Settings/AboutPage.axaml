@@ -26,7 +26,7 @@
                 <StackPanel Spacing="4">
                     <TextBlock Text="更新" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <CheckBox x:Name="AutoCheckUpdateCheck" Content="启动时自动检查更新"/>
-                    <TextBlock Text="发现新版本后会在右下角提示" FontSize="11"
+                    <TextBlock Text="发现新版本后会弹出对话框提示" FontSize="11"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
                 </StackPanel>

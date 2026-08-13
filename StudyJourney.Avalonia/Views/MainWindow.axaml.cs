@@ -148,7 +148,22 @@ public partial class MainWindow : Window
     public void EnterExamMode()
     {
         if (_examModeWindow != null) { _examModeWindow.Activate(); return; }
-        if (App.Schedule.GetTodayExams().Count == 0) return;
+
+        var todayExams = App.Schedule.GetTodayExams();
+        if (todayExams.Count == 0)
+        {
+            _ = App.ShowMessageAsync("考试模式", "今天没有安排考试。");
+            return;
+        }
+
+        // 当前无进行中考试且无下一场 → 已全部结束（对齐 WPF 反馈）
+        var now = Helpers.TimeSimulator.Now;
+        if (App.Schedule.GetCurrentExamSubject(now) == null &&
+            App.Schedule.GetNextExamSubject(now) == null)
+        {
+            _ = App.ShowMessageAsync("考试模式", "今天的考试已全部结束。");
+            return;
+        }
 
         // 进入考试模式时隐藏课表栏
         if (App.Settings.ShowScheduleBar)
@@ -161,6 +176,13 @@ public partial class MainWindow : Window
             if (App.Settings.ShowScheduleBar && _scheduleBar == null) ShowScheduleBar();
         };
         _examModeWindow.Show();
+    }
+
+    /// <summary>退出考试模式（设置页按钮调用；关闭窗口后由 Closed 事件恢复课表栏）</summary>
+    public void ExitExamMode()
+    {
+        _examModeWindow?.Close();
+        _examModeWindow = null;
     }
 
     // ── 初始化 ───────────────────────────────────────────────
@@ -722,6 +744,7 @@ public partial class MainWindow : Window
     // ── 自启动（注册表 HKCU\Run，P/Invoke advapi32）──────────
     private static bool GetAutoStartFromRegistry()
     {
+        if (!OperatingSystem.IsWindows()) return false;
         try
         {
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
@@ -733,6 +756,7 @@ public partial class MainWindow : Window
 
     private static void ApplyAutoStart(bool enable)
     {
+        if (!OperatingSystem.IsWindows()) return;
         try
         {
             using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(

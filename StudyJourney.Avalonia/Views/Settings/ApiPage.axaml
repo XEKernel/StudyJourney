@@ -79,7 +79,7 @@
                     </Grid>
                     <Grid ColumnDefinitions="70,*" Margin="0,6,0,6">
                         <TextBlock Text="行政区划代码" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <TextBox x:Name="WeatherAdcodeBox" Grid.Column="1" Text="110000" Watermark="可选，留空自动匹配"/>
+                        <TextBox x:Name="WeatherAdcodeBox" Grid.Column="1" Text="110000" PlaceholderText="可选，留空自动匹配"/>
                     </Grid>
                     <TextBlock Text="城市名必填；adcode 可选（6 位数字，如 110105=朝阳区）"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"

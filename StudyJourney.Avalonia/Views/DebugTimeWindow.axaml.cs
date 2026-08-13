@@ -94,7 +94,7 @@ public partial class DebugTimeWindow : Window
     /// <summary>自定义偏移（分钟，可正可负）</summary>
     private async void CustomOffset_Click(object? sender, RoutedEventArgs e)
     {
-        var box = new TextBox { Watermark = "例如：5 表示快进 5 分钟，-10 表示回退 10 分钟" };
+        var box = new TextBox { PlaceholderText = "例如：5 表示快进 5 分钟，-10 表示回退 10 分钟" };
         var dlg = new Window
         {
             Title = "自定义时间偏移",
