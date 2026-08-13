@@ -125,8 +125,8 @@ namespace StudyJourney.Avalonia.Models
         // ── 系统 ─────────────────────────────────────────────
         // 是否开机自启动（写注册表 HKCU\Run）
         public bool AutoStart { get; set; } = false;
-        // 其他窗口最大化时自动隐藏倒计时
-        public bool HideWhenMaximized { get; set; } = false;
+        // 有其他窗口（非桌面）时自动隐藏倒计时（桌面同一层，默认开启）
+        public bool HideWhenMaximized { get; set; } = true;
         // 上课期间隐藏高考倒计时主窗口
         public bool HideDuringClass { get; set; } = true;
         // 上课时隐藏窗口的科目列表（逗号分隔，如"数学,物理"），空=所有科目都隐藏
@@ -135,7 +135,7 @@ namespace StudyJourney.Avalonia.Models
         // ── 课表栏 ────────────────────────────────────────────
         public bool   ShowScheduleBar          { get; set; } = false;
         public double ScheduleBarOpacity       { get; set; } = 0.92;
-        public bool   ScheduleBarAlwaysOnTop   { get; set; } = true;
+        public bool   ScheduleBarAlwaysOnTop   { get; set; } = false;
         public bool   ScheduleBarClickThrough  { get; set; } = false;
         /// <summary>0 = 全屏宽度</summary>
         public double ScheduleBarWidth         { get; set; } = 0;

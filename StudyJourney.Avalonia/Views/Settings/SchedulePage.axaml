@@ -9,7 +9,7 @@
                 <StackPanel Spacing="4">
                     <TextBlock Text="课表悬浮栏" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <CheckBox x:Name="ShowScheduleBarCheck" Content="显示课表悬浮栏" IsChecked="True"/>
-                    <CheckBox x:Name="ScheduleBarAlwaysOnTopCheck" Content="悬浮栏始终置顶" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="ScheduleBarAlwaysOnTopCheck" Content="悬浮栏始终置顶" Margin="0,6,0,0"/>
                     <CheckBox x:Name="ScheduleBarClickThroughCheck" Content="悬浮栏点击穿透" Margin="0,6,0,0"/>
                     <CheckBox x:Name="ScheduleBarAutoCollapseCheck" Content="上课时自动收缩为进度条" IsChecked="True" Margin="0,6,0,0"/>
 

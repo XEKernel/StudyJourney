@@ -21,6 +21,8 @@ public partial class ScheduleBarWindow : Window
     private DispatcherTimer? _timer;
     private DispatcherTimer? _weatherTimer;
     private DispatcherTimer? _expandTimer;
+    private DispatcherTimer? _maximizeCheckTimer;
+    private bool _hiddenByMaximize;
 
     // ── 紧凑/展开状态 ────────────────────────────────────────
     private bool _isCompact;
@@ -54,6 +56,7 @@ public partial class ScheduleBarWindow : Window
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOACTIVATE = 0x0010;
     private const uint MB_ICONASTERISK = 0x40;
+    private static readonly IntPtr HWND_BOTTOM = new(1);
 
     public ScheduleBarWindow()
     {
@@ -66,6 +69,7 @@ public partial class ScheduleBarWindow : Window
             if (App.Reminders != null) App.Reminders.Countdown60Tick -= OnCountdown60Tick;
             _weatherTimer?.Stop();
             _expandTimer?.Stop();
+            _maximizeCheckTimer?.Stop();
         };
     }
 
@@ -187,6 +191,11 @@ public partial class ScheduleBarWindow : Window
         _timer.Start();
         Refresh();
 
+        // 桌面小组件：前台窗口最大化时隐藏（不挡最大化窗口）
+        _maximizeCheckTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _maximizeCheckTimer.Tick += (_, _) => MaximizeCheckTimer_Tick();
+        _maximizeCheckTimer.Start();
+
         _ = LoadWeatherAsync();
         StartWeatherTimer();
     }
@@ -246,10 +255,40 @@ public partial class ScheduleBarWindow : Window
         ApplyClickThrough();
     }
 
+    /// <summary>前台窗口最大化时隐藏课表栏（不挡最大化窗口；置顶模式跳过）</summary>
+    private void MaximizeCheckTimer_Tick()
+    {
+        if (App.Settings.ScheduleBarAlwaysOnTop) return;
+
+        bool maximized = Helpers.WindowLayerHelper.IsForegroundMaximized();
+        if (maximized && IsVisible)
+        {
+            _hiddenByMaximize = true;
+            Hide();
+        }
+        else if (!maximized && _hiddenByMaximize)
+        {
+            _hiddenByMaximize = false;
+            Show();
+            ApplyWindowLayer();
+        }
+    }
+
+    /// <summary>应用窗口层级：不置顶时放到桌面层（Z-order 底部，不挡其他窗口）</summary>
+    private void ApplyWindowLayer()
+    {
+        if (App.Settings.ScheduleBarAlwaysOnTop) return;
+        var hwnd = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        if (hwnd == IntPtr.Zero) return;
+        SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+
     private void ApplySettings()
     {
         Opacity = Math.Clamp(App.Settings.ScheduleBarOpacity, 0.1, 1.0);
         Topmost = App.Settings.ScheduleBarAlwaysOnTop;
+        ApplyWindowLayer();
         double fs = App.Settings.ScheduleBarFontSize;
         if (fs <= 0) fs = 14;
         CurrentTimeTb.FontSize = fs;
@@ -312,9 +351,9 @@ public partial class ScheduleBarWindow : Window
 
         if (cur != null)
         {
-            StatusTb.Text = isLast ? $"最后一节课：{cur.Subject}" : $"正在上课：{cur.Subject}";
+            StatusTb.Text = isLast ? "最后一节课：" : "正在上课：";
             StatusTb.Foreground = BrGreen;
-            ScheduleListTb.IsVisible = false;
+            SubjectTb.Text = cur.Subject;
 
             var pct = manager.GetCurrentProgress(now);
             if (pct.HasValue)
@@ -354,6 +393,7 @@ public partial class ScheduleBarWindow : Window
         {
             StatusTb.Text = "课间休息";
             StatusTb.Foreground = BrOrange;
+            SubjectTb.Text = "";
 
             // 距下节课倒计时
             if (timeToNext.HasValue)
@@ -405,10 +445,6 @@ public partial class ScheduleBarWindow : Window
                 CompactStatusTb.Text = "课间休息";
             }
 
-            // 下课显示今天全部课程列表
-            ScheduleListTb.Text = total > 0 ? BuildTodayList(todayEntries) : "";
-            ScheduleListTb.IsVisible = total > 0;
-
             // 下课 → 展开（对齐 WPF）
             if (_isCompact) SetExpanded();
         }
@@ -417,9 +453,8 @@ public partial class ScheduleBarWindow : Window
             // 今日课程已结束：显示今天全部课程列表
             StatusTb.Text = total > 0 ? "今日课程已结束" : "今日无课";
             StatusTb.Foreground = BrGray;
+            SubjectTb.Text = "";
             NextCountdownTb.Text = "";
-            ScheduleListTb.Text = total > 0 ? BuildTodayList(todayEntries) : "";
-            ScheduleListTb.IsVisible = total > 0;
             ProgressBar.IsVisible = false;
             CompactProgressBar.IsVisible = false;
             ProgressPctTb.Text = total > 0 ? $"共 {total} 节" : "";
@@ -427,6 +462,9 @@ public partial class ScheduleBarWindow : Window
             CompactStatusTb.Text = total > 0 ? $"今日课程已结束（{total} 节）" : "今日无课";
             if (_isCompact) SetExpanded();
         }
+
+        // 课程卡片流：未结束的课（当前课高亮，已结束消失）
+        FillCards(now);
 
         // 状态文本变化 → 脉冲（对齐 WPF PulseOpacity）
         if (StatusTb.Text != _lastStatusText)
@@ -436,13 +474,61 @@ public partial class ScheduleBarWindow : Window
         }
     }
 
-    /// <summary>今日课程列表文本（"08:00 语文 · 08:55 数学 …"）</summary>
-    private static string BuildTodayList(System.Collections.Generic.List<ScheduleEntry> entries)
-        => string.Join("  ·  ", entries.Select(e =>
+    /// <summary>填充课程卡片流：未结束的课（当前课高亮，已结束的课卡片消失）</summary>
+    private void FillCards(DateTime now)
+    {
+        CardHost.Children.Clear();
+        var todayEntries = App.Schedule.GetTodayEntries(now.Date);
+        var current = App.Schedule.GetCurrentEntry(now);
+
+        var upcoming = todayEntries
+            .Where(e => e.GetEndDateTime(now.Date) > now)
+            .OrderBy(e => e.StartTime)
+            .ToList();
+
+        CardScroll.IsVisible = upcoming.Count > 0;
+        foreach (var e in upcoming)
+            CardHost.Children.Add(CreateCard(e, current != null && e.Period == current.Period));
+    }
+
+    /// <summary>单节课程小卡片（时间 + 科目；当前课用强调色高亮）</summary>
+    private static Border CreateCard(ScheduleEntry entry, bool isCurrent)
+    {
+        var accent = Color.Parse("#0F6CBD");
+        var timeTb = new TextBlock
         {
-            var s = e.StartTimeStr;
-            return string.IsNullOrWhiteSpace(e.Subject) ? s : $"{s} {e.Subject}";
-        }));
+            Text = $"{entry.StartTimeStr}-{entry.EndTimeStr}",
+            FontSize = 10,
+            Foreground = isCurrent
+                ? new SolidColorBrush(Color.FromArgb(0xCC, 0x9B, 0xC6, 0xFF))
+                : new SolidColorBrush(Color.FromArgb(0x88, 0xFF, 0xFF, 0xFF))
+        };
+        var subjectTb = new TextBlock
+        {
+            Text = entry.Subject,
+            FontSize = 13,
+            FontWeight = FontWeight.SemiBold,
+            Foreground = Brushes.White
+        };
+        var card = new Border
+        {
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(10, 5),
+            BorderThickness = new Thickness(1),
+            Background = isCurrent
+                ? new SolidColorBrush(Color.FromArgb(0x33, 0x0F, 0x6C, 0xBD))
+                : new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
+            BorderBrush = isCurrent
+                ? new SolidColorBrush(accent)
+                : new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+            Child = new StackPanel
+            {
+                Spacing = 1,
+                Children = { timeTb, subjectTb }
+            }
+        };
+        return card;
+    }
 
     /// <summary>状态文本快速脉冲动画（透明度 1→0.3→1）</summary>
     private static void PulseOpacity(TextBlock element)

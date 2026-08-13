@@ -24,7 +24,8 @@
       <Grid>
 
         <!-- ── 完整模式 ── -->
-        <Grid x:Name="FullInfoRoot" ColumnDefinitions="Auto,*,Auto" Margin="12,3,12,3">
+        <StackPanel x:Name="FullInfoRoot" Margin="12,3,12,3" Spacing="6">
+        <Grid ColumnDefinitions="Auto,*,Auto">
 
             <!-- 左：时间 + 日期 -->
             <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="0,0,18,0">
@@ -34,25 +35,31 @@
                            HorizontalAlignment="Center" Margin="0,1,0,0"/>
             </StackPanel>
 
-            <!-- 中：状态行 / 进度行 / 60 秒倒计时 -->
+            <!-- 中：三行 —— 状态前缀+卡片流 / 科目名+进度条 / 倒计时 -->
             <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="3">
-                <StackPanel Orientation="Horizontal" Spacing="18" HorizontalAlignment="Center">
-                    <TextBlock x:Name="StatusTb" Text="课间休息" FontSize="14" FontWeight="SemiBold"
-                               Foreground="#FFFF8844" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="NextCountdownTb" Text="" FontSize="13" Foreground="#FFFF8844"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
-                <Grid ColumnDefinitions="*,Auto" Margin="4,0,4,0">
-                    <ProgressBar x:Name="ProgressBar" Height="5" Minimum="0" Maximum="100"
+                <Grid ColumnDefinitions="Auto,*">
+                    <TextBlock x:Name="StatusTb" Grid.Column="0" Text="课间休息" FontSize="14" FontWeight="SemiBold"
+                               Foreground="#FFFF8844" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ScrollViewer x:Name="CardScroll" Grid.Column="1" HorizontalScrollBarVisibility="Auto"
+                                  VerticalScrollBarVisibility="Disabled" IsVisible="False">
+                        <StackPanel x:Name="CardHost" Orientation="Horizontal" Spacing="8"/>
+                    </ScrollViewer>
+                </Grid>
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <TextBlock x:Name="SubjectTb" Grid.Column="0" Text="" FontSize="13" FontWeight="SemiBold"
+                               Foreground="#FFFFFFFF" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <ProgressBar x:Name="ProgressBar" Grid.Column="1" Height="5" Minimum="0" Maximum="100"
                                  VerticalAlignment="Center" IsVisible="False"/>
-                    <TextBlock x:Name="ProgressPctTb" Grid.Column="1" Text="" FontSize="11"
+                    <TextBlock x:Name="ProgressPctTb" Grid.Column="2" Text="" FontSize="11"
                                Foreground="#AAFFFFFF" Margin="10,0,0,0"
                                VerticalAlignment="Center" IsVisible="False"/>
                 </Grid>
-                <TextBlock x:Name="Countdown60Tb" Text="" FontSize="14" FontWeight="Bold"
-                           Foreground="#FFFF4444" HorizontalAlignment="Center" IsVisible="False"/>
-                <TextBlock x:Name="ScheduleListTb" Text="" FontSize="11" Foreground="#88FFFFFF"
-                           HorizontalAlignment="Center" TextWrapping="Wrap" IsVisible="False"/>
+                <StackPanel Orientation="Horizontal" Spacing="18" HorizontalAlignment="Left">
+                    <TextBlock x:Name="NextCountdownTb" Text="" FontSize="13" Foreground="#FFFF8844"
+                               VerticalAlignment="Center"/>
+                    <TextBlock x:Name="Countdown60Tb" Text="" FontSize="14" FontWeight="Bold"
+                               Foreground="#FFFF4444" VerticalAlignment="Center" IsVisible="False"/>
+                </StackPanel>
             </StackPanel>
 
             <!-- 右：天气（主行=图标+温度+描述，次行=风+湿度+城市） -->
@@ -73,6 +80,7 @@
                 </StackPanel>
             </StackPanel>
         </Grid>
+        </StackPanel>
 
         <!-- ── 紧凑模式：状态 + 进度条 + 时间 + 展开（上课自动收缩） ── -->
         <Grid x:Name="CompactRow" IsVisible="False" Margin="12,3,12,3" ColumnDefinitions="Auto,*,Auto,Auto">

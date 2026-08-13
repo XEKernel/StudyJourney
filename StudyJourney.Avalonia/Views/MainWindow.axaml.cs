@@ -72,6 +72,7 @@ public partial class MainWindow : Window
     private const uint SWP_NOMOVE = 0x0002;
     private const uint SWP_NOSIZE = 0x0001;
     private const uint SWP_NOACTIVATE = 0x0010;
+    private static readonly IntPtr HWND_BOTTOM = new(1);
 
     // ── 隐藏状态跟踪 ─────────────────────────────────────────
     private bool _hiddenByMaximize;
@@ -216,25 +217,27 @@ public partial class MainWindow : Window
         }
     }
 
-    // ── 最大化检测：前台窗口最大化时隐藏 ─────────────────────
+    // ── 桌面小组件：前台有窗口时隐藏（桌面同一层，不挡其他窗口）──
     private void MaximizeCheckTimer_Tick()
     {
+        // 置顶模式不隐藏（用户主动开启 AlwaysOnTop 时保持常显）
+        if (App.Settings.AlwaysOnTop) return;
         if (!App.Settings.HideWhenMaximized) return;
 
-        IntPtr foreground = GetForegroundWindow();
         var myHwnd = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-        if (foreground == myHwnd || foreground == IntPtr.Zero) return;
+        IntPtr foreground = Helpers.WindowLayerHelper.ForegroundWindow;
 
-        var placement = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
-        GetWindowPlacement(foreground, ref placement);
-        bool isForegroundMaximized = placement.showCmd == SW_SHOWMAXIMIZED;
+        // 有前台窗口（非桌面、非自己）→ 隐藏；纯桌面 → 显示
+        bool hasOtherWindow = foreground != IntPtr.Zero &&
+                              foreground != myHwnd &&
+                              !Helpers.WindowLayerHelper.IsDesktop(foreground);
 
-        if (isForegroundMaximized && IsVisible)
+        if (hasOtherWindow && IsVisible)
         {
             _hiddenByMaximize = true;
             Hide();
         }
-        else if (!isForegroundMaximized && _hiddenByMaximize)
+        else if (!hasOtherWindow && _hiddenByMaximize)
         {
             _hiddenByMaximize = false;
             Show();
@@ -713,6 +716,14 @@ public partial class MainWindow : Window
     private void ApplyWindowLayer()
     {
         Topmost = App.Settings.AlwaysOnTop;
+        // 桌面同一层：不置顶时放到 Z-order 底部（其他窗口在它上面，不挡）
+        if (!App.Settings.AlwaysOnTop)
+        {
+            var hwnd = TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+            if (hwnd != IntPtr.Zero)
+                SetWindowPos(hwnd, HWND_BOTTOM, 0, 0, 0, 0,
+                    SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
     }
 
     // ── 课表栏管理 ───────────────────────────────────────────

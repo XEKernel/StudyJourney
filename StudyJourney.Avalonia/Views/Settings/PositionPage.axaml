@@ -52,9 +52,9 @@
                     <TextBlock Text="写入当前用户注册表 Run 键，无需管理员权限。&#10;若程序路径发生变化（如移动文件夹），请重新勾选一次。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,8" TextWrapping="Wrap"/>
-                    <CheckBox x:Name="HideWhenMaximizedCheck" Content="其他应用最大化时自动隐藏" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="HideWhenMaximizedCheck" Content="有其他窗口时自动隐藏（桌面同一层）" Margin="0,6,0,0"/>
                     <CheckBox x:Name="HideDuringClassCheck" Content="上课/考试时自动隐藏倒计时窗口" Margin="0,8,0,0"/>
-                    <TextBlock Text="前台窗口最大化时自动隐藏倒计时，恢复时重新显示。&#10;不影响托盘右键显示/隐藏功能。"
+                    <TextBlock Text="桌面有应用窗口时自动隐藏倒计时，回到纯桌面时重新显示。&#10;开启「始终置顶」后此隐藏不生效。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,4" TextWrapping="Wrap"/>
                     <TextBlock Text="仅对以下科目隐藏（逗号分隔，留空则全部隐藏）" FontSize="13" Margin="0,8,0,2"/>
