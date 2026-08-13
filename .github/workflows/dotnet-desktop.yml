@@ -110,9 +110,18 @@ jobs:
         if: github.event_name == 'push'
         shell: pwsh
         run: |
+          # 自签名证书需先导入受信根，否则验证报"根证书不受信任"（验完删除）
+          Import-PfxCertificate -FilePath "StudyJourney.pfx" -CertStoreLocation Cert:\LocalMachine\Root -Password (ConvertTo-SecureString -String "${{ secrets.PFX_PASSWORD }}" -AsPlainText -Force) -Exportable
           & "${{ steps.find_signtool.outputs.signtool_path }}" verify /v "publish\sc\StudyJourneyAvalonia.exe"
           & "${{ steps.find_signtool.outputs.signtool_path }}" verify /v "publish\fd\StudyJourneyAvalonia.exe"
           Write-Host "签名验证通过（CN=XEKernel）"
+
+      - name: Remove from trusted root
+        if: always() && github.event_name == 'push'
+        shell: pwsh
+        run: |
+          $certs = Get-ChildItem Cert:\LocalMachine\Root | Where-Object { $_.Subject -like "*XEKernel*" }
+          foreach ($c in $certs) { Remove-Item $c.PSPath -Force -ErrorAction SilentlyContinue }
 
       - name: Remove certificate
         if: always() && github.event_name == 'push'
