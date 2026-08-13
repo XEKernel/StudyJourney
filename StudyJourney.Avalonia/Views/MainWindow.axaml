@@ -11,14 +11,14 @@
         Opened="Window_Opened"
         PointerPressed="Window_PointerPressed">
 
-    <!-- 灵动岛顶部状态栏：整合时间/天气/课程/进度 + 高考与自定义倒计时圆环
-         模块一=时间/天气 | 模块二=课程栏（含进度条） | 模块三=高考 + 自定义倒计时圆环 -->
+    <!-- ClassIsland 风格顶栏：单条半透明深色胶囊，元素直接横向排列（无块中块），
+         细竖线分隔；进度条紧跟科目下方 -->
     <Border CornerRadius="20"
-            Background="#F21A1A1C"
-            BorderBrush="#26FFFFFF"
+            Background="#E6202020"
+            BorderBrush="#14FFFFFF"
             BorderThickness="1"
-            Padding="12"
-            BoxShadow="0 10 30 2 #66000000">
+            Padding="16,10,16,9"
+            BoxShadow="0 3 12 1 #3A000000">
         <Border.ContextMenu>
             <ContextMenu>
                 <MenuItem Header="进入考试模式" Click="ExamModeMenuItem_Click"/>
@@ -28,63 +28,58 @@
             </ContextMenu>
         </Border.ContextMenu>
 
-        <StackPanel Spacing="8">
+        <StackPanel Spacing="6">
 
-            <!-- ══ 第一行：模块一（时间/天气）+ 模块二（课程栏）══ -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
+            <!-- 主行：时间 | 天气 | 已上科目 ┃ 状态 ┃ 未来科目 | 倒计时圆环（单行，无块中块） -->
+            <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
 
-                <!-- 模块一：时间 + 天气 -->
-                <Border CornerRadius="16" Background="#1E1E1E" Padding="14,9">
-                    <TextBlock x:Name="TimeTb" Text="12:30:44" FontSize="15" FontWeight="SemiBold"
-                               Foreground="#FFFFFFFF" FontFamily="Consolas" VerticalAlignment="Center"/>
-                </Border>
-                <Border CornerRadius="16" Background="#1E1E1E" Padding="14,9">
-                    <TextBlock x:Name="WeatherTb" Text="☀ 18°C" FontSize="15"
-                               Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
-                </Border>
+                <TextBlock x:Name="TimeTb" Text="12:30:44" FontSize="15" FontWeight="SemiBold"
+                           Foreground="#FFFFFFFF" FontFamily="Consolas" VerticalAlignment="Center"/>
+                <Border Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"/>
 
-                <!-- 模块二：课程栏（上=科目/状态/科目，下=浅蓝进度条） -->
-                <Border CornerRadius="16" Background="#1E1E1E" Padding="18,10">
-                    <StackPanel Spacing="7">
-                        <StackPanel Orientation="Horizontal" Spacing="18" VerticalAlignment="Center">
-                            <TextBlock x:Name="PrevSubjectsTb" Text="语 数 美 历 英" FontSize="14"
-                                       Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
-                            <Border Width="1" Height="18" Background="#33FFFFFF" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="StatusTb" Text="课间休息" FontSize="14" FontWeight="SemiBold"
-                                       Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
-                            <Border Width="1" Height="18" Background="#33FFFFFF" VerticalAlignment="Center"/>
-                            <TextBlock x:Name="NextSubjectsTb" Text="生 政 自 自" FontSize="14"
-                                       Foreground="#B0FFFFFF" VerticalAlignment="Center"/>
-                        </StackPanel>
-                        <ProgressBar x:Name="ClassProgressBar" Height="4" Minimum="0" Maximum="100"
-                                     Foreground="#4DD0E1" Background="#22FFFFFF" CornerRadius="2"/>
+                <TextBlock x:Name="WeatherTb" Text="☀ 18°C" FontSize="14"
+                           Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                <Border Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"/>
+
+                <TextBlock x:Name="PrevSubjectsTb" Text="语 数 美 历 英" FontSize="14"
+                           Foreground="#E6FFFFFF" VerticalAlignment="Center"/>
+                <Border Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"/>
+
+                <TextBlock x:Name="StatusTb" Text="课间休息" FontSize="14" FontWeight="SemiBold"
+                           Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                <Border Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"/>
+
+                <TextBlock x:Name="NextSubjectsTb" Text="生 政 自 自" FontSize="14"
+                           Foreground="#B0FFFFFF" VerticalAlignment="Center"/>
+                <Border Width="1" Height="16" Background="#2AFFFFFF" VerticalAlignment="Center"/>
+
+                <!-- 倒计时圆环（小圆环 + 文字，直接排进主行） -->
+                <StackPanel Orientation="Horizontal" Spacing="14" Margin="2,0,0,0" VerticalAlignment="Center">
+                    <!-- 高考（固定，暗蓝圆环 + 学士帽 + 红色气泡） -->
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                        <Grid Width="22" Height="22">
+                            <Arc StartAngle="0" SweepAngle="360" Stroke="#24FFFFFF" StrokeThickness="3"/>
+                            <Arc x:Name="GaokaoRingArc" StartAngle="-90" SweepAngle="0"
+                                 Stroke="#FF2B6CB0" StrokeThickness="3" StrokeLineCap="Round"/>
+                            <TextBlock Text="🎓" FontSize="11" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border Width="9" Height="9" CornerRadius="5" Background="#FFE53935"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-2,-3,0">
+                                <TextBlock Text="6" FontSize="6" FontWeight="Bold" Foreground="#FFFFFFFF"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Grid>
+                        <TextBlock x:Name="GaokaoTb" Text="高考 216天" FontSize="12" FontWeight="SemiBold"
+                                   Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
                     </StackPanel>
-                </Border>
-            </StackPanel>
 
-            <!-- ══ 模块三：高考 + 自定义倒计时圆环 ══ -->
-            <StackPanel Orientation="Horizontal" Spacing="20" HorizontalAlignment="Center" Margin="2,2,2,0">
-
-                <!-- 高考（固定，暗蓝圆环 + 学士帽 + 红色气泡） -->
-                <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-                    <Grid Width="38" Height="38">
-                        <Arc StartAngle="0" SweepAngle="360" Stroke="#24FFFFFF" StrokeThickness="4"/>
-                        <Arc x:Name="GaokaoRingArc" StartAngle="-90" SweepAngle="0"
-                             Stroke="#FF2B6CB0" StrokeThickness="4" StrokeLineCap="Round"/>
-                        <TextBlock Text="🎓" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        <Border Width="13" Height="13" CornerRadius="7" Background="#FFE53935"
-                                HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-3,-4,0">
-                            <TextBlock Text="6" FontSize="8" FontWeight="Bold" Foreground="#FFFFFFFF"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </Grid>
-                    <TextBlock x:Name="GaokaoTb" Text="高考 216天" FontSize="13" FontWeight="SemiBold"
-                               Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                    <!-- 自定义倒计时圆环（动态，来自设置页「自定义倒计时」） -->
+                    <StackPanel x:Name="RingHost" Orientation="Horizontal" Spacing="14"/>
                 </StackPanel>
-
-                <!-- 自定义倒计时圆环（动态，来自设置页「自定义倒计时」） -->
-                <StackPanel x:Name="RingHost" Orientation="Horizontal" Spacing="20"/>
             </StackPanel>
+
+            <!-- 进度条：紧跟科目下方（上课进度 / 课间休息进度） -->
+            <ProgressBar x:Name="ClassProgressBar" Height="3" Minimum="0" Maximum="100"
+                         Foreground="#4DD0E1" Background="#22FFFFFF"/>
         </StackPanel>
     </Border>
 </Window>

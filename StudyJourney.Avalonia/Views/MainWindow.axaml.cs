@@ -416,28 +416,28 @@ public partial class MainWindow : Window
         var bgArc = new Arc
         {
             StartAngle = 0, SweepAngle = 360,
-            Stroke = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF)), StrokeThickness = 4
+            Stroke = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF)), StrokeThickness = 3
         };
         var progArc = new Arc
         {
             StartAngle = -90, SweepAngle = progress * 360,
-            Stroke = progressBrush, StrokeThickness = 4, StrokeLineCap = PenLineCap.Round
+            Stroke = progressBrush, StrokeThickness = 3, StrokeLineCap = PenLineCap.Round
         };
         var iconTb = new TextBlock
         {
-            Text = "📅", FontSize = 15,
+            Text = "📅", FontSize = 11,
             HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
         };
 
-        var ring = new Grid { Width = 38, Height = 38 };
+        var ring = new Grid { Width = 22, Height = 22 };
         ring.Children.Add(bgArc);
         ring.Children.Add(progArc);
         ring.Children.Add(iconTb);
 
         var textTb = new TextBlock
         {
-            Text = $"{name} {days}天", FontSize = 13,
+            Text = $"{name} {days}天", FontSize = 12,
             Foreground = Brushes.White,
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
         };
@@ -445,7 +445,7 @@ public partial class MainWindow : Window
         var panel = new StackPanel
         {
             Orientation = global::Avalonia.Layout.Orientation.Horizontal,
-            Spacing = 7,
+            Spacing = 5,
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
         };
         panel.Children.Add(ring);
