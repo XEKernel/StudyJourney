@@ -62,14 +62,17 @@ jobs:
       - name: Publish (Framework-dependent, x64)
         run: dotnet publish ${{ env.Project_Path }} -c Release -r win-x64 --self-contained false -o publish/fd
 
-      - name: Publish Updater
-        run: dotnet publish ${{ env.Updater_Path }} -c Release -r win-x64 --self-contained true -o publish/updater
+      - name: Publish Updater (Self-contained)
+        run: dotnet publish ${{ env.Updater_Path }} -c Release -r win-x64 --self-contained true -o publish/updater-sc
+
+      - name: Publish Updater (Framework-dependent)
+        run: dotnet publish ${{ env.Updater_Path }} -c Release -r win-x64 --self-contained false -o publish/updater-fd
 
       - name: Copy Updater to both outputs
         shell: pwsh
         run: |
-          Copy-Item -Path publish\updater\StudyJourney.Updater.exe -Destination publish\sc\ -Force
-          Copy-Item -Path publish\updater\StudyJourney.Updater.exe -Destination publish\fd\ -Force
+          Copy-Item -Path publish\updater-sc\* -Destination publish\sc\ -Recurse -Force
+          Copy-Item -Path publish\updater-fd\* -Destination publish\fd\ -Recurse -Force
 
       # ── 打包（带版本号） ──
       - name: Pack SC zip
