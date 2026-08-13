@@ -23,7 +23,10 @@ public partial class AboutPage : UserControl, ISettingsPage
     public void Load(AppSettings s)
     {
         AutoCheckUpdateCheck.IsChecked = s.AutoCheckUpdate;
-        VersionTb.Text = $"版本 {UpdateService.CurrentVersion}";
+        var ver = UpdateService.CurrentVersion;
+        bool isPre = System.Text.RegularExpressions.Regex.IsMatch(
+            ver, @"(alpha|beta|rc|pre)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        VersionTb.Text = isPre ? $"版本 {ver}（预发布测试版）" : $"版本 {ver}";
     }
 
     public void Apply(AppSettings s)

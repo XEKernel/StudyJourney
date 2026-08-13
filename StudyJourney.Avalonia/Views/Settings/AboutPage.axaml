@@ -8,7 +8,7 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="24,20">
                 <StackPanel Spacing="12">
                     <TextBlock Text="学程" FontSize="28" FontWeight="Bold"/>
-                    <TextBlock x:Name="VersionTb" Text="版本 1.7.0"
+                    <TextBlock x:Name="VersionTb" Text="版本"
                                FontSize="13" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                     <TextBlock Text="高考倒计时桌面伴侣 · Avalonia 版"
                                FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
@@ -36,7 +36,7 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="关于" FontSize="16" FontWeight="SemiBold"/>
-                    <TextBlock Text="学程（Study Journey）是一款高考倒计时桌面伴侣：倒计时小组件 + 课表悬浮栏 + 考试模式 + 每日一言 + 天气。本版基于 Avalonia + FluentAvalonia 构建，与 WPF 版共用同一份 settings.json / schedule.json 数据。"
+                    <TextBlock Text="学程（Study Journey）是一款高考倒计时桌面伴侣：倒计时小组件 + 课表悬浮栏 + 考试模式 + 每日一言 + 天气。本版基于 Avalonia + FluentAvalonia 构建，采用 WinUI 3 风格界面。"
                                FontSize="13"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                TextWrapping="Wrap"/>
