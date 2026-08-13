@@ -41,3 +41,6 @@ backups/
 /高考倒计时.csproj.user
 /学程.csproj
 /学程.sln
+
+# 代码审查文档（本地保留，不入库）
+/CODE_REVIEW*.md
