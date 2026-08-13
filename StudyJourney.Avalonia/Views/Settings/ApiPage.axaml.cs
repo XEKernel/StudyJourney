@@ -27,6 +27,7 @@ public partial class ApiPage : UserControl, ISettingsPage
         WeatherAdcodeBox.Text = s.WeatherAdcode;
         WeatherFontSizeSlider.Value = s.WeatherFontSize;
         WeatherRefreshIntervalSlider.Value = s.WeatherRefreshInterval;
+        WeatherDetailCheck.IsChecked = s.WeatherShowDetail;
 
         WeatherCityColorBox.Text = s.WeatherCityColor;
         WeatherInfoColorBox.Text = s.WeatherInfoColor;
@@ -48,6 +49,7 @@ public partial class ApiPage : UserControl, ISettingsPage
         s.WeatherAdcode = WeatherAdcodeBox.Text ?? s.WeatherAdcode;
         s.WeatherFontSize = WeatherFontSizeSlider.Value;
         s.WeatherRefreshInterval = (int)WeatherRefreshIntervalSlider.Value;
+        s.WeatherShowDetail = WeatherDetailCheck.IsChecked == true;
 
         s.WeatherCityColor = WeatherCityColorBox.Text ?? s.WeatherCityColor;
         s.WeatherInfoColor = WeatherInfoColorBox.Text ?? s.WeatherInfoColor;

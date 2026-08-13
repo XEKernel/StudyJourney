@@ -87,6 +87,12 @@ namespace StudyJourney.Avalonia.Models
         public double PositionOffsetY { get; set; } = 0;    // 垂直偏移（像素）
         public bool AlwaysOnTop { get; set; } = false;
 
+        // ── 灵动岛外观 ──────────────────────────────────────
+        /// <summary>胶囊圆角（px，0=直角，20=完全胶囊）</summary>
+        public double MainWindowCornerRadius { get; set; } = 12;
+        /// <summary>胶囊分离显示：true=多块胶囊，false=单条大胶囊</summary>
+        public bool IslandSeparated { get; set; } = true;
+
         // ── 日期设置 ─────────────────────────────────────────
         // 目标考试日期
         public string GaokaoDateStr { get; set; } = "2027-06-07 09:00:00";
@@ -96,6 +102,12 @@ namespace StudyJourney.Avalonia.Models
         // ── 进度条样式 ────────────────────────────────────────
         // 进度文本精度（小数位数）
         public int ProgressDecimalDigits { get; set; } = 7;
+
+        // ── 倒计时显示 ────────────────────────────────────────
+        /// <summary>倒计时显示精确到时分秒（默认只显示天数）</summary>
+        public bool CountdownShowPrecise { get; set; } = false;
+        /// <summary>倒计时进度条样式：false=环形，true=条形</summary>
+        public bool CountdownProgressBarStyle { get; set; } = false;
 
         // ── 动画 ─────────────────────────────────────────────
         // 是否启用主窗口数字脉冲 & 进度条平滑动画
@@ -121,6 +133,8 @@ namespace StudyJourney.Avalonia.Models
         public string WeatherTempColor        { get; set; } = "#FFFF8844";  // 温度
         public string WeatherTimeColor        { get; set; } = "#66AAAAAA";  // 更新时间
         public string WeatherIconColor        { get; set; } = "#FFFFAA00";  // 天气图标
+        /// <summary>天气胶囊显示详细信息（描述/湿度/风力/城市）</summary>
+        public bool WeatherShowDetail         { get; set; } = false;
 
         // ── 系统 ─────────────────────────────────────────────
         // 是否开机自启动（写注册表 HKCU\Run）

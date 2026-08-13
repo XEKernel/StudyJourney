@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using StudyJourney.Avalonia.Models;
 
 namespace StudyJourney.Avalonia.Views.Settings;
@@ -12,6 +13,12 @@ public partial class PositionPage : UserControl, ISettingsPage
 
     public void Load(AppSettings s)
     {
+        CapsuleMerged.IsChecked = !s.IslandSeparated;
+        CapsuleSeparated.IsChecked = s.IslandSeparated;
+        CornerRadiusSlider.Value = s.MainWindowCornerRadius;
+        CountdownPreciseCheck.IsChecked = s.CountdownShowPrecise;
+        CountdownBarCheck.IsChecked = s.CountdownProgressBarStyle;
+
         PosTop.IsChecked = s.PositionPreset == PositionPresetValues.Top;
         PosUpperCenter.IsChecked = s.PositionPreset == PositionPresetValues.UpperCenter;
         PosCenter.IsChecked = s.PositionPreset == PositionPresetValues.Center;
@@ -28,8 +35,18 @@ public partial class PositionPage : UserControl, ISettingsPage
         HideSubjectsBox.Text = s.HideSubjects;
     }
 
+    private void CornerRadiusSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (CornerRadiusText != null) CornerRadiusText.Text = ((int)e.NewValue).ToString();
+    }
+
     public void Apply(AppSettings s)
     {
+        s.IslandSeparated = CapsuleSeparated.IsChecked == true;
+        s.MainWindowCornerRadius = CornerRadiusSlider.Value;
+        s.CountdownShowPrecise = CountdownPreciseCheck.IsChecked == true;
+        s.CountdownProgressBarStyle = CountdownBarCheck.IsChecked == true;
+
         s.PositionPreset = PosTop.IsChecked == true ? PositionPresetValues.Top
             : PosUpperCenter.IsChecked == true ? PositionPresetValues.UpperCenter
             : PosCenter.IsChecked == true ? PositionPresetValues.Center

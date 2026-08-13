@@ -71,6 +71,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         Icon = App.AppIcon;
 
+        ApplyCapsuleStyle();
+
         App.SettingsChanged += OnSettingsChanged;
         Closed += (_, _) =>
         {
@@ -178,7 +180,19 @@ public partial class MainWindow : Window
             var s = App.Settings;
             var result = await WeatherService.FetchAsync(s.WeatherCity, s.WeatherAdcode);
             if (result == null) return;
-            WeatherTb.Text = $"{Helpers.ColorUtils.GetWeatherEmoji(result.WeatherIcon)} {result.Temperature}°";
+            string emoji = Helpers.ColorUtils.GetWeatherEmoji(result.WeatherIcon);
+
+            if (s.WeatherShowDetail)
+            {
+                WeatherTb.Text = $"{emoji} {result.Temperature}° {result.Weather}";
+                WeatherMetaTb.Text = $"{result.Location}  湿度 {result.Humidity}%  {result.WindDirection}{result.WindPower}";
+                WeatherMetaTb.IsVisible = true;
+            }
+            else
+            {
+                WeatherTb.Text = $"{emoji} {result.Temperature}°";
+                WeatherMetaTb.IsVisible = false;
+            }
         }
         catch { /* 网络异常静默 */ }
     }
@@ -213,6 +227,75 @@ public partial class MainWindow : Window
         Opacity = Math.Clamp(s.OverallOpacity, 0.1, 1.0);
 
         _draggable = s.PositionPreset == PositionPresetValues.Custom;
+
+        ApplyCapsuleStyle();
+    }
+
+    // ── 胶囊样式：单条大胶囊 / 多块胶囊 + 圆角 ──────────────
+    private static readonly SolidColorBrush CapsuleBg = new(Color.FromArgb(0xE6, 0x20, 0x20, 0x20));
+    private static readonly SolidColorBrush CapsuleBorderBrush = new(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF));
+
+    private static DropShadowEffect CreateShadow() => new()
+    {
+        OffsetY = 3, BlurRadius = 10, Opacity = 0.23, Color = Colors.Black
+    };
+
+    /// <summary>按 IslandSeparated 切换合并/分离外观，圆角按 MainWindowCornerRadius 动态应用</summary>
+    private void ApplyCapsuleStyle()
+    {
+        bool sep = App.Settings.IslandSeparated;
+        double r = App.Settings.MainWindowCornerRadius;
+        var cr = new CornerRadius(r);
+
+        if (sep)
+        {
+            // 分离：外层透明，各块独立成胶囊
+            OuterCapsule.CornerRadius = cr;
+            OuterCapsule.Background = Brushes.Transparent;
+            OuterCapsule.BorderBrush = Brushes.Transparent;
+            OuterCapsule.BorderThickness = new Thickness(0);
+            OuterCapsule.Padding = new Thickness(0);
+            OuterCapsule.Effect = null;
+            Sep1.IsVisible = false;
+            Sep2.IsVisible = false;
+            Row1.Spacing = 8;
+
+            SetCapsule(TimeCapsule, cr, true);
+            SetCapsule(ScheduleCapsule, cr, true);
+            SetCapsule(WeatherCapsule, cr, true);
+            SetCapsule(GaokaoCapsule, cr, true);
+        }
+        else
+        {
+            // 合并：外层成大胶囊，各块透明直接排列
+            OuterCapsule.CornerRadius = cr;
+            OuterCapsule.Background = CapsuleBg;
+            OuterCapsule.BorderBrush = CapsuleBorderBrush;
+            OuterCapsule.BorderThickness = new Thickness(1);
+            OuterCapsule.Padding = new Thickness(16, 10);
+            OuterCapsule.Effect = CreateShadow();
+            Sep1.IsVisible = true;
+            Sep2.IsVisible = true;
+            Row1.Spacing = 12;
+
+            SetCapsule(TimeCapsule, cr, false);
+            SetCapsule(ScheduleCapsule, cr, false);
+            SetCapsule(WeatherCapsule, cr, false);
+            SetCapsule(GaokaoCapsule, cr, false);
+        }
+
+        // 自定义倒计时跟随分离模式重建
+        RebuildCustomRings(Helpers.TimeSimulator.Now);
+    }
+
+    private static void SetCapsule(Border b, CornerRadius cr, bool separated)
+    {
+        b.CornerRadius = cr;
+        b.Background = separated ? CapsuleBg : Brushes.Transparent;
+        b.BorderBrush = separated ? CapsuleBorderBrush : Brushes.Transparent;
+        b.BorderThickness = new Thickness(separated ? 1 : 0);
+        b.Padding = separated ? new Thickness(12, 8) : new Thickness(0);
+        b.Effect = separated ? CreateShadow() : null;
     }
 
     /// <summary>每秒刷新：时间 / 课程 / 倒计时圆环；并处理上课隐藏</summary>
@@ -363,30 +446,45 @@ public partial class MainWindow : Window
     private void UpdateCountdownRings(DateTime now)
     {
         var s = App.Settings;
+        bool bar = s.CountdownProgressBarStyle;
 
-        // 高考（固定，暗蓝圆环）
+        // 高考：环形 / 条形切换
+        GaokaoRing.IsVisible = !bar;
+        GaokaoBar.IsVisible = bar;
+
         if (DateTime.TryParse(s.GaokaoDateStr, out var gao))
-            UpdateRing(gao, s.StartDateStr, GaokaoTb, GaokaoRingArc, "高考");
+        {
+            GaokaoTb.Text = FormatCountdownText("高考", gao, now, s.CountdownShowPrecise);
+            double progress = ComputeProgress(gao, s.StartDateStr, now);
+            if (bar) GaokaoBar.Value = progress * 100;
+            else GaokaoRingArc.SweepAngle = progress * 360;
+        }
 
-        // 自定义倒计时（动态圆环）
+        // 自定义倒计时（动态）
         RebuildCustomRings(now);
     }
 
-    private void UpdateRing(DateTime target, string? startStr, TextBlock tb, Arc arc, string label)
+    /// <summary>倒计时文本：普通="X天"，精确="X天 HH:MM:SS"</summary>
+    private static string FormatCountdownText(string label, DateTime target, DateTime now, bool precise)
     {
-        var now = Helpers.TimeSimulator.Now;
         var remaining = target - now;
-        int days = remaining.TotalSeconds > 0 ? (int)Math.Ceiling(remaining.TotalDays) : 0;
-        tb.Text = $"{label} {days}天";
+        if (remaining.TotalSeconds <= 0) return $"{label} 0天";
+        if (!precise)
+            return $"{label} {(int)Math.Ceiling(remaining.TotalDays)}天";
+        int days = (int)Math.Floor(remaining.TotalDays);
+        return $"{label} {days}天 {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
+    }
 
+    /// <summary>倒计时进度：起点 → 目标日期的已过比例（0~1）</summary>
+    private static double ComputeProgress(DateTime target, string? startStr, DateTime now)
+    {
         DateTime start;
         if (!string.IsNullOrEmpty(startStr) && DateTime.TryParse(startStr, out var sd)) start = sd;
         else start = target.AddDays(-100);
 
         double total = (target - start).TotalDays;
         double passed = (now - start).TotalDays;
-        double progress = total > 0 ? Math.Clamp(passed / total, 0, 1) : 0;
-        arc.SweepAngle = progress * 360;
+        return total > 0 ? Math.Clamp(passed / total, 0, 1) : 0;
     }
 
     /// <summary>重建自定义倒计时圆环（来自设置页「自定义倒计时」）</summary>
@@ -405,39 +503,17 @@ public partial class MainWindow : Window
         }
     }
 
-    /// <summary>构建单个自定义倒计时圆环（圆环 + 图标 + 剩余天数）</summary>
-    private static StackPanel BuildCustomRing(string name, DateTime target, DateTime now, string colorHex)
+    /// <summary>构建单个自定义倒计时（环形/条形 + 精确时间；分离模式=独立胶囊）</summary>
+    private static Control BuildCustomRing(string name, DateTime target, DateTime now, string colorHex)
     {
         var color = Color.Parse(colorHex);
         var progressBrush = new SolidColorBrush(color);
-        int days = Math.Max(0, (int)Math.Ceiling((target - now).TotalDays));
-        double progress = Math.Clamp((now - target.AddDays(-100)).TotalDays / 100.0, 0, 1);
-
-        var bgArc = new Arc
-        {
-            StartAngle = 0, SweepAngle = 360,
-            Stroke = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF)), StrokeThickness = 3
-        };
-        var progArc = new Arc
-        {
-            StartAngle = -90, SweepAngle = progress * 360,
-            Stroke = progressBrush, StrokeThickness = 3, StrokeLineCap = PenLineCap.Round
-        };
-        var iconTb = new TextBlock
-        {
-            Text = "📅", FontSize = 11,
-            HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
-            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
-        };
-
-        var ring = new Grid { Width = 22, Height = 22 };
-        ring.Children.Add(bgArc);
-        ring.Children.Add(progArc);
-        ring.Children.Add(iconTb);
+        double progress = ComputeProgress(target, null, now);
+        string text = FormatCountdownText(name, target, now, App.Settings.CountdownShowPrecise);
 
         var textTb = new TextBlock
         {
-            Text = $"{name} {days}天", FontSize = 12,
+            Text = text, FontSize = 12,
             Foreground = Brushes.White,
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
         };
@@ -448,8 +524,66 @@ public partial class MainWindow : Window
             Spacing = 5,
             VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
         };
-        panel.Children.Add(ring);
+
+        if (App.Settings.CountdownProgressBarStyle)
+        {
+            // 条形进度条
+            var bar = new ProgressBar
+            {
+                Width = 50, Height = 4, Minimum = 0, Maximum = 100, Value = progress * 100,
+                Foreground = progressBrush,
+                Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
+                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+            };
+            panel.Children.Add(bar);
+        }
+        else
+        {
+            // 环形进度条（圆环 + 图标）
+            var bgArc = new Arc
+            {
+                StartAngle = 0, SweepAngle = 360,
+                Stroke = new SolidColorBrush(Color.FromArgb(0x24, 0xFF, 0xFF, 0xFF)), StrokeThickness = 3
+            };
+            var progArc = new Arc
+            {
+                StartAngle = -90, SweepAngle = progress * 360,
+                Stroke = progressBrush, StrokeThickness = 3, StrokeLineCap = PenLineCap.Round
+            };
+            var iconTb = new TextBlock
+            {
+                Text = "📅", FontSize = 11,
+                HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
+                VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+            };
+            var ring = new Grid { Width = 22, Height = 22 };
+            ring.Children.Add(bgArc);
+            ring.Children.Add(progArc);
+            ring.Children.Add(iconTb);
+            panel.Children.Add(ring);
+        }
+
         panel.Children.Add(textTb);
+
+        if (App.Settings.IslandSeparated)
+        {
+            // 分离模式：独立胶囊岛
+            return new Border
+            {
+                CornerRadius = new CornerRadius(App.Settings.MainWindowCornerRadius),
+                Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x20, 0x20, 0x20)),
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(12, 8),
+                Effect = new DropShadowEffect
+                {
+                    OffsetY = 3, BlurRadius = 10, Opacity = 0.23, Color = Colors.Black
+                },
+                Child = panel
+            };
+        }
+
+        // 合并模式：无背景，直接排列
         return panel;
     }
 

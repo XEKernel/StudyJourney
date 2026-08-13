@@ -4,6 +4,30 @@
     <ScrollViewer>
         <StackPanel Spacing="14" Margin="0,8,20,20">
 
+            <!-- 灵动岛外观 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="灵动岛外观" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+
+                    <TextBlock Text="胶囊样式" FontSize="13" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
+                    <RadioButton x:Name="CapsuleMerged" Content="单条大胶囊（所有内容合并一块）"/>
+                    <RadioButton x:Name="CapsuleSeparated" Content="多块胶囊（每块独立，可自定义布局）" Margin="0,6,0,0"/>
+
+                    <Grid ColumnDefinitions="110,*,70" Margin="0,14,0,4">
+                        <TextBlock Text="胶囊圆角" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider x:Name="CornerRadiusSlider" Grid.Column="1" Minimum="0" Maximum="20" Value="12"
+                                TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="CornerRadiusSlider_ValueChanged"/>
+                        <TextBlock x:Name="CornerRadiusText" Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                    <TextBlock Text="0=直角，20=完全胶囊。圆角对两种胶囊样式同时生效。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Margin="0,2,0,0" TextWrapping="Wrap"/>
+
+                    <CheckBox x:Name="CountdownPreciseCheck" Content="倒计时显示精确到时分秒" Margin="0,12,0,0"/>
+                    <CheckBox x:Name="CountdownBarCheck" Content="倒计时进度条用条形（默认环形）" Margin="0,6,0,0"/>
+                </StackPanel>
+            </Border>
+
             <!-- 屏幕位置预设 -->
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
