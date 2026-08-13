@@ -314,6 +314,7 @@ public partial class ScheduleBarWindow : Window
         {
             StatusTb.Text = isLast ? $"最后一节课：{cur.Subject}" : $"正在上课：{cur.Subject}";
             StatusTb.Foreground = BrGreen;
+            ScheduleListTb.IsVisible = false;
 
             var pct = manager.GetCurrentProgress(now);
             if (pct.HasValue)
@@ -353,9 +354,8 @@ public partial class ScheduleBarWindow : Window
         {
             StatusTb.Text = "课间休息";
             StatusTb.Foreground = BrOrange;
-            ProgressBar.IsVisible = false;
-            CompactProgressBar.IsVisible = false;
 
+            // 距下节课倒计时
             if (timeToNext.HasValue)
             {
                 var ts = timeToNext.Value;
@@ -367,19 +367,59 @@ public partial class ScheduleBarWindow : Window
                 NextCountdownTb.Text = $"下一节：{next.Subject} {next.StartTimeStr}";
                 NextCountdownTb.Foreground = BrOrange;
             }
-            ProgressPctTb.Text = "";
-            ProgressPctTb.IsVisible = false;
+
+            // 下课进度条：上一节课结束 → 下一节课开始的课间休息进度
+            var prev = todayEntries
+                .Where(e => e.GetEndDateTime(now.Date) <= now)
+                .OrderByDescending(e => e.EndTime)
+                .FirstOrDefault();
+            if (prev != null)
+            {
+                var breakStart = prev.GetEndDateTime(now.Date);
+                var breakEnd = next.GetStartDateTime(now.Date);
+                var breakTotal = breakEnd - breakStart;
+                if (breakTotal.TotalSeconds > 0)
+                {
+                    double breakPct = Math.Clamp((now - breakStart).TotalSeconds / breakTotal.TotalSeconds, 0, 1);
+                    ProgressBar.Value = breakPct * 100;
+                    ProgressBar.IsVisible = true;
+                    CompactProgressBar.Value = breakPct * 100;
+                    CompactProgressBar.IsVisible = true;
+                    ProgressPctTb.Text = $"课间 {breakPct * 100:F0}%";
+                    ProgressPctTb.IsVisible = true;
+                    CompactStatusTb.Text = $"课间休息 {breakPct * 100:F0}%";
+                }
+                else
+                {
+                    ProgressBar.IsVisible = false;
+                    CompactProgressBar.IsVisible = false;
+                    ProgressPctTb.IsVisible = false;
+                    CompactStatusTb.Text = "课间休息";
+                }
+            }
+            else
+            {
+                ProgressBar.IsVisible = false;
+                CompactProgressBar.IsVisible = false;
+                ProgressPctTb.IsVisible = false;
+                CompactStatusTb.Text = "课间休息";
+            }
+
+            // 下课显示今天全部课程列表
+            ScheduleListTb.Text = total > 0 ? BuildTodayList(todayEntries) : "";
+            ScheduleListTb.IsVisible = total > 0;
 
             // 下课 → 展开（对齐 WPF）
             if (_isCompact) SetExpanded();
         }
         else
         {
-            // 今日课程已结束：显示今天上过的课程列表（用户需求）
+            // 今日课程已结束：显示今天全部课程列表
             StatusTb.Text = total > 0 ? "今日课程已结束" : "今日无课";
             StatusTb.Foreground = BrGray;
-            NextCountdownTb.Text = total > 0 ? BuildTodayList(todayEntries) : "";
-            NextCountdownTb.Foreground = BrGray;
+            NextCountdownTb.Text = "";
+            ScheduleListTb.Text = total > 0 ? BuildTodayList(todayEntries) : "";
+            ScheduleListTb.IsVisible = total > 0;
             ProgressBar.IsVisible = false;
             CompactProgressBar.IsVisible = false;
             ProgressPctTb.Text = total > 0 ? $"共 {total} 节" : "";
@@ -398,7 +438,7 @@ public partial class ScheduleBarWindow : Window
 
     /// <summary>今日课程列表文本（"08:00 语文 · 08:55 数学 …"）</summary>
     private static string BuildTodayList(System.Collections.Generic.List<ScheduleEntry> entries)
-        => string.Join("  ", entries.Select(e =>
+        => string.Join("  ·  ", entries.Select(e =>
         {
             var s = e.StartTimeStr;
             return string.IsNullOrWhiteSpace(e.Subject) ? s : $"{s} {e.Subject}";

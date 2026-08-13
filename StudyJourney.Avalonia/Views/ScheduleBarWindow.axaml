@@ -11,9 +11,16 @@
         Topmost="True"
         Opened="Window_Opened">
 
-    <!-- 课表悬浮栏：屏幕顶部横幅（对齐学程 WPF ScheduleBarWindow：完整/紧凑双模式）
-         完整模式三区：左=时间日期 | 中=状态/进度/详情 | 右=天气（主次两行） -->
-    <Border Background="#DD0D0D1A" CornerRadius="0,0,6,6" Padding="0,4,0,4">
+    <!-- 课表悬浮栏：WinUI 3 胶囊样式（对齐 Windows 输入法工具栏）
+         完整模式三区：左=时间日期 | 中=状态/进度/详情 | 右=天气（主次两行）
+         Margin 容纳阴影与悬浮留白；圆角 12px 中等（不太圆） -->
+    <Border Background="#E01B1B1F"
+            BorderBrush="#22FFFFFF"
+            BorderThickness="1"
+            CornerRadius="12"
+            BoxShadow="0 2 8 0 #40000000"
+            Margin="8"
+            Padding="8,8,8,8">
       <Grid>
 
         <!-- ── 完整模式 ── -->
@@ -44,6 +51,8 @@
                 </Grid>
                 <TextBlock x:Name="Countdown60Tb" Text="" FontSize="14" FontWeight="Bold"
                            Foreground="#FFFF4444" HorizontalAlignment="Center" IsVisible="False"/>
+                <TextBlock x:Name="ScheduleListTb" Text="" FontSize="11" Foreground="#88FFFFFF"
+                           HorizontalAlignment="Center" TextWrapping="Wrap" IsVisible="False"/>
             </StackPanel>
 
             <!-- 右：天气（主行=图标+温度+描述，次行=风+湿度+城市） -->
