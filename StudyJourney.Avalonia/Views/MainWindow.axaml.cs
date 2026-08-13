@@ -118,7 +118,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var now = Helpers.TimeSimulator.Now;
+        var now = DateTime.Now;
         if (App.Schedule.GetCurrentExamSubject(now) == null &&
             App.Schedule.GetNextExamSubject(now) == null)
         {
@@ -328,7 +328,7 @@ public partial class MainWindow : Window
         }
 
         // 自定义倒计时跟随分离模式重建
-        RebuildCustomRings(Helpers.TimeSimulator.Now);
+        RebuildCustomRings(DateTime.Now);
     }
 
     private static void SetCapsule(Border b, CornerRadius cr, bool separated)
@@ -344,7 +344,7 @@ public partial class MainWindow : Window
     /// <summary>每秒刷新：时间 / 课程 / 倒计时圆环；并处理上课隐藏</summary>
     private void Tick()
     {
-        var now = Helpers.TimeSimulator.Now;
+        var now = DateTime.Now;
 
         // 时间（模块一）
         TimeTb.Text = now.ToString("HH:mm:ss");

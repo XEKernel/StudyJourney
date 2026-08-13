@@ -268,9 +268,6 @@ public partial class App : Application
             var settingsItem = new NativeMenuItem("打开设置");
             settingsItem.Click += (_, _) => OpenSettingsGlobal();
 
-            var debugItem = new NativeMenuItem("调试 · 时间模拟");
-            debugItem.Click += (_, _) => OpenDebugWindow();
-
             var exitItem = new NativeMenuItem("退出");
             exitItem.Click += (_, _) => ExitApplication();
 
@@ -278,7 +275,6 @@ public partial class App : Application
             menu.Add(showItem);
             menu.Add(examItem);
             menu.Add(settingsItem);
-            menu.Add(debugItem);
             menu.Add(new NativeMenuItemSeparator());
             menu.Add(exitItem);
 
@@ -302,14 +298,6 @@ public partial class App : Application
         // 复用 MainWindow.ToggleVisibility（含 _suppressAutoHide 豁免 + 临时置顶，
         // 避免"显示窗口被 MaximizeCheckTimer 立即隐藏"的闪退问题）
         if (_mainWindow is MainWindow mw) mw.ToggleVisibility();
-    }
-
-    /// <summary>打开时间模拟调试窗口（主窗口隐藏时不用它做 owner）</summary>
-    private void OpenDebugWindow()
-    {
-        var win = new DebugTimeWindow();
-        if (_mainWindow != null && _mainWindow.IsVisible) win.Show(_mainWindow);
-        else win.Show();
     }
 
     private void ExitApplication()

@@ -81,7 +81,7 @@ public class ReminderService : IDisposable
 
     private void OnTick(object? sender, EventArgs e)
     {
-        var now = Helpers.TimeSimulator.Now;
+        var now = DateTime.Now;
 
         if (now.Date != _lastClearDay)
         {
