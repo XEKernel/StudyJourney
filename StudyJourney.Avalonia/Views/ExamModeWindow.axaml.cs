@@ -24,10 +24,10 @@ public partial class ExamModeWindow : Window
 
     private DispatcherTimer? _timer;
     private DispatcherTimer? _weatherTimer;
+    private DispatcherTimer? _warnHideTimer;
     private string _currentSubjectName = string.Empty;
     private bool _warnShown;
     private bool _autoExited;
-    private int _lastBeepSecond = -1;
 
     public ExamModeWindow()
     {
@@ -39,6 +39,7 @@ public partial class ExamModeWindow : Window
             _timer?.Stop();
             _weatherTimer?.Stop();
             _escResetTimer?.Stop();
+            _warnHideTimer?.Stop();
         };
     }
 
@@ -197,29 +198,27 @@ public partial class ExamModeWindow : Window
                 ? $"下一场：{next.Value.Item2.Name}  {next.Value.Item2.StartTimeStr}"
                 : "";
 
-            // 15 分钟警告（一次）
+            // 15 分钟警告（一次）：显示提示文字并响一声，几秒后文字自动消失
             if (remaining.TotalSeconds > 0 && remaining.TotalMinutes <= 15 && !_warnShown)
             {
                 _warnShown = true;
                 WarningTb.IsVisible = true;
                 MessageBeep(MB_ICONASTERISK);
-            }
-            // 5 分钟每秒蜂鸣
-            if (remaining.TotalSeconds > 0 && remaining.TotalMinutes <= 5)
-            {
-                int sec = (int)remaining.TotalSeconds;
-                if (sec != _lastBeepSecond)
+                _warnHideTimer?.Stop();
+                _warnHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+                _warnHideTimer.Tick += (_, _) =>
                 {
-                    _lastBeepSecond = sec;
-                    MessageBeep(MB_ICONASTERISK);
-                }
+                    _warnHideTimer?.Stop();
+                    _warnHideTimer = null;
+                    WarningTb.IsVisible = false;
+                };
+                _warnHideTimer.Start();
             }
             // 科目切换重置
             if (subject.Name != _currentSubjectName)
             {
                 _currentSubjectName = subject.Name;
                 _warnShown = false;
-                _lastBeepSecond = -1;
                 WarningTb.IsVisible = false;
             }
         }

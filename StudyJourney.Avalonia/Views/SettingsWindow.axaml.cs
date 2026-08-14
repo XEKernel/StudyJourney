@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Animation;
 using Avalonia.Animation.Easings;
@@ -52,33 +53,58 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
         });
     }
 
-    /// <summary>切换页面：Load 当前设置 + 淡入动画（可用「页面动画」开关关闭）</summary>
-    private void ShowPage(Control page)
+    /// <summary>切换页面：Load 当前设置 + 滑动淡入动画（渲染线程驱动，可用「页面动画」开关关闭）</summary>
+    private async void ShowPage(Control page)
     {
         _currentPage = page;
         if (page is ISettingsPage sp) sp.Load(App.Settings);
 
         PageHost.Child = page;
-        if (PageAnimationsCheck.IsChecked == true)
+
+        if (PageAnimationsCheck.IsChecked != true)
         {
-            PageHost.Opacity = 0;
-            var fade = new Animation
+            page.Opacity = 1;
+            page.RenderTransform = null;
+            return;
+        }
+
+        // 滑动 + 淡入：新页面从右往左滑入（CubicEaseOut 缓出，非线性）
+        var tt = new TranslateTransform(28, 0);
+        page.RenderTransform = tt;
+        page.Opacity = 0;
+
+        var easing = new CubicEaseOut();
+        var slide = new Animation
+        {
+            Duration = TimeSpan.FromMilliseconds(240),
+            Easing = easing,
+            FillMode = FillMode.Forward,
+            Children =
             {
-                Duration = TimeSpan.FromMilliseconds(180),
-                Easing = new CubicEaseOut(),
-                FillMode = FillMode.Forward,
-                Children =
-                {
-                    new KeyFrame { Cue = new Cue(0), Setters = { new Setter(OpacityProperty, 0d) } },
-                    new KeyFrame { Cue = new Cue(1), Setters = { new Setter(OpacityProperty, 1d) } }
-                }
-            };
-            fade.RunAsync(PageHost);
-        }
-        else
+                new KeyFrame { Cue = new Cue(0d), Setters = { new Setter(TranslateTransform.XProperty, 28d) } },
+                new KeyFrame { Cue = new Cue(1d), Setters = { new Setter(TranslateTransform.XProperty, 0d) } }
+            }
+        };
+        var fade = new Animation
         {
-            PageHost.Opacity = 1;
+            Duration = TimeSpan.FromMilliseconds(240),
+            Easing = easing,
+            FillMode = FillMode.Forward,
+            Children =
+            {
+                new KeyFrame { Cue = new Cue(0d), Setters = { new Setter(Visual.OpacityProperty, 0d) } },
+                new KeyFrame { Cue = new Cue(1d), Setters = { new Setter(Visual.OpacityProperty, 1d) } }
+            }
+        };
+
+        try
+        {
+            await Task.WhenAll(slide.RunAsync(tt), fade.RunAsync(page));
         }
+        catch { /* 动画失败则直接显示 */ }
+
+        page.RenderTransform = null;
+        page.Opacity = 1;
     }
 
     /// <summary>恢复默认设置（对齐 WPF ResetButton_Click）：重置为 new AppSettings() 并广播刷新</summary>
