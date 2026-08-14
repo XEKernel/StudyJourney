@@ -18,21 +18,11 @@ namespace StudyJourney.Avalonia.Models
 
     public class AppSettings
     {
-        // ── 中文文本 ─────────────────────────────────────────
-        public string ChinesePrefix { get; set; } = "距离高考还有 ";
-        public string ChineseDaysText { get; set; } = "天 ";
-        public string ChineseHoursText { get; set; } = "小时 ";
-        public string ChineseMinutesText { get; set; } = "分 ";
-        public string ChineseSecondsText { get; set; } = "秒";
-
         // ── 字体 ─────────────────────────────────────────────
-        public string FontFamily { get; set; } = "Arial";
-        public int FontSize { get; set; } = 40;
+        public string FontFamily { get; set; } = "Microsoft YaHei UI";
+        public int FontSize { get; set; } = 12;
 
         // ── 颜色 ─────────────────────────────────────────────
-        [JsonIgnore]
-        public Color NumberColor { get; set; } = Colors.Red;
-
         [JsonIgnore]
         public Color TextColor { get; set; } = Colors.White;
 
@@ -40,12 +30,6 @@ namespace StudyJourney.Avalonia.Models
         public Color ProgressBarColor { get; set; } = Colors.White;
 
         // 颜色的 JSON 序列化代理属性
-        public string NumberColorHex
-        {
-            get => NumberColor.ToString();
-            set { try { NumberColor = Color.Parse(value); } catch { } }
-        }
-
         public string TextColorHex
         {
             get => TextColor.ToString();
@@ -119,7 +103,6 @@ namespace StudyJourney.Avalonia.Models
         public string WeatherCityColor        { get; set; } = "#FFFFFFFF";  // 城市名
         public string WeatherInfoColor        { get; set; } = "#FFCCCCDD";  // 天气描述+风+湿度
         public string WeatherTempColor        { get; set; } = "#FFFF8844";  // 温度
-        public string WeatherTimeColor        { get; set; } = "#66AAAAAA";  // 更新时间
         public string WeatherIconColor        { get; set; } = "#FFFFAA00";  // 天气图标
         /// <summary>天气详细度：0=简洁（emoji+温度），1=标准（+描述），2=详细（+城市/湿度/风力）</summary>
         public int WeatherDetailLevel        { get; set; } = 1;

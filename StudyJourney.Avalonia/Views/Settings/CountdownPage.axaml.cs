@@ -39,17 +39,8 @@ public partial class CountdownPage : UserControl, ISettingsPage
         StartDateBox.Text = s.StartDateStr;
         CustomCountdownGrid.ItemsSource = s.CustomCountdowns;
 
-        // 中英文自定义文本
-        ChinesePrefixBox.Text = s.ChinesePrefix;
-        ChineseDaysBox.Text = s.ChineseDaysText;
-        ChineseHoursBox.Text = s.ChineseHoursText;
-        ChineseMinutesBox.Text = s.ChineseMinutesText;
-        ChineseSecondsBox.Text = s.ChineseSecondsText;
-
-        NumberColorBox.Text = s.NumberColor.ToString();
         TextColorBox.Text = s.TextColor.ToString();
         ProgressBarColorBox.Text = s.ProgressBarColor.ToString();
-        UpdateColorPreview(NumberColorPreview, NumberColorBox.Text);
         UpdateColorPreview(TextColorPreview, TextColorBox.Text);
         UpdateColorPreview(ProgressBarColorPreview, ProgressBarColorBox.Text);
     }
@@ -70,14 +61,6 @@ public partial class CountdownPage : UserControl, ISettingsPage
         s.GaokaoDateStr = GaokaoDateBox.Text ?? "";
         s.StartDateStr = StartDateBox.Text ?? "";
 
-        // 中英文自定义文本
-        s.ChinesePrefix = ChinesePrefixBox.Text ?? s.ChinesePrefix;
-        s.ChineseDaysText = ChineseDaysBox.Text ?? s.ChineseDaysText;
-        s.ChineseHoursText = ChineseHoursBox.Text ?? s.ChineseHoursText;
-        s.ChineseMinutesText = ChineseMinutesBox.Text ?? s.ChineseMinutesText;
-        s.ChineseSecondsText = ChineseSecondsBox.Text ?? s.ChineseSecondsText;
-
-        if (TryParseColor(NumberColorBox.Text ?? "#FFFFFF", out var nc)) s.NumberColor = nc;
         if (TryParseColor(TextColorBox.Text ?? "#FFFFFF", out var tc)) s.TextColor = tc;
         if (TryParseColor(ProgressBarColorBox.Text ?? "#FFFFFF", out var pc)) s.ProgressBarColor = pc;
     }
@@ -94,9 +77,6 @@ public partial class CountdownPage : UserControl, ISettingsPage
     }
 
     // ── 颜色选择 ────────────────────────────────────────────
-    private void PickNumberColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(NumberColorBox, NumberColorPreview);
-
     private void PickTextColor_Click(object? sender, RoutedEventArgs e)
         => PickColor(TextColorBox, TextColorPreview);
 

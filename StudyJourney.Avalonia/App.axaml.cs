@@ -146,81 +146,14 @@ public partial class App : Application
     public static async System.Threading.Tasks.Task<bool> ConfirmAsync(string title, string message,
         string okText = "确定", string cancelText = "取消")
     {
-        var win = (Current as App)?._mainWindow;
-        if (win == null) return false;
-
-        Button cancelBtn, okBtn;
-        var box = new Window
-        {
-            Title = title,
-            Icon = AppIcon,
-            Width = 420,
-            Height = 200,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = false,
-            WindowDecorations = WindowDecorations.Full,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(24),
-                Spacing = 16,
-                Children =
-                {
-                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Spacing = 8,
-                        Children =
-                        {
-                            (cancelBtn = new Button { Content = cancelText, MinWidth = 80 }),
-                            (okBtn = new Button { Content = okText, Classes = { "accent" }, MinWidth = 80 })
-                        }
-                    }
-                }
-            }
-        };
-        bool result = false;
-        cancelBtn.Click += (_, _) => box.Close();
-        okBtn.Click += (_, _) => { result = true; box.Close(); };
-        await box.ShowDialog(win);
-        return result;
+        return await Helpers.DialogHelper.ShowConfirmAsync(
+            (Current as App)?._mainWindow, title, message, okText, cancelText);
     }
 
     /// <summary>简易提示弹窗（单一"确定"按钮；主窗口隐藏时降级为非模态）</summary>
     public static async System.Threading.Tasks.Task ShowMessageAsync(string title, string message)
     {
-        var win = (Current as App)?._mainWindow;
-        Button okBtn;
-        var box = new Window
-        {
-            Title = title,
-            Icon = AppIcon,
-            Width = 380,
-            Height = 150,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = false,
-            WindowDecorations = WindowDecorations.Full,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(20),
-                Spacing = 14,
-                Children =
-                {
-                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
-                    (okBtn = new Button
-                    {
-                        Content = "确定",
-                        Classes = { "accent" },
-                        MinWidth = 76,
-                        HorizontalAlignment = HorizontalAlignment.Right
-                    })
-                }
-            }
-        };
-        okBtn.Click += (_, _) => box.Close();
-        if (win != null && win.IsVisible) await box.ShowDialog(win);
-        else box.Show();
+        await Helpers.DialogHelper.ShowMessageAsync((Current as App)?._mainWindow, title, message);
     }
 
     private void SetupGlobalHotKeys()

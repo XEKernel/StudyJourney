@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -26,8 +28,10 @@ public partial class MainWindow : Window
     private DispatcherTimer? _maximizeCheckTimer;
     private DispatcherTimer? _weatherTimer;
     private DispatcherTimer? _classEndRestoreTimer;
+    private DispatcherTimer? _quoteTimer;
     private ExamModeWindow? _examModeWindow;
     private bool _draggable;
+    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(8) };
 
     // ── Win32：前台窗口 / 点击穿透 ─────────────────────────
     [DllImport("user32.dll")]
@@ -51,7 +55,6 @@ public partial class MainWindow : Window
     private const int GWLP_WNDPROC = -4;
     private const uint WM_NCHITTEST = 0x84;
     private const uint WM_MOUSEACTIVATE = 0x21;
-    private const int HT_TRANSPARENT = -1;
     private const int MA_NOACTIVATE = 3;
     private static readonly IntPtr WS_EX_TRANSPARENT = new(0x20);
     private static readonly IntPtr WS_EX_NOACTIVATE = new(0x08000000);
@@ -104,6 +107,7 @@ public partial class MainWindow : Window
             _maximizeCheckTimer?.Stop();
             _classEndRestoreTimer?.Stop();
             _weatherTimer?.Stop();
+            _quoteTimer?.Stop();
         };
 
         PositionChanged += Window_PositionChanged;
@@ -203,6 +207,10 @@ public partial class MainWindow : Window
         Tick();
         _ = LoadWeatherAsync();
         StartWeatherTimer();
+
+        // 每日一言
+        _ = LoadQuoteAsync();
+        StartQuoteTimer();
     }
 
     // ── 桌面小组件：前台有窗口时隐藏（桌面同一层，不挡其他窗口）──
@@ -274,6 +282,73 @@ public partial class MainWindow : Window
         _weatherTimer.Start();
     }
 
+    // ── 每日一言 ─────────────────────────────────────────────
+    private async Task LoadQuoteAsync()
+    {
+        var s = App.Settings;
+        if (!s.ShowDailyQuote)
+        {
+            QuoteTb.IsVisible = false;
+            return;
+        }
+        try
+        {
+            if (string.IsNullOrWhiteSpace(s.QuoteApiUrl)) return;
+            var json = await _http.GetStringAsync(s.QuoteApiUrl);
+            var text = ExtractQuoteText(json, s.QuoteTextFieldName);
+            if (string.IsNullOrWhiteSpace(text)) return;
+
+            QuoteTb.Text = text;
+            QuoteTb.FontSize = s.QuoteFontSize;
+            QuoteTb.Foreground = Helpers.ColorUtils.ParseBrush(s.QuoteForegroundHex, "#AAAAAA");
+            QuoteTb.FontStyle = s.QuoteItalic ? FontStyle.Italic : FontStyle.Normal;
+            QuoteTb.IsVisible = true;
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn($"每日一言获取失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>从 JSON 中提取一言文本：先根字段，再 data 子对象，最后 msg 字段</summary>
+    private static string? ExtractQuoteText(string json, string field)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            if (root.ValueKind == JsonValueKind.Object)
+            {
+                if (root.TryGetProperty(field, out var v) && v.ValueKind == JsonValueKind.String)
+                    return v.GetString();
+                if (root.TryGetProperty("data", out var d) && d.ValueKind == JsonValueKind.Object &&
+                    d.TryGetProperty(field, out var v2) && v2.ValueKind == JsonValueKind.String)
+                    return v2.GetString();
+                if (root.TryGetProperty("msg", out var m) && m.ValueKind == JsonValueKind.String)
+                    return m.GetString();
+            }
+            // 顶层即字符串数组或单字符串时原样返回
+            if (root.ValueKind == JsonValueKind.String) return root.GetString();
+        }
+        catch { }
+        return null;
+    }
+
+    private void StartQuoteTimer()
+    {
+        _quoteTimer?.Stop();
+        _quoteTimer = null;
+        var s = App.Settings;
+        if (!s.ShowDailyQuote || s.QuoteAutoRefreshInterval <= 0) return;
+        _quoteTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(s.QuoteAutoRefreshInterval) };
+        _quoteTimer.Tick += async (_, _) => await LoadQuoteAsync();
+        _quoteTimer.Start();
+    }
+
+    /// <summary>点击一言手动刷新（穿透开启时点击会穿过窗口，此交互仅在关闭穿透时可用）</summary>
+    private void QuoteTb_PointerPressed(object? sender, PointerPressedEventArgs e)
+        => _ = LoadQuoteAsync();
+
     private void OnSettingsChanged()
     {
         if (_lastAutoStart != App.Settings.AutoStart)
@@ -285,6 +360,9 @@ public partial class MainWindow : Window
         ApplySettings();
         PositionToPreset();
         ApplyClickThrough();
+        StartWeatherTimer();
+        _ = LoadQuoteAsync();
+        StartQuoteTimer();
         Tick();
     }
 
@@ -301,6 +379,12 @@ public partial class MainWindow : Window
         GaokaoBar.Foreground = pb;
         ClassProgressBar.Foreground = pb;
         CompactProgressBar.Foreground = pb;
+
+        // 倒计时文字字体 / 字号 / 颜色
+        GaokaoTb.FontSize = s.FontSize;
+        GaokaoTb.Foreground = new SolidColorBrush(s.TextColor);
+        if (!string.IsNullOrWhiteSpace(s.FontFamily))
+            GaokaoTb.FontFamily = new FontFamily(s.FontFamily);
 
         ApplyCapsuleStyle();
     }
@@ -553,8 +637,8 @@ public partial class MainWindow : Window
                     Content = new Border
                     {
                         CornerRadius = new CornerRadius(16),
-                        Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x20, 0x20, 0x20)),
-                        BorderBrush = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
+                        Background = CapsuleBg,
+                        BorderBrush = CapsuleBorderBrush,
                         BorderThickness = new Thickness(1),
                         Padding = new Thickness(24, 18),
                         Effect = new DropShadowEffect
@@ -600,7 +684,7 @@ public partial class MainWindow : Window
                 };
                 t.Start();
             }
-            catch { /* 提醒窗口失败静默 */ }
+            catch (Exception ex) { Helpers.AppLogger.Warn($"提醒弹窗失败: {ex.Message}"); }
         });
     }
 
@@ -694,12 +778,15 @@ public partial class MainWindow : Window
                 : global::Avalonia.Layout.Orientation.Horizontal
         };
 
-        panel.Children.Add(new TextBlock
+        var textTb = new TextBlock
         {
-            Text = text, FontSize = 12,
-            Foreground = Brushes.White,
+            Text = text, FontSize = App.Settings.FontSize,
+            Foreground = new SolidColorBrush(App.Settings.TextColor),
             HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center
-        });
+        };
+        if (!string.IsNullOrWhiteSpace(App.Settings.FontFamily))
+            textTb.FontFamily = new FontFamily(App.Settings.FontFamily);
+        panel.Children.Add(textTb);
 
         if (App.Settings.ShowProgressText)
         {
@@ -747,14 +834,11 @@ public partial class MainWindow : Window
             return new Border
             {
                 CornerRadius = new CornerRadius(App.Settings.MainWindowCornerRadius),
-                Background = new SolidColorBrush(Color.FromArgb(0xE6, 0x20, 0x20, 0x20)),
-                BorderBrush = new SolidColorBrush(Color.FromArgb(0x14, 0xFF, 0xFF, 0xFF)),
+                Background = CapsuleBg,
+                BorderBrush = CapsuleBorderBrush,
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(12, 6),
-                Effect = new DropShadowEffect
-                {
-                    OffsetY = 3, BlurRadius = 10, Opacity = 0.23, Color = Colors.Black
-                },
+                Effect = CreateShadow(),
                 Child = panel
             };
         }

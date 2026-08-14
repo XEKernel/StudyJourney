@@ -44,9 +44,9 @@ public static class UpdateService
                 if (!string.IsNullOrWhiteSpace(info)) return info.Trim();
             }
             var ver = asm.GetName().Version;
-            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.4.4";
+            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.4.5";
         }
-        catch { return "2.4.4"; }
+        catch { return "2.4.5"; }
     });
 
     public static string CurrentVersion => _currentVersion.Value;

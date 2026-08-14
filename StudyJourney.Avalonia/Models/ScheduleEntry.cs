@@ -39,9 +39,6 @@ namespace StudyJourney.Avalonia.Models
         /// <summary>节次类型</summary>
         public PeriodType Type { get; set; } = PeriodType.Normal;
 
-        /// <summary>备注（可选）</summary>
-        public string Remark { get; set; } = string.Empty;
-
         // ── 运行时计算属性（不序列化）─────────────────────
         [JsonIgnore]
         public TimeSpan StartTime
@@ -65,17 +62,6 @@ namespace StudyJourney.Avalonia.Models
                 // 解析失败：回退为开始时间 + 45 分钟，避免 Duration 为负
                 System.Diagnostics.Debug.WriteLine($"[ScheduleEntry] 下课时间解析失败: '{EndTimeStr}' (科目: {Subject})");
                 return StartTime + TimeSpan.FromMinutes(45);
-            }
-        }
-
-        [JsonIgnore]
-        public TimeSpan Duration
-        {
-            get
-            {
-                var d = EndTime - StartTime;
-                // 跨天课（如 22:00-00:30）：Duration 应为 2.5 小时而非负数
-                return d < TimeSpan.Zero ? d + TimeSpan.FromHours(24) : d;
             }
         }
 

@@ -187,7 +187,7 @@ public class ReminderService : IDisposable
 
     private void FireReminder(ReminderType type, string title, string message)
     {
-        // ClassEndSoon / ClassEnd / ExamEndSoon 使用大字覆盖层，不播放声音
+        // 下课 / 下课临近 / 考试结束 等提醒不播放声音（避免打扰），其余播放提示音
         if (type != ReminderType.ClassEndSoon && type != ReminderType.ClassEnd && type != ReminderType.ExamEndSoon)
             PlaySound();
 

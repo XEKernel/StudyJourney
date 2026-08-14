@@ -8,8 +8,8 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 2.4.4：AssemblyVersion=2.4.4.0，InformationalVersion=2.4.4（更新检查解析用） -->
-    <Version>2.4.4</Version>
+    <!-- 2.4.5：AssemblyVersion=2.4.5.0，InformationalVersion=2.4.5（更新检查解析用） -->
+    <Version>2.4.5</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 

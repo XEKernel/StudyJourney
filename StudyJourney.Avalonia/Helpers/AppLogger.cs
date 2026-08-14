@@ -11,6 +11,7 @@ namespace StudyJourney.Avalonia.Helpers
     {
         private static readonly object _lock = new();
         private static string? _logPath;
+        private const long MaxLogBytes = 1 * 1024 * 1024;   // 超过 1MB 轮转，避免无限增长
 
         /// <summary>启用文件日志（写日志到 exe 目录 logs/app.log）</summary>
         public static void EnableFileLogging()
@@ -20,8 +21,26 @@ namespace StudyJourney.Avalonia.Helpers
                 var dir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
                 Directory.CreateDirectory(dir);
                 _logPath = System.IO.Path.Combine(dir, "app.log");
+                RotateIfNeeded();
             }
             catch { /* 无法创建日志目录时仅 Debug 输出 */ }
+        }
+
+        /// <summary>日志文件超限时重命名为 app.log.1（覆盖旧轮转）</summary>
+        private static void RotateIfNeeded()
+        {
+            if (_logPath == null) return;
+            try
+            {
+                var fi = new FileInfo(_logPath);
+                if (fi.Exists && fi.Length > MaxLogBytes)
+                {
+                    var bak = _logPath + ".1";
+                    if (File.Exists(bak)) File.Delete(bak);
+                    File.Move(_logPath, bak);
+                }
+            }
+            catch { }
         }
 
         public static void Info(string message) => Write("INFO", message);

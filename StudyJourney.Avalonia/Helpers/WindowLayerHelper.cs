@@ -35,7 +35,6 @@ public static class WindowLayerHelper
         public int rcNormalBottom;
     }
 
-    private const int SW_SHOWMAXIMIZED = 3;
     private const int SW_SHOWMINIMIZED = 2;
 
     /// <summary>当前前台窗口句柄（无则 IntPtr.Zero）</summary>
@@ -46,14 +45,6 @@ public static class WindowLayerHelper
         var sb = new StringBuilder(256);
         GetClassName(hwnd, sb, sb.Capacity);
         return sb.ToString();
-    }
-
-    /// <summary>判断句柄是否为桌面/系统外壳窗口（Progman / WorkerW / 任务栏 Shell_TrayWnd）</summary>
-    public static bool IsDesktop(IntPtr hwnd)
-    {
-        if (hwnd == IntPtr.Zero) return true;
-        var cls = GetWindowClass(hwnd);
-        return cls == "Progman" || cls == "WorkerW" || cls == "Shell_TrayWnd";
     }
 
     /// <summary>判断句柄是否为系统外壳窗口（桌面/任务栏/开始菜单等不遮挡小组件的窗口）</summary>
@@ -71,15 +62,5 @@ public static class WindowLayerHelper
         var placement = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
         if (!GetWindowPlacement(hwnd, ref placement)) return false;
         return placement.showCmd == SW_SHOWMINIMIZED;
-    }
-
-    /// <summary>判断前台窗口是否最大化</summary>
-    public static bool IsForegroundMaximized()
-    {
-        var hwnd = GetForegroundWindow();
-        if (hwnd == IntPtr.Zero) return false;
-        var placement = new WINDOWPLACEMENT { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
-        if (!GetWindowPlacement(hwnd, ref placement)) return false;
-        return placement.showCmd == SW_SHOWMAXIMIZED;
     }
 }

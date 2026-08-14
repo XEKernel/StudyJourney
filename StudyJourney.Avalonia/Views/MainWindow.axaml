@@ -95,6 +95,11 @@
                     <!-- 自定义倒计时（动态，来自设置页「自定义倒计时」） -->
                     <StackPanel x:Name="RingHost" Orientation="Horizontal" Spacing="8"/>
                 </StackPanel>
+
+                <!-- ══ 每日一言 ══ -->
+                <TextBlock x:Name="QuoteTb" Text="" FontSize="12" Foreground="#AAAAAA" FontStyle="Italic"
+                           HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="340"
+                           IsVisible="False" PointerPressed="QuoteTb_PointerPressed"/>
             </StackPanel>
         </Border>
 

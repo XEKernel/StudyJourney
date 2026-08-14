@@ -311,28 +311,7 @@ public partial class ScheduleEditorWindow : Window
     }
 
     private async void ShowStatus(string msg)
-    {
-        var box = new Window
-        {
-            Title = "提示", Icon = App.AppIcon,
-            Width = 360, Height = 130,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = false,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(20),
-                Spacing = 14,
-                Children =
-                {
-                    new TextBlock { Text = msg, TextWrapping = TextWrapping.Wrap },
-                    new Button { Content = "确定", HorizontalAlignment = HorizontalAlignment.Right, MinWidth = 72 }
-                }
-            }
-        };
-        if (box.Content is StackPanel root)
-            ((Button)root.Children[1]).Click += (_, _) => box.Close();
-        await box.ShowDialog(this);
-    }
+        => await Helpers.DialogHelper.ShowMessageAsync(this, "提示", msg);
 
     // ═══════════════════════════════════════════════════════
     //  周视图 · 调课（对齐 WPF SettingWindow_Schedule.cs）
@@ -607,7 +586,7 @@ public partial class ScheduleEditorWindow : Window
             SwapHintTb.Text = "⚠ 两个位置都是空的，无需交换";
             return;
         }
-        if (!await ConfirmAsync($"交换「{_swapSource.Display}」↔「{_swapTarget.Display}」？", "调课·交换")) return;
+        if (!await Helpers.DialogHelper.ShowConfirmAsync(this, "调课·交换", $"交换「{_swapSource.Display}」↔「{_swapTarget.Display}」？")) return;
 
         string tmp = _rows[_swapSource.RowIndex][_swapSource.DayIndex];
         _rows[_swapSource.RowIndex][_swapSource.DayIndex] = _rows[_swapTarget.RowIndex][_swapTarget.DayIndex];
@@ -627,7 +606,7 @@ public partial class ScheduleEditorWindow : Window
             return;
         }
         string warn = !_swapTarget!.IsEmpty ? "\n\n目标「" + _swapTarget.Display + "」将被覆盖！" : "";
-        if (!await ConfirmAsync($"将「{_swapSource.Display}」移动到「{_swapTarget.Display}」？{warn}", "调课·移动")) return;
+        if (!await Helpers.DialogHelper.ShowConfirmAsync(this, "调课·移动", $"将「{_swapSource.Display}」移动到「{_swapTarget.Display}」？{warn}")) return;
 
         _rows[_swapTarget.RowIndex][_swapTarget.DayIndex] = _rows[_swapSource.RowIndex][_swapSource.DayIndex];
         _rows[_swapSource.RowIndex][_swapSource.DayIndex] = "";
@@ -648,9 +627,8 @@ public partial class ScheduleEditorWindow : Window
         string info = _swapTarget!.IsEmpty
             ? $"由「{_swapSource.Subject}」代课"
             : $"「{_swapSource.Subject}」代课，原「{_swapTarget.Subject}」取消";
-        if (!await ConfirmAsync(
-                $"{_swapSource.DayName} {_swapSource.TimeLabel} 的「{_swapSource.Subject}」老师\n到 {_swapTarget.DayName} {_swapTarget.TimeLabel} 代课？\n\n{info}",
-                "调课·代课")) return;
+        if (!await Helpers.DialogHelper.ShowConfirmAsync(this, "调课·代课",
+                $"{_swapSource.DayName} {_swapSource.TimeLabel} 的「{_swapSource.Subject}」老师\n到 {_swapTarget.DayName} {_swapTarget.TimeLabel} 代课？\n\n{info}")) return;
 
         _rows[_swapTarget.RowIndex][_swapTarget.DayIndex] = _swapSource.Subject;
         SaveTimetableToEntries(_rows);
@@ -737,7 +715,7 @@ public partial class ScheduleEditorWindow : Window
         int to = AdjustToDayCb.SelectedIndex;
         if (from < 0 || to < 0 || from == to || _rows == null) return;
 
-        if (!await ConfirmAsync($"确定将{DayNames[from]}的课程复制到{DayNames[to]}吗？", "调休确认")) return;
+        if (!await Helpers.DialogHelper.ShowConfirmAsync(this, "调休确认", $"确定将{DayNames[from]}的课程复制到{DayNames[to]}吗？")) return;
         foreach (var row in _rows)
             row[to] = row[from];
         SaveTimetableToEntries(_rows);
@@ -751,46 +729,6 @@ public partial class ScheduleEditorWindow : Window
         SaveTimetableToEntries(_rows);
         RefreshGrid();
         ShowStatus("课表网格已保存。");
-    }
-
-    /// <summary>确认弹窗</summary>
-    private async System.Threading.Tasks.Task<bool> ConfirmAsync(string message, string title)
-    {
-        var box = new Window
-        {
-            Title = title, Icon = App.AppIcon,
-            Width = 400, Height = 170,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            CanResize = false,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(20),
-                Spacing = 14,
-                Children =
-                {
-                    new TextBlock { Text = message, TextWrapping = TextWrapping.Wrap },
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Spacing = 8,
-                        Children =
-                        {
-                            new Button { Content = "取消", MinWidth = 72 },
-                            new Button { Content = "确定", Classes = { "accent" }, MinWidth = 72 }
-                        }
-                    }
-                }
-            }
-        };
-        bool ok = false;
-        if (box.Content is StackPanel root)
-        {
-            ((Button)((StackPanel)root.Children[1]).Children[0]).Click += (_, _) => box.Close();
-            ((Button)((StackPanel)root.Children[1]).Children[1]).Click += (_, _) => { ok = true; box.Close(); };
-        }
-        await box.ShowDialog(this);
-        return ok;
     }
 }
 

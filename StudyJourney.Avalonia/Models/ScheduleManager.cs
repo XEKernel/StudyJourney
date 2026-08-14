@@ -169,20 +169,7 @@ namespace StudyJourney.Avalonia.Models
             return null;
         }
 
-        // ── Excel 导入接口（占位，后续扩展）─────────────────────
-        /// <summary>
-        /// 从 xlsx 导入课表（需安装 EPPlus 等库）。
-        /// 当前为占位接口，返回 false 并附带提示。
-        /// </summary>
-        public (bool success, string message) ImportFromExcel(string filePath)
-        {
-            // TODO: 安装 EPPlus（OfficeOpenXml）后实现 xlsx 解析
-            // var package = new ExcelPackage(new FileInfo(filePath));
-            // var ws = package.Workbook.Worksheets[0];
-            // ...
-            return (false, "Excel 导入功能需安装 EPPlus NuGet 包后实现。当前支持直接编辑 schedule.json。");
-        }
-
+        // ── JSON 导入 ──────────────────────────────────────────
         /// <summary>从 JSON 字符串导入课表，返回是否成功</summary>
         public (bool success, string message) ImportFromJson(string json)
         {

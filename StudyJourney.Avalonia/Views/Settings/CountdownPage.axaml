@@ -12,8 +12,8 @@
                     <TextBlock Text="字体与字号" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
                     <ComboBox x:Name="FontFamilyBox"/>
                     <Grid ColumnDefinitions="*,56" Margin="0,6,0,0">
-                        <Slider x:Name="FontSizeSlider" ValueChanged="FontSizeSlider_ValueChanged" Minimum="16" Maximum="72" Value="40" TickFrequency="1" IsSnapToTickEnabled="True"/>
-                        <TextBlock x:Name="FontSizeText" Grid.Column="1" Text="40" FontSize="13"
+                        <Slider x:Name="FontSizeSlider" ValueChanged="FontSizeSlider_ValueChanged" Minimum="8" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="FontSizeText" Grid.Column="1" Text="12" FontSize="13"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                     </Grid>
@@ -37,14 +37,7 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="配色方案" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                    <TextBlock Text="数字颜色（天 / 时 / 分 / 秒）" FontSize="13" Margin="0,4,0,4"/>
-                    <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" x:Name="NumberColorBox" Text="#FF2B6CB0"/>
-                        <Border Grid.Column="1" x:Name="NumberColorPreview" Width="26" Height="26" CornerRadius="4" Background="#FF2B6CB0"
-                                HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickNumberColor_Click"/>
-                    </Grid>
-                    <TextBlock Text="文字颜色（标签 / 说明）" FontSize="13" Margin="0,10,0,4"/>
+                    <TextBlock Text="文字颜色（倒计时文字）" FontSize="13" Margin="0,4,0,4"/>
                     <Grid ColumnDefinitions="90,*,Auto">
                         <TextBox Grid.Column="0" x:Name="TextColorBox" Text="#FFFFFFFF"/>
                         <Border Grid.Column="1" x:Name="TextColorPreview" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF"
@@ -103,23 +96,6 @@
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap" Margin="0,0,0,6"/>
                     <TextBox x:Name="StartDateBox" Text="2024-08-24"/>
-                </StackPanel>
-            </Border>
-
-            <!-- 中文文本 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="中文文本" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <TextBlock Text="前缀" FontSize="13"/>
-                    <TextBox x:Name="ChinesePrefixBox" Text="距离高考还有 "/>
-                    <TextBlock Text="天 的后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox x:Name="ChineseDaysBox" Text="天 "/>
-                    <TextBlock Text="小时 的后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox x:Name="ChineseHoursBox" Text="小时 "/>
-                    <TextBlock Text="分 的后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox x:Name="ChineseMinutesBox" Text="分 "/>
-                    <TextBlock Text="秒 的后缀" FontSize="13" Margin="0,6,0,0"/>
-                    <TextBox x:Name="ChineseSecondsBox" Text="秒"/>
                 </StackPanel>
             </Border>
 
