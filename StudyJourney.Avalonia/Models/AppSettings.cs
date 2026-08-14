@@ -26,8 +26,9 @@ namespace StudyJourney.Avalonia.Models
         [JsonIgnore]
         public Color TextColor { get; set; } = Colors.White;
 
+        /// <summary>强调色（校园蓝 #2B6CB0）：统一控制进度条/圆环/课表高亮</summary>
         [JsonIgnore]
-        public Color ProgressBarColor { get; set; } = Colors.White;
+        public Color AccentColor { get; set; } = Color.FromRgb(0x2B, 0x6C, 0xB0);
 
         // 颜色的 JSON 序列化代理属性
         public string TextColorHex
@@ -36,10 +37,10 @@ namespace StudyJourney.Avalonia.Models
             set { try { TextColor = Color.Parse(value); } catch { } }
         }
 
-        public string ProgressBarColorHex
+        public string AccentColorHex
         {
-            get => ProgressBarColor.ToString();
-            set { try { ProgressBarColor = Color.Parse(value); } catch { } }
+            get => AccentColor.ToString();
+            set { try { AccentColor = Color.Parse(value); } catch { } }
         }
 
         // ── 显示选项 ─────────────────────────────────────────
@@ -122,10 +123,11 @@ namespace StudyJourney.Avalonia.Models
         public int ReminderStyle         { get; set; } = 0;
         public bool RemindClassStart     { get; set; } = true;
         public bool RemindClassMid       { get; set; } = false;
-        public bool RemindClassEndSoon   { get; set; } = true;
-        public bool RemindClassEnd       { get; set; } = true;
+        // 下课/放学提醒默认关闭：实际下课后老师常拖堂 1~2 分钟，到点提醒会打扰课堂
+        public bool RemindClassEndSoon   { get; set; } = false;
+        public bool RemindClassEnd       { get; set; } = false;
         public bool RemindNextClassSoon  { get; set; } = true;
-        public bool RemindDayEnd         { get; set; } = true;
+        public bool RemindDayEnd         { get; set; } = false;
         public bool RemindSpecialPeriod  { get; set; } = true;
 
         // ── 更新检查 ──────────────────────────────────────────

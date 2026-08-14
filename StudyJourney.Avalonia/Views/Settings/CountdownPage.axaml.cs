@@ -40,9 +40,9 @@ public partial class CountdownPage : UserControl, ISettingsPage
         CustomCountdownGrid.ItemsSource = s.CustomCountdowns;
 
         TextColorBox.Text = s.TextColor.ToString();
-        ProgressBarColorBox.Text = s.ProgressBarColor.ToString();
+        AccentColorBox.Text = s.AccentColor.ToString();
         UpdateColorPreview(TextColorPreview, TextColorBox.Text);
-        UpdateColorPreview(ProgressBarColorPreview, ProgressBarColorBox.Text);
+        UpdateColorPreview(AccentColorPreview, AccentColorBox.Text);
     }
 
     public void Apply(AppSettings s)
@@ -62,7 +62,7 @@ public partial class CountdownPage : UserControl, ISettingsPage
         s.StartDateStr = StartDateBox.Text ?? "";
 
         if (TryParseColor(TextColorBox.Text ?? "#FFFFFF", out var tc)) s.TextColor = tc;
-        if (TryParseColor(ProgressBarColorBox.Text ?? "#FFFFFF", out var pc)) s.ProgressBarColor = pc;
+        if (TryParseColor(AccentColorBox.Text ?? "#2B6CB0", out var ac)) s.AccentColor = ac;
     }
 
     // ── 滑条联动：数字随滑动实时更新 ────────────────────────
@@ -80,8 +80,8 @@ public partial class CountdownPage : UserControl, ISettingsPage
     private void PickTextColor_Click(object? sender, RoutedEventArgs e)
         => PickColor(TextColorBox, TextColorPreview);
 
-    private void PickProgressBarColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(ProgressBarColorBox, ProgressBarColorPreview);
+    private void PickAccentColor_Click(object? sender, RoutedEventArgs e)
+        => PickColor(AccentColorBox, AccentColorPreview);
 
     private void PickColor(TextBox box, Border preview)
     {

@@ -534,7 +534,8 @@ public partial class ScheduleEditorWindow : Window
 
     private void HighlightSlots()
     {
-        // 重置全部高亮
+        // 重置全部高亮（源=橙色，目标=强调色）
+        var accent = App.Settings.AccentColor;
         foreach (var (slot, border) in _slotBorders)
         {
             bool isSource = _swapSource != null && slot.RowIndex == _swapSource.RowIndex && slot.DayIndex == _swapSource.DayIndex;
@@ -542,7 +543,7 @@ public partial class ScheduleEditorWindow : Window
             border.Background = isSource
                 ? new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0x88, 0x44))
                 : isTarget
-                    ? new SolidColorBrush(Color.FromArgb(0x40, 0x2B, 0x6C, 0xB0))
+                    ? new SolidColorBrush(Color.FromArgb(0x40, accent.R, accent.G, accent.B))
                     : Brushes.Transparent;
         }
     }

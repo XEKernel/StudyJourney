@@ -32,6 +32,7 @@ public partial class MainWindow : Window
     private ExamModeWindow? _examModeWindow;
     private bool _draggable;
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(8) };
+    private readonly HashSet<string> _notifiedCountdowns = new();  // 已提醒的倒计时（name|date）去重
 
     // ── Win32：前台窗口 / 点击穿透 ─────────────────────────
     [DllImport("user32.dll")]
@@ -373,8 +374,8 @@ public partial class MainWindow : Window
 
         _draggable = s.PositionPreset == PositionPresetValues.Custom;
 
-        // 所有进度条统一颜色（高考环/条、课表、上课紧凑进度条）
-        var pb = new SolidColorBrush(s.ProgressBarColor);
+        // 所有进度条统一强调色（高考环/条、课表、上课紧凑进度条）
+        var pb = new SolidColorBrush(s.AccentColor);
         GaokaoRingArc.Stroke = pb;
         GaokaoBar.Foreground = pb;
         ClassProgressBar.Foreground = pb;
@@ -614,86 +615,89 @@ public partial class MainWindow : Window
     {
         Dispatcher.UIThread.Post(() =>
         {
-            try
-            {
-                // Windows 通知：走系统托盘气泡，不弹窗
-                if (App.Settings.ReminderStyle == 1)
-                {
-                    App.ShowSystemNotification(e.Title, e.Message);
-                    return;
-                }
+            if (App.Settings.ReminderStyle == 1)
+                App.ShowSystemNotification(e.Title, e.Message);
+            else
+                ShowCapsule(e.Title, e.Message);
+        });
+    }
 
-                // 胶囊弹窗（与顶栏同款样式），3 秒后淡出关闭
-                var box = new Window
+    /// <summary>弹出胶囊提醒（与顶栏同款样式），3 秒后淡出关闭</summary>
+    private void ShowCapsule(string title, string message)
+    {
+        try
+        {
+            var box = new Window
+            {
+                Width = 380,
+                Height = 170,
+                WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Topmost = true,
+                WindowDecorations = WindowDecorations.None,
+                Background = Brushes.Transparent,
+                Content = new Border
                 {
-                    Width = 380,
-                    Height = 170,
-                    WindowStartupLocation = WindowStartupLocation.CenterScreen,
-                    CanResize = false,
-                    ShowInTaskbar = false,
-                    Topmost = true,
-                    WindowDecorations = WindowDecorations.None,
-                    Background = Brushes.Transparent,
-                    Content = new Border
+                    CornerRadius = new CornerRadius(16),
+                    Background = CapsuleBg,
+                    BorderBrush = CapsuleBorderBrush,
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(24, 18),
+                    Effect = new DropShadowEffect
                     {
-                        CornerRadius = new CornerRadius(16),
-                        Background = CapsuleBg,
-                        BorderBrush = CapsuleBorderBrush,
-                        BorderThickness = new Thickness(1),
-                        Padding = new Thickness(24, 18),
-                        Effect = new DropShadowEffect
+                        OffsetY = 4, BlurRadius = 16, Opacity = 0.35, Color = Colors.Black
+                    },
+                    Child = new StackPanel
+                    {
+                        Spacing = 10,
+                        VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
+                        Children =
                         {
-                            OffsetY = 4, BlurRadius = 16, Opacity = 0.35, Color = Colors.Black
-                        },
-                        Child = new StackPanel
-                        {
-                            Spacing = 10,
-                            VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
-                            Children =
+                            new TextBlock
                             {
-                                new TextBlock
-                                {
-                                    Text = e.Title, FontSize = 16, FontWeight = FontWeight.SemiBold,
-                                    Foreground = Brushes.White
-                                },
-                                new TextBlock
-                                {
-                                    Text = e.Message, FontSize = 13, TextWrapping = TextWrapping.Wrap,
-                                    Foreground = new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF))
-                                }
+                                Text = title, FontSize = 16, FontWeight = FontWeight.SemiBold,
+                                Foreground = Brushes.White
+                            },
+                            new TextBlock
+                            {
+                                Text = message, FontSize = 13, TextWrapping = TextWrapping.Wrap,
+                                Foreground = new SolidColorBrush(Color.FromArgb(0xE6, 0xFF, 0xFF, 0xFF))
                             }
                         }
                     }
-                };
-                box.Show();
+                }
+            };
+            box.Show();
 
-                // 3 秒后淡出关闭
-                var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-                t.Tick += (_, _) =>
+            // 3 秒后淡出关闭
+            var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            t.Tick += (_, _) =>
+            {
+                t.Stop();
+                var start = DateTime.Now;
+                var fade = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
+                fade.Tick += (_, _) =>
                 {
-                    t.Stop();
-                    var start = DateTime.Now;
-                    var fade = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(16) };
-                    fade.Tick += (_, _) =>
-                    {
-                        double p = (DateTime.Now - start).TotalMilliseconds / 300.0;
-                        box.Opacity = Math.Max(0, 1 - p);
-                        if (p >= 1.0) { fade.Stop(); box.Close(); }
-                    };
-                    fade.Start();
+                    double p = (DateTime.Now - start).TotalMilliseconds / 300.0;
+                    box.Opacity = Math.Max(0, 1 - p);
+                    if (p >= 1.0) { fade.Stop(); box.Close(); }
                 };
-                t.Start();
-            }
-            catch (Exception ex) { Helpers.AppLogger.Warn($"提醒弹窗失败: {ex.Message}"); }
-        });
+                fade.Start();
+            };
+            t.Start();
+        }
+        catch (Exception ex) { Helpers.AppLogger.Warn($"提醒弹窗失败: {ex.Message}"); }
     }
 
     /// <summary>模块三：高考（固定）+ 自定义倒计时（动态）；环形=文字左/环最右，条形=文字上/进度条下</summary>
     private void UpdateCountdownRings(DateTime now)
     {
+        CheckCountdownExpiry(now);
+
         var s = App.Settings;
         bool bar = s.CountdownProgressBarStyle;
-        var progressBrush = new SolidColorBrush(s.ProgressBarColor);
+        var progressBrush = new SolidColorBrush(s.AccentColor);
 
         // 环形：横向（文字左、环最右）；条形：纵向（文字上、进度条下）
         GaokaoLayout.Orientation = bar
@@ -760,10 +764,30 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>检测自定义倒计时到期，触发一次性提醒（按 name|date 去重）</summary>
+    private void CheckCountdownExpiry(DateTime now)
+    {
+        var list = App.Settings.CustomCountdowns;
+        if (list == null || list.Count == 0) return;
+
+        foreach (var cc in list)
+        {
+            if (!DateTime.TryParse(cc.DateStr, out var target) || target > now) continue;
+            string key = cc.Name + "|" + cc.DateStr;
+            if (_notifiedCountdowns.Contains(key)) continue;
+            _notifiedCountdowns.Add(key);
+
+            if (App.Settings.ReminderStyle == 1)
+                App.ShowSystemNotification("倒计时到期", $"「{cc.Name}」的时间到了");
+            else
+                ShowCapsule("倒计时到期", $"「{cc.Name}」的时间到了");
+        }
+    }
+
     /// <summary>构建单个自定义倒计时：环形=文字左/环最右，条形=文字上/进度条下（颜色统一用进度条设置）</summary>
     private static Control BuildCustomRing(string name, DateTime target, DateTime now)
     {
-        var progressBrush = new SolidColorBrush(App.Settings.ProgressBarColor);
+        var progressBrush = new SolidColorBrush(App.Settings.AccentColor);
         double progress = ComputeProgress(target, null, now);
         string text = FormatCountdownText(name, target, now);
         bool bar = App.Settings.CountdownProgressBarStyle;
