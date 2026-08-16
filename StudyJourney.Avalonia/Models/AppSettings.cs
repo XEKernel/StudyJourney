@@ -16,6 +16,18 @@ namespace StudyJourney.Avalonia.Models
         public string DateStr { get; set; } = "";
     }
 
+    /// <summary>老师账号（远程管理登录用）：用户名 / 密码 / 显示名 / 任教科目</summary>
+    public class TeacherAccount
+    {
+        public string Username { get; set; } = "";
+        public string Password { get; set; } = "";
+        public string DisplayName { get; set; } = "";
+        public string Subject { get; set; } = "";
+
+        /// <summary>列表显示：李老师（语文）· teacher01</summary>
+        public override string ToString() => $"{DisplayName}（{Subject}）· {Username}";
+    }
+
     public class AppSettings
     {
         // ── 字体 ─────────────────────────────────────────────
@@ -123,8 +135,9 @@ namespace StudyJourney.Avalonia.Models
         public int ReminderStyle         { get; set; } = 0;
         public bool RemindClassStart     { get; set; } = true;
         public bool RemindClassMid       { get; set; } = false;
-        // 下课/放学提醒默认关闭：实际下课后老师常拖堂 1~2 分钟，到点提醒会打扰课堂
-        public bool RemindClassEndSoon   { get; set; } = false;
+        // 下课提前提醒：距下课 10 分钟 / 1 分钟各提醒一次（下课那一刻仍静默，避免拖堂时打扰）
+        public bool RemindClassEndSoon10 { get; set; } = true;
+        public bool RemindClassEndSoon   { get; set; } = true;
         public bool RemindClassEnd       { get; set; } = false;
         public bool RemindNextClassSoon  { get; set; } = true;
         public bool RemindDayEnd         { get; set; } = false;
@@ -240,6 +253,36 @@ namespace StudyJourney.Avalonia.Models
 
         // ── 自定义倒计时 ──────────────────────────────────────
         public List<CustomCountdown> CustomCountdowns { get; set; } = new();
+
+        // ── 远程管理 ─────────────────────────────────────────
+        /// <summary>自定义课件上传目录（空 = 默认 Documents\StudyJourney\Uploads）</summary>
+        public string CustomUploadDirectory { get; set; } = "";
+        /// <summary>启动软件时自动开启远程 HTTP 服务（默认开启，局域网老师可访问）</summary>
+        public bool AutoStartHttpServer { get; set; } = true;
+        /// <summary>班级名称（教师端控制台顶部显示）</summary>
+        public string ClassName { get; set; } = "高三（2）班 智慧黑板";
+        /// <summary>默认老师显示名（老师账号列表为空时的兜底）</summary>
+        public string TeacherName { get; set; } = "老师";
+        /// <summary>老师账号列表（语数英物化生 6 位 + 管理员），登录与显示名来源</summary>
+        public List<TeacherAccount> Teachers { get; set; } = new()
+        {
+            new TeacherAccount { Username = "Teacher01", Password = "Study@2026", DisplayName = "老师", Subject = "管理员" },
+            new TeacherAccount { Username = "teacher01", Password = "123456", DisplayName = "李老师", Subject = "语文" },
+            new TeacherAccount { Username = "teacher02", Password = "123456", DisplayName = "张老师", Subject = "数学" },
+            new TeacherAccount { Username = "teacher03", Password = "123456", DisplayName = "王老师", Subject = "英语" },
+            new TeacherAccount { Username = "teacher04", Password = "123456", DisplayName = "赵老师", Subject = "物理" },
+            new TeacherAccount { Username = "teacher05", Password = "123456", DisplayName = "孙老师", Subject = "化学" },
+            new TeacherAccount { Username = "teacher06", Password = "123456", DisplayName = "周老师", Subject = "生物" },
+        };
+        /// <summary>
+        /// 可选科目（选科）：课表编辑只在范围内选。默认物化生组合（语数英+物化生），不含政史地。
+        /// 可在设置页「服务器 → 可选科目」增删。
+        /// </summary>
+        public List<string> Subjects { get; set; } = new()
+        {
+            "语文", "数学", "英语", "物理", "化学", "生物",
+            "体育", "信息技术", "班会", "自习",
+        };
 
         public void Save()
         {

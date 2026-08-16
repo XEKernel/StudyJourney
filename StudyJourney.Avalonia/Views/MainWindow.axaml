@@ -76,19 +76,20 @@
                 <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
 
                     <Border x:Name="GaokaoCapsule" CornerRadius="12" Padding="12,6">
-                        <!-- 环形：横向排列（文字在左、环在最右）；条形：纵向排列（文字在上、进度条在下） -->
+                        <!-- 环形：横向排列（文字在左、环在最右，百分比在环中心）；条形：纵向排列（文字在上、进度条在下） -->
                         <StackPanel x:Name="GaokaoLayout" Spacing="5" HorizontalAlignment="Center">
                             <TextBlock x:Name="GaokaoTb" Text="高考 216天" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="#FFFFFFFF" HorizontalAlignment="Center"/>
-                            <TextBlock x:Name="GaokaoPctTb" Text="" FontSize="10" Foreground="#AAFFFFFF"
-                                       HorizontalAlignment="Center" IsVisible="False"/>
-                            <Grid x:Name="GaokaoRing" Width="22" Height="22" IsVisible="False">
+                                       Foreground="#FFFFFFFF" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Grid x:Name="GaokaoRing" Width="30" Height="30" IsVisible="False" VerticalAlignment="Center">
                                 <Arc StartAngle="0" SweepAngle="360" Stroke="#24FFFFFF" StrokeThickness="3"/>
                                 <Arc x:Name="GaokaoRingArc" StartAngle="-90" SweepAngle="0"
                                      Stroke="#FF2B6CB0" StrokeThickness="3" StrokeLineCap="Round"/>
+                                <TextBlock x:Name="GaokaoPctTb" Text="" FontSize="8" Foreground="#AAFFFFFF"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="False"/>
                             </Grid>
                             <ProgressBar x:Name="GaokaoBar" Width="70" Height="3" Minimum="0" Maximum="100"
-                                         IsVisible="False" Foreground="#FF2B6CB0" Background="#22FFFFFF"/>
+                                         IsVisible="False" Foreground="#FF2B6CB0" Background="#22FFFFFF"
+                                         VerticalAlignment="Center"/>
                         </StackPanel>
                     </Border>
 

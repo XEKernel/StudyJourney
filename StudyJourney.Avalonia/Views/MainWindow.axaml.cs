@@ -6,11 +6,14 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Animation;
+using Avalonia.Animation.Easings;
 using Avalonia.Controls;
 using Avalonia.Controls.Shapes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using StudyJourney.Avalonia.Models;
 using StudyJourney.Avalonia.Services;
@@ -109,6 +112,7 @@ public partial class MainWindow : Window
             _classEndRestoreTimer?.Stop();
             _weatherTimer?.Stop();
             _quoteTimer?.Stop();
+            HttpServerService.Stop();   // 窗口关闭（含退出）时停止远程服务
         };
 
         PositionChanged += Window_PositionChanged;
@@ -518,11 +522,6 @@ public partial class MainWindow : Window
 
         // 上课收起：HideDuringClass 开启且正在上课 → 切到紧凑视图（只留进度条+上课进度）
         bool compact = App.Settings.HideDuringClass && cur != null;
-        OuterCapsule.IsVisible = !compact;
-        CompactCapsule.IsVisible = compact;
-        // 上课进度条置顶单独控制；完整视图跟随 AlwaysOnTop；用户主动显示时豁免
-        if (!_suppressAutoHide)
-            Topmost = compact ? App.Settings.CompactProgressTopmost : App.Settings.AlwaysOnTop;
         // 视图切换时窗口尺寸变化（SizeToContent 异步布局）：
         // 只标记待重定位，等布局完成（SizeChanged、Bounds.Width 就绪）后再定位，
         // 否则切换瞬间用的是旧视图宽度，位置会偏移
@@ -530,7 +529,19 @@ public partial class MainWindow : Window
         {
             _lastCompact = compact;
             _pendingReposition = true;
+            OuterCapsule.IsVisible = !compact;
+            CompactCapsule.IsVisible = compact;
+            // 丝滑过渡：切换到的视图淡入 + 轻微上移（渲染线程驱动）
+            AnimateViewSwitch(compact ? CompactCapsule : OuterCapsule);
         }
+        else
+        {
+            OuterCapsule.IsVisible = !compact;
+            CompactCapsule.IsVisible = compact;
+        }
+        // 上课进度条置顶单独控制；完整视图跟随 AlwaysOnTop；用户主动显示时豁免
+        if (!_suppressAutoHide)
+            Topmost = compact ? App.Settings.CompactProgressTopmost : App.Settings.AlwaysOnTop;
 
         // 左：已上科目（跨天课用真实结束时刻，避免误归入"已上"）
         var prevSubjects = today
@@ -577,6 +588,50 @@ public partial class MainWindow : Window
 
         // 底部浅蓝进度条：上课进度 / 课间休息进度（紧凑进度条一并更新）
         UpdateClassProgress(now, cur, next);
+    }
+
+    /// <summary>视图切换过渡：对切换到的胶囊做淡入 + 轻微上移（渲染线程驱动，非线性缓出）</summary>
+    private async void AnimateViewSwitch(Border view)
+    {
+        try
+        {
+            var tt = new TranslateTransform(0, 6);
+            view.RenderTransform = tt;
+            view.Opacity = 0;
+
+            var easing = new CubicEaseOut();
+            var fade = new Animation
+            {
+                Duration = TimeSpan.FromMilliseconds(200),
+                Easing = easing,
+                FillMode = FillMode.Forward,
+                Children =
+                {
+                    new KeyFrame { Cue = new Cue(0d), Setters = { new Setter(Visual.OpacityProperty, 0d) } },
+                    new KeyFrame { Cue = new Cue(1d), Setters = { new Setter(Visual.OpacityProperty, 1d) } }
+                }
+            };
+            var slide = new Animation
+            {
+                Duration = TimeSpan.FromMilliseconds(200),
+                Easing = easing,
+                FillMode = FillMode.Forward,
+                Children =
+                {
+                    new KeyFrame { Cue = new Cue(0d), Setters = { new Setter(TranslateTransform.YProperty, 6d) } },
+                    new KeyFrame { Cue = new Cue(1d), Setters = { new Setter(TranslateTransform.YProperty, 0d) } }
+                }
+            };
+
+            await Task.WhenAll(fade.RunAsync(view), slide.RunAsync(tt));
+            view.RenderTransform = null;
+            view.Opacity = 1;
+        }
+        catch
+        {
+            view.RenderTransform = null;
+            view.Opacity = 1;
+        }
     }
 
     /// <summary>课程栏进度条：上课进度 / 课间休息进度（紧凑视图进度条同步）</summary>
@@ -704,6 +759,8 @@ public partial class MainWindow : Window
             ? global::Avalonia.Layout.Orientation.Vertical
             : global::Avalonia.Layout.Orientation.Horizontal;
         GaokaoLayout.VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center;
+        // 百分比位置：环形=环中心，条形=文字与条之间
+        PlaceGaokaoPct(bar);
 
         if (DateTime.TryParse(s.GaokaoDateStr, out var gao))
         {
@@ -721,6 +778,28 @@ public partial class MainWindow : Window
 
         // 自定义倒计时（动态）
         RebuildCustomRings(now);
+    }
+
+    /// <summary>百分比小字的位置：环形=环中心（XAML 默认），条形=移到文字与进度条之间</summary>
+    private void PlaceGaokaoPct(bool bar)
+    {
+        if (bar)
+        {
+            if (GaokaoPctTb.Parent != GaokaoLayout)
+            {
+                (GaokaoPctTb.Parent as Panel)?.Children.Remove(GaokaoPctTb);
+                int idx = GaokaoLayout.Children.IndexOf(GaokaoBar);
+                GaokaoLayout.Children.Insert(idx < 0 ? GaokaoLayout.Children.Count : idx, GaokaoPctTb);
+            }
+        }
+        else
+        {
+            if (GaokaoPctTb.Parent != GaokaoRing)
+            {
+                (GaokaoPctTb.Parent as Panel)?.Children.Remove(GaokaoPctTb);
+                GaokaoRing.Children.Add(GaokaoPctTb);
+            }
+        }
     }
 
     /// <summary>倒计时文本：按设置的时间精度（天/时/分/秒）拼接单位</summary>
@@ -812,19 +891,19 @@ public partial class MainWindow : Window
             textTb.FontFamily = new FontFamily(App.Settings.FontFamily);
         panel.Children.Add(textTb);
 
-        if (App.Settings.ShowProgressText)
+        if (bar)
         {
-            panel.Children.Add(new TextBlock
+            // 条形：文字上、百分比中、进度条下
+            if (App.Settings.ShowProgressText)
             {
-                Text = $"{progress * 100:F1}%", FontSize = 9,
-                Foreground = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
-                HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center
-            });
-        }
-
-        if (App.Settings.ShowProgressBar)
-        {
-            if (bar)
+                panel.Children.Add(new TextBlock
+                {
+                    Text = $"{progress * 100:F1}%", FontSize = 9,
+                    Foreground = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
+                    HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center
+                });
+            }
+            if (App.Settings.ShowProgressBar)
             {
                 panel.Children.Add(new ProgressBar
                 {
@@ -833,7 +912,11 @@ public partial class MainWindow : Window
                     Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF))
                 });
             }
-            else
+        }
+        else
+        {
+            // 环形：文字左、环右（百分比在环中心，不随文字大小偏移）
+            if (App.Settings.ShowProgressBar)
             {
                 var bgArc = new Arc
                 {
@@ -845,10 +928,30 @@ public partial class MainWindow : Window
                     StartAngle = -90, SweepAngle = progress * 360,
                     Stroke = progressBrush, StrokeThickness = 3, StrokeLineCap = PenLineCap.Round
                 };
-                var ring = new Grid { Width = 22, Height = 22 };
+                var ring = new Grid { Width = 30, Height = 30 };
                 ring.Children.Add(bgArc);
                 ring.Children.Add(progArc);
+                if (App.Settings.ShowProgressText)
+                {
+                    ring.Children.Add(new TextBlock
+                    {
+                        Text = $"{progress * 100:F1}%", FontSize = 8,
+                        Foreground = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
+                        HorizontalAlignment = global::Avalonia.Layout.HorizontalAlignment.Center,
+                        VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+                    });
+                }
                 panel.Children.Add(ring);
+            }
+            else if (App.Settings.ShowProgressText)
+            {
+                // 无环时百分比独立显示在文字旁
+                panel.Children.Add(new TextBlock
+                {
+                    Text = $"{progress * 100:F1}%", FontSize = 9,
+                    Foreground = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
+                    VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center
+                });
             }
         }
 

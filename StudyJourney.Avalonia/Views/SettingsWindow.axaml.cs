@@ -48,6 +48,7 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
             "api"      => new ApiPage(),
             "schedule" => new SchedulePage(),
             "exam"     => new ExamPage(),
+            "server"   => new ServerPage(),
             "about"    => new AboutPage(),
             _          => new CountdownPage()
         });

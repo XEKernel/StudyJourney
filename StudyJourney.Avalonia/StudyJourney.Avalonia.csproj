@@ -23,6 +23,11 @@
     <PackageReference Include="FluentAvaloniaUI" Version="3.0.2" />
   </ItemGroup>
 
+  <!-- 远程管理：ASP.NET Core Minimal API（Kestrel 后台线程运行，不阻塞 UI 线程） -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
   <!-- 与 WPF 版共用 settings.json / schedule.json（迁移规划：数据文件共用） -->
   <ItemGroup>
     <None Include="..\settings.json" Link="settings.json" CopyToOutputDirectory="PreserveNewest" />

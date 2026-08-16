@@ -118,6 +118,12 @@ public class ReminderService : IDisposable
             TryFire($"{prefix}_mid", now, startDt, TimeSpan.FromMinutes(20),
                 ReminderType.ClassMid, "上课提醒", $"{entry.Subject} 已上课 20 分钟");
 
+        if (_settings.RemindClassEndSoon10)
+        {
+            TryFire($"{prefix}_endsoon10", now, endDt, TimeSpan.FromMinutes(-10),
+                ReminderType.ClassEndSoon, "即将下课", $"{entry.Subject} 还有 10 分钟下课");
+        }
+
         if (_settings.RemindClassEndSoon)
         {
             TryFire($"{prefix}_endsoon", now, endDt, TimeSpan.FromMinutes(-1),
@@ -187,8 +193,8 @@ public class ReminderService : IDisposable
 
     private void FireReminder(ReminderType type, string title, string message)
     {
-        // 下课 / 下课临近 / 考试结束 等提醒不播放声音（避免打扰），其余播放提示音
-        if (type != ReminderType.ClassEndSoon && type != ReminderType.ClassEnd && type != ReminderType.ExamEndSoon)
+        // 下课那一刻 / 考试结束 提醒不播放声音（拖堂时到点不准 / 考试窗口自蜂鸣），其余播放提示音
+        if (type != ReminderType.ClassEnd && type != ReminderType.ExamEndSoon)
             PlaySound();
 
         var handler = Reminder;

@@ -53,6 +53,7 @@ public partial class SchedulePage : UserControl, ISettingsPage
         ReminderSoundPathBox.Text = s.ReminderSoundPath;
         RemindClassStartCheck.IsChecked = s.RemindClassStart;
         RemindClassMidCheck.IsChecked = s.RemindClassMid;
+        RemindClassEndSoon10Check.IsChecked = s.RemindClassEndSoon10;
         RemindClassEndSoonCheck.IsChecked = s.RemindClassEndSoon;
         RemindClassEndCheck.IsChecked = s.RemindClassEnd;
         RemindNextClassSoonCheck.IsChecked = s.RemindNextClassSoon;
@@ -68,6 +69,7 @@ public partial class SchedulePage : UserControl, ISettingsPage
         s.ReminderSoundPath = ReminderSoundPathBox.Text ?? "";
         s.RemindClassStart = RemindClassStartCheck.IsChecked == true;
         s.RemindClassMid = RemindClassMidCheck.IsChecked == true;
+        s.RemindClassEndSoon10 = RemindClassEndSoon10Check.IsChecked == true;
         s.RemindClassEndSoon = RemindClassEndSoonCheck.IsChecked == true;
         s.RemindClassEnd = RemindClassEndCheck.IsChecked == true;
         s.RemindNextClassSoon = RemindNextClassSoonCheck.IsChecked == true;

@@ -11,7 +11,8 @@
                     <CheckBox x:Name="RemindClassStartCheck" Content="预备铃（提前 2 分钟）" IsChecked="True"/>
                     <CheckBox x:Name="RemindClassMidCheck" Content="上课提醒" IsChecked="True" Margin="0,6,0,0"/>
                     <CheckBox x:Name="RemindNextClassSoonCheck" Content="课间提醒（距下一节课）" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox x:Name="RemindClassEndSoonCheck" Content="即将下课提醒" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="RemindClassEndSoon10Check" Content="距离下课 10 分钟提醒" IsChecked="True" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="RemindClassEndSoonCheck" Content="距离下课 1 分钟提醒" IsChecked="True" Margin="0,6,0,0"/>
                     <CheckBox x:Name="RemindClassEndCheck" Content="下课提醒" IsChecked="True" Margin="0,6,0,0"/>
                     <CheckBox x:Name="RemindDayEndCheck" Content="一天结束提醒" IsChecked="True" Margin="0,6,0,0"/>
                     <CheckBox x:Name="RemindSpecialPeriodCheck" Content="特殊时段提醒（早自习/晚自习等）" Margin="0,6,0,0"/>

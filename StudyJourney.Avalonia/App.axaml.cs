@@ -104,9 +104,28 @@ public partial class App : Application
                 _ = EnterExamModeDelayedAsync();
 
             _mainWindow.Show();
+
+            // 远程 HTTP 服务：设置开启则延迟 1.5s 自动启动（不阻塞首屏；失败记日志不影响主程序）
+            if (Settings.AutoStartHttpServer)
+                _ = StartHttpServerDelayedAsync();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>延迟启动远程 HTTP 服务（供老师局域网访问；StateChanged 事件会同步主窗口/设置页开关状态）</summary>
+    private static async System.Threading.Tasks.Task StartHttpServerDelayedAsync()
+    {
+        try
+        {
+            await System.Threading.Tasks.Task.Delay(1500);
+            HttpServerService.Start();
+            Helpers.AppLogger.Info($"远程服务已自动启动，端口 {HttpServerService.Port}");
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Error($"远程服务自动启动失败: {ex.Message}", ex);
+        }
     }
 
     private async System.Threading.Tasks.Task CheckUpdateDelayedAsync()

@@ -173,61 +173,81 @@ namespace StudyJourney.Avalonia.Models
         public bool IsEmpty => string.IsNullOrEmpty(Subject);
     }
 
-    // ── 课表根容器 ─────────────────────────────────────────
-    public class ScheduleData
-    {
-        public List<ScheduleEntry> Entries { get; set; } = new();
-        /// <summary>考试集合（ObservableCollection 使 DataGrid 增删自动刷新）</summary>
-        public System.Collections.ObjectModel.ObservableCollection<ExamEntry> Exams { get; set; } = new();
-        /// <summary>时段模板（课程表网格的行定义），若为空则自动从 Entries 推算</summary>
-        public List<TimeTemplate> TimeTemplates { get; set; } = new();
-
-        /// <summary>按 星期→节次 排序（DataGrid 展示用）</summary>
-        public void SortEntries()
+        // ── 课表根容器 ─────────────────────────────────────────
+        public class ScheduleData
         {
-            Entries = Entries
-                .OrderBy(e => e.DayOfWeek)
-                .ThenBy(e => e.Period)
-                .ToList();
-        }
+            public List<ScheduleEntry> Entries { get; set; } = new();
+            /// <summary>考试集合（ObservableCollection 使 DataGrid 增删自动刷新）</summary>
+            public System.Collections.ObjectModel.ObservableCollection<ExamEntry> Exams { get; set; } = new();
+            /// <summary>时段模板（课程表网格的行定义），若为空则自动从 Entries 推算</summary>
+            public List<TimeTemplate> TimeTemplates { get; set; } = new();
 
-        private static readonly string _schedulePath =
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "schedule.json");
+            /// <summary>课表文件完整路径（统一到 Documents\StudyJourney\schedule.json，与 HTTP 远程管理共用）</summary>
+            public static string ScheduleFilePath => _schedulePath;
 
-        private static readonly JsonSerializerOptions _jsonOpts = new()
-        {
-            WriteIndented = true,
-            PropertyNameCaseInsensitive = true,
-        };
-
-        public static ScheduleData Load()
-        {
-            try
+            /// <summary>按 星期→节次 排序（DataGrid 展示用）</summary>
+            public void SortEntries()
             {
-                if (File.Exists(_schedulePath))
-                {
-                    var json = File.ReadAllText(_schedulePath);
-                    return JsonSerializer.Deserialize<ScheduleData>(json, _jsonOpts)
-                           ?? new ScheduleData();
-                }
+                Entries = Entries
+                    .OrderBy(e => e.DayOfWeek)
+                    .ThenBy(e => e.Period)
+                    .ToList();
             }
-            catch (Exception ex)
+
+            private static readonly string _schedulePath =
+                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                             "StudyJourney", "schedule.json");
+
+            private static readonly JsonSerializerOptions _jsonOpts = new()
             {
-                // 备份损坏文件，然后删除原文件（保留最近 3 份备份）
+                WriteIndented = true,
+                PropertyNameCaseInsensitive = true,
+            };
+
+            public static ScheduleData Load()
+            {
                 try
                 {
-                    var bak = _schedulePath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                    File.Copy(_schedulePath, bak, overwrite: true);
-                    File.Delete(_schedulePath);
-                    TrimCorruptedBackups(_schedulePath);
-                    System.Diagnostics.Debug.WriteLine($"[ScheduleData] 已备份损坏文件: {bak}");
+                    // 迁移兼容：老版本课表在 exe 目录，新版统一到 Documents\StudyJourney\schedule.json
+                    var dir = Path.GetDirectoryName(_schedulePath);
+                    if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+                    var legacy = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "schedule.json");
+                    if (!File.Exists(_schedulePath) && File.Exists(legacy))
+                    {
+                        try { File.Copy(legacy, _schedulePath); } catch { /* 复制失败则读旧路径 */ }
+                    }
+
+                    if (File.Exists(_schedulePath))
+                    {
+                        var json = File.ReadAllText(_schedulePath);
+                        return JsonSerializer.Deserialize<ScheduleData>(json, _jsonOpts)
+                               ?? new ScheduleData();
+                    }
+                    // 新路径尚未迁移成功但旧路径存在时回退旧文件
+                    if (File.Exists(legacy))
+                    {
+                        var json = File.ReadAllText(legacy);
+                        return JsonSerializer.Deserialize<ScheduleData>(json, _jsonOpts)
+                               ?? new ScheduleData();
+                    }
                 }
-                catch { }
-                System.Diagnostics.Debug.WriteLine($"[ScheduleData] 课表文件加载失败，使用空课表: {ex.Message}");
+                catch (Exception ex)
+                {
+                    // 备份损坏文件，然后删除原文件（保留最近 3 份备份）
+                    try
+                    {
+                        var bak = _schedulePath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                        File.Copy(_schedulePath, bak, overwrite: true);
+                        File.Delete(_schedulePath);
+                        TrimCorruptedBackups(_schedulePath);
+                        System.Diagnostics.Debug.WriteLine($"[ScheduleData] 已备份损坏文件: {bak}");
+                    }
+                    catch { }
+                    System.Diagnostics.Debug.WriteLine($"[ScheduleData] 课表文件加载失败，使用空课表: {ex.Message}");
+                    return new ScheduleData();
+                }
                 return new ScheduleData();
             }
-            return new ScheduleData();
-        }
 
         /// <summary>清理过期的 .corrupted 备份，只保留最近 maxCount 份</summary>
         private static void TrimCorruptedBackups(string basePath, int maxCount = 3)
