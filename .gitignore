@@ -28,19 +28,8 @@ ClassIsland-*/
 # 本地数据备份（个人数据，不入库）
 backups/
 
-# 旧 WPF 版本源码（本地保留，仓库只维护 Avalonia 新框架）
-/App.xaml
-/App.xaml.cs
-/AssemblyInfo.cs
-/Styles.xaml
-/Helpers/
-/Models/
-/Services/
-/ViewModels/
-/Views/
-/高考倒计时.csproj.user
-/学程.csproj
-/学程.sln
+# 旧 WPF 版本源码（已废弃，归档于 LegacyWPF/ 本地保留；仓库只维护 Avalonia 新框架）
+/LegacyWPF/
 
 # 代码审查文档（本地保留，不入库）
 /CODE_REVIEW*.md

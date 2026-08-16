@@ -1,8 +1,10 @@
 # 学程 Avalonia 迁移规划
 
-> ✅ 状态：已完成（2026-08-13）｜ 当前版本：v2.1.0-beta（Avalonia）｜ 参考样本：ClassIsland 2.1.0.1
+> ✅ 状态：已完成（2026-08-13）｜ 当前版本：**v2.5.0**（Avalonia）｜ 参考样本：ClassIsland 2.1.0.1
 >
-> 迁移已全部落地：Models/Services 层 1:1 复用，Views 层重写为 AXAML；倒计时 / 课表栏 / 考试模式 / 提醒 / 天气 / 更新 / 单实例 / 自启动 / 全局快捷键 / 点击穿透 / 动画 / 字体 / 调课模板 全部对齐 WPF 版。WPF 版已归档为本地 legacy（不入库），GitHub 仓库只保留 Avalonia 工程。
+> 迁移已全部落地：Models/Services 层 1:1 复用，Views 层重写为 AXAML；倒计时 / 课表栏 / 考试模式 / 提醒 / 天气 / 更新 / 单实例 / 自启动 / 全局快捷键 / 点击穿透 / 动画 / 字体 / 调课模板 全部对齐 WPF 版。
+>
+> **WPF 版已废弃并归档**：旧 WPF 源码（App.xaml、Models/、Views/ 等）移入仓库根 `LegacyWPF/` 目录（本地保留、不入库，`.gitignore` 已忽略）；GitHub 仓库只维护 Avalonia 工程（`StudyJourney.Avalonia/`）。
 
 ## 一、目标
 

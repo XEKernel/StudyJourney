@@ -1,10 +1,12 @@
 # 学程 StudyJourney — 软件架构实现
 
-> 版本：2.4.6 ｜ 框架：.NET 10 + Avalonia 12 ｜ 最后更新：2026-08-16
+> 版本：2.5.0 ｜ 框架：.NET 10 + Avalonia 12 ｜ 最后更新：2026-08-16
 
 ## 1. 项目概览
 
 学程是一个学生桌面伴侣应用，形态为**灵动岛式顶部状态栏小组件**（深色扁平 + 大圆角胶囊），持续显示时间、当前课程、天气与高考/自定义倒计时；上课自动收起为进度条，有窗口时自动隐藏，支持点击穿透、位置预设、托盘与全局快捷键。当前版本叠加了**远程管理模块**：班级电脑（教师机）开启 HTTP 服务后，老师可用浏览器远程查看/修改课表、投递课件并自动打开、查看班级电脑状态。
+
+> 📦 **框架迁移已完成（v2.1.0 → v2.5.0）**：原 WPF（.NET 8）版本已废弃，源码归档在 `LegacyWPF/` 目录（本地保留，不入库）；仓库只维护 Avalonia 新框架工程（`StudyJourney.Avalonia/`）。
 
 | 项 | 技术选型 |
 |---|---|
@@ -51,24 +53,34 @@
 ## 3. 目录结构
 
 ```
+根目录
+├─ StudyJourney.Avalonia/    ★ 当前唯一维护的新框架工程
+├─ Updater/                  更新器（独立 exe，Avalonia 自动更新调用）
+├─ LegacyWPF/                ⚠ 旧 WPF 版本源码（已废弃，本地归档保留，不入库）
+├─ ClassIsland-2.1.0.1/      第三方参考样本（迁移风格参考，不入库）
+├─ settings.json / schedule_example.json / schedule_test.json   数据与模板（两版共用格式）
+├─ StudyJourney.pfx          代码签名证书（CI 自动签名）
+└─ ARCHITECTURE.md / README.md / MIGRATION_AVALONIA.md / CODE_REVIEW*.md  文档
+
 StudyJourney.Avalonia/
 ├─ Program.cs            入口：单实例 Mutex → BuildAvaloniaApp
 ├─ App.axaml(.cs)        主题、静态全局（Settings/Schedule/Reminders）、托盘/快捷键/更新/考试自动进入
 ├─ Views/
 │  ├─ MainWindow.axaml(.cs)        灵动岛主窗口（核心 UI + 交互）
-│  ├─ SettingsWindow.axaml(.cs)    设置页
+│  ├─ SettingsWindow.axaml(.cs)    设置页容器 + Settings/ 子页面
+│  ├─ Settings/ServerPage.axaml(.cs)   ★ 远程服务设置（开关/上传目录/班级信息/老师账号/可选科目/日志）
+│  ├─ Settings/{Countdown,Position,Api,Schedule,Exam,About}Page.axaml(.cs)
 │  ├─ ExamModeWindow.axaml(.cs)    考试模式全屏窗
-│  ├─ ScheduleEditorWindow.axaml(.cs)  课表编辑器
-│  └─ ColorPickerDialog.axaml(.cs)     颜色选择弹窗
+│  └─ ScheduleEditorWindow.axaml(.cs)  课表编辑器
 ├─ Models/
-│  ├─ AppSettings.cs        设置模型（settings.json）
+│  ├─ AppSettings.cs        设置模型 + TeacherAccount（多老师账号）+ 可选科目（settings.json）
 │  ├─ ScheduleEntry.cs      ScheduleEntry/ExamEntry/TimeTemplate/ScheduleData（schedule.json）
 │  └─ ScheduleManager.cs    课表管理器（查询/导入/事件）
 ├─ Services/
 │  ├─ ReminderService.cs    上课/下课/考试提醒（500ms 轮询 + 声音）
 │  ├─ UpdateService.cs      GitHub Releases 更新检查/下载
 │  ├─ WeatherService.cs     天气（和风）
-│  └─ HttpServerService.cs  ★ 远程 HTTP 服务（Minimal API）
+│  └─ HttpServerService.cs  ★ 远程 HTTP 服务（Minimal API + 认证 + 上传 + 日志）
 ├─ Helpers/
 │  ├─ AppLogger.cs          文件日志（1MB 轮转）
 │  ├─ DialogHelper.cs       弹窗封装
@@ -154,12 +166,18 @@ Avalonia 内置 `TrayIcon + NativeMenu`（显示/隐藏、考试模式、设置�
 | 方法 | 路径 | 认证 | 说明 |
 |---|---|---|---|
 | GET | `/api/health` | 否 | 连通性测试 `{status:"ok"}` |
-| POST | `/api/login` | 否 | 账号密码换 Token（rememberMe=true → 1 年 + 落盘） |
+| GET | `/api/teachers` | 否 | 老师账号列表（用户名/显示名/科目，**不含密码**），登录页下拉 |
+| POST | `/api/login` | 否 | 多老师账号密码换 Token（rememberMe=true → 1 年 + 落盘） |
 | POST | `/api/logout` | Token | 使 Token 失效并移出 tokens.json（踢下线） |
-| GET | `/api/schedule` | Token | 返回完整课表（schedule=ScheduleData，与 PUT 同构） |
+| GET | `/api/config` | Token | 班级名 / 当前登录老师显示名 / 可选科目（选科） |
+| PUT | `/api/config` | Token | 改班级名 + 当前登录老师自己的显示名（账号表持久化 + 即时生效） |
+| GET | `/api/schedule` | Token | 返回完整课表（schedule=ScheduleData，camelCase，与 PUT 同构） |
 | PUT | `/api/schedule` | Token | 覆盖写课表（无效 JSON → 400，写失败 → 500） |
-| POST | `/api/upload` | Token | multipart 课件上传 + 自动打开 |
 | GET | `/api/status` | Token | 班级状态（IP/磁盘/最近上传/运行时长） |
+| GET | `/api/upload-dir` | Token | 上传目录 + 预设列表（默认/桌面/桌面\课件/文档/下载） |
+| PUT | `/api/upload-dir` | Token | 改上传目录（写 settings + **立即生效**） |
+| GET | `/api/logs` | Token | 操作日志（最近 100 条，按老师显示名记名） |
+| POST | `/api/upload` | Token | multipart 课件上传 + 自动打开 |
 | GET | 静态文件 | 否 | WebRoot（index.html 控制台、upload-test.html） |
 
 ### 7.3 认证体系
