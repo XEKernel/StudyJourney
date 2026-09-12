@@ -54,6 +54,9 @@ public class AutomationService : IDisposable
     // 幂等：当日已触发 key（每天零点清空）；Idle 每段连续闲置独立 key；AppStarted 本次运行只触发一次
     private readonly HashSet<string> _firedKeys = new();
     private readonly HashSet<string> _appStartedDone = new();
+
+    /// <summary>S6：上次关机/重启执行时刻 —— 同一时刻多条规则命中时避免连续调用（第二次会重置倒计时）</summary>
+    private DateTime _lastShutdownAt = DateTime.MinValue;
     private DateTime _lastClearDay = DateTime.Today;
 
     /// <summary>规则容器变更后触发（设置页保存后调用 Reload 刷新内存即可，无需重启服务）</summary>
@@ -276,6 +279,13 @@ public class AutomationService : IDisposable
 
                 case AutomationActionKind.Shutdown:
                 case AutomationActionKind.Restart:
+                    // S6 修复：10 秒内已执行过关机/重启则跳过（多规则同时命中时重复调用会重置系统倒计时）
+                    if ((DateTime.Now - _lastShutdownAt).TotalSeconds < 10)
+                    {
+                        Helpers.AppLogger.Warn($"自动化「{rule.Name}」：10 秒内已有一次关机/重启，跳过重复执行");
+                        break;
+                    }
+                    _lastShutdownAt = DateTime.Now;
                     SystemShutdown(rule);
                     break;
 
@@ -378,8 +388,17 @@ public class AutomationService : IDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
         };
-        Process.Start(psi);
-        Helpers.AppLogger.Info($"自动化「{rule.Name}」：{(restart ? "重启" : "关机")}倒计时 {secs} 秒已启动");
+        try
+        {
+            Process.Start(psi);
+            Helpers.AppLogger.Info($"自动化「{rule.Name}」：{(restart ? "重启" : "关机")}倒计时 {secs} 秒已启动");
+        }
+        catch (Exception ex)
+        {
+            // S6：失败给出可见提示（与文件类动作一致），便于老师发现策略/权限问题
+            Helpers.AppLogger.Error($"自动化「{rule.Name}」{(restart ? "重启" : "关机")}失败: {ex.Message}", ex);
+            _ = App.ShowMessageAsync("自动化任务", $"「{rule.Name}」{(restart ? "重启" : "关机")}执行失败：{ex.Message}");
+        }
         // 倒计时期间可在命令行执行 shutdown /a 取消（系统也会弹出可关闭的"即将关机"通知）
     }
 

@@ -461,7 +461,10 @@ public static class HttpServerService
                 try
                 {
                     schedule.SortEntries();
-                    schedule.Save();   // 写软件目录 schedule.json（原子写见 Helpers/FileAtomic）
+                    // 修复：Save 现返回是否成功 —— 磁盘满/只读/占用时不再"假成功"（否则网页提示成功但课表未变）
+                    if (!schedule.Save())
+                        return Results.Json(new { success = false, message = "课表写入失败（磁盘可能已满或无写入权限），请检查班级电脑" },
+                            statusCode: StatusCodes.Status500InternalServerError);
                     // #1 修复：通知主程序从磁盘重载内存课表（Reload 触发 DataChanged →
                     // ReminderService 缓存失效、主窗口每秒查询立即用新课表；内部自动封送 UI 线程）
                     App.ReloadScheduleFromDisk();
@@ -612,12 +615,18 @@ public static class HttpServerService
                             if (acc != null)
                             {
                                 acc.DisplayName = v.Length == 0 ? DefaultTeacherName : v;
-                                var token = ExtractToken(request);
+                                // 修复：显示名改动同步到该账号的全部会话 Token（多设备/多浏览器），
+                                // 并持久化 tokens.json —— 原实现只改当前 token 内存、不 SaveTokens，
+                                // 导致重启/重开后仍显示旧名
                                 lock (TokenGate)
                                 {
-                                    if (token != null && Tokens.TryGetValue(token, out var info))
-                                        info.DisplayName = acc.DisplayName;
+                                    foreach (var kv in Tokens)
+                                    {
+                                        if (string.Equals(kv.Value.Username, acc.Username, StringComparison.OrdinalIgnoreCase))
+                                            kv.Value.DisplayName = acc.DisplayName;
+                                    }
                                 }
+                                SaveTokens();
                             }
                         }
                         App.Settings.TeacherName = v.Length == 0 ? DefaultTeacherName : v;   // 兜底默认名同步

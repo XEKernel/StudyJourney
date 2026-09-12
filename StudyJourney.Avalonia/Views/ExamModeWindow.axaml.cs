@@ -43,6 +43,9 @@ public partial class ExamModeWindow : Window
     /// </summary>
     public bool ClosedByUser { get; private set; }
 
+    /// <summary>供外部（设置页/托盘退出、ExitExamMode）标记"用户主动退出"（B7 修复）</summary>
+    public void MarkClosedByUser() => ClosedByUser = true;
+
     public ExamModeWindow()
     {
         InitializeComponent();

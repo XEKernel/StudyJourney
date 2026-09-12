@@ -31,14 +31,15 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="屏幕位置预设" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <RadioButton x:Name="PosTop" Content="顶部"/>
-                    <RadioButton x:Name="PosUpperCenter" Content="中上（默认）" IsChecked="True" Margin="0,6,0,0"/>
-                    <RadioButton x:Name="PosCenter" Content="居中" Margin="0,6,0,0"/>
-                    <RadioButton x:Name="PosLowerCenter" Content="中下" Margin="0,6,0,0"/>
-                    <RadioButton x:Name="PosBottom" Content="底部" Margin="0,6,0,0"/>
-                    <RadioButton x:Name="PosCustom" Content="自定义坐标" Margin="0,8,0,0"/>
+                    <RadioButton x:Name="PosTop" GroupName="PosPreset" Content="顶部"/>
+                    <RadioButton x:Name="PosUpperCenter" GroupName="PosPreset" Content="中上（默认）" IsChecked="True" Margin="0,6,0,0"/>
+                    <RadioButton x:Name="PosCenter" GroupName="PosPreset" Content="居中" Margin="0,6,0,0"/>
+                    <RadioButton x:Name="PosLowerCenter" GroupName="PosPreset" Content="中下" Margin="0,6,0,0"/>
+                    <RadioButton x:Name="PosBottom" GroupName="PosPreset" Content="底部" Margin="0,6,0,0"/>
+                    <RadioButton x:Name="PosCustom" GroupName="PosPreset" Content="自定义坐标" Margin="0,8,0,0"
+                                IsCheckedChanged="PosCustom_IsCheckedChanged"/>
 
-                    <StackPanel Margin="16,8,0,0" Opacity="0.55" IsEnabled="False">
+                    <StackPanel x:Name="CustomCoordPanel" Margin="16,8,0,0" Opacity="0.55" IsEnabled="False">
                         <TextBlock Text="X 坐标（像素；-1 = 水平居中）" FontSize="13"/>
                         <TextBox x:Name="CustomXBox" Text="-1" Width="130" Margin="0,4,0,0"/>
                         <TextBlock Text="Y 坐标（像素；-1 = 自动）" FontSize="13" Margin="0,8,0,0"/>

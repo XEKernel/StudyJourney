@@ -71,8 +71,16 @@ public partial class CountdownPage : UserControl, ISettingsPage
         s.ShowHours = ShowHoursCheck.IsChecked == true;
         s.ShowMinutes = ShowMinutesCheck.IsChecked == true;
         s.ShowSeconds = ShowSecondsCheck.IsChecked == true;
-        s.GaokaoDateStr = GaokaoDateBox.Text ?? "";
-        s.StartDateStr = StartDateBox.Text ?? "";
+        // B2 修复：日期非法时保留原值并提示（原实现原样落盘 → 主窗口解析失败后倒计时冻结在旧值）
+        var gaoText = GaokaoDateBox.Text?.Trim() ?? "";
+        if (gaoText.Length == 0) s.GaokaoDateStr = "";
+        else if (DateTime.TryParse(gaoText, out _)) s.GaokaoDateStr = gaoText;
+        else _ = App.ShowMessageAsync("倒计时", $"目标日期格式不正确：{gaoText}\n已保留原值（建议格式 2027-06-07 09:00:00）");
+
+        var startText = StartDateBox.Text?.Trim() ?? "";
+        if (startText.Length == 0) s.StartDateStr = "";
+        else if (DateTime.TryParse(startText, out _)) s.StartDateStr = startText;
+        else _ = App.ShowMessageAsync("倒计时", $"进度起算日期格式不正确：{startText}\n已保留原值（建议格式 2024-08-24）");
 
         if (TryParseColor(TextColorBox.Text ?? "#FFFFFF", out var tc)) s.TextColor = tc;
         if (TryParseColor(AccentColorBox.Text ?? "#2B6CB0", out var ac)) s.AccentColor = ac;

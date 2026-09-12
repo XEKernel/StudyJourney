@@ -9,7 +9,7 @@
         Background="Transparent">
 
     <!--
-        WinUI 3 风格设置窗口（对齐学程原版 6 个 Tab）：
+        WinUI 3 风格设置窗口（FAAppWindow + NavigationView 8 个 Tab）：
         - 保留系统装饰（三大金刚键 + Win11 系统圆角，ClassIsland 同款）
         - Mica 材质 + FANavigationView 左侧导航（带图标）
     -->
@@ -80,10 +80,11 @@
             <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto">
                 <CheckBox x:Name="PageAnimationsCheck" Content="页面动画" IsChecked="True"
                           VerticalAlignment="Center" ToolTip.Tip="切换设置页时的淡入动画"/>
-                <TextBlock Grid.Column="1" Text="修改后点击「保存」生效，保存到 settings.json（与 WPF 版共用）"
+                <TextBlock Grid.Column="1" Text="修改后点击「保存」生效（课表/自动化规则独立保存，不受此按钮影响）"
                            FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                            VerticalAlignment="Center" Margin="16,0,0,0"/>
-                <Button Grid.Column="2" Content="恢复默认" Margin="0,0,8,0" Click="ResetBtn_Click"/>
+                <Button Grid.Column="2" Content="重置所有设置" Margin="0,0,8,0" Click="ResetBtn_Click"
+                        ToolTip.Tip="恢复外观等默认值，并重置老师账号/选科/自定义倒计时（课表与自动化规则不受影响）"/>
                 <Button Grid.Column="3" Content="取消" Margin="0,0,8,0" Click="CancelBtn_Click"/>
                 <Button Grid.Column="4" Content="保存设置" Classes="accent" Click="SaveBtn_Click"/>
             </Grid>

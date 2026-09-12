@@ -33,6 +33,12 @@ public partial class ApiPage : UserControl, ISettingsPage
         WeatherInfoColorBox.Text = s.WeatherInfoColor;
         WeatherTempColorBox.Text = s.WeatherTempColor;
         WeatherIconColorBox.Text = s.WeatherIconColor;
+
+        // D2 修复：天气颜色预览色块随设置/选色实时刷新（原实现预览永远停在 XAML 默认色）
+        UpdateColorPreview(WeatherCityColorPreview, s.WeatherCityColor);
+        UpdateColorPreview(WeatherInfoColorPreview, s.WeatherInfoColor);
+        UpdateColorPreview(WeatherTempColorPreview, s.WeatherTempColor);
+        UpdateColorPreview(WeatherIconColorPreview, s.WeatherIconColor);
     }
 
     public void Apply(AppSettings s)
@@ -82,22 +88,34 @@ public partial class ApiPage : UserControl, ISettingsPage
         => PickColor(QuoteForegroundBox);
 
     private void PickWeatherCityColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(WeatherCityColorBox);
+        => PickColor(WeatherCityColorBox, WeatherCityColorPreview);
 
     private void PickWeatherInfoColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(WeatherInfoColorBox);
+        => PickColor(WeatherInfoColorBox, WeatherInfoColorPreview);
 
     private void PickWeatherTempColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(WeatherTempColorBox);
+        => PickColor(WeatherTempColorBox, WeatherTempColorPreview);
 
     private void PickWeatherIconColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(WeatherIconColorBox);
+        => PickColor(WeatherIconColorBox, WeatherIconColorPreview);
 
-    private void PickColor(TextBox box)
+    private void PickColor(TextBox box, Border? preview = null)
     {
         var dlg = new ColorPickerDialog(box.Text ?? "#FFFFFFFF");
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner != null) dlg.ShowDialog(owner); else dlg.Show();
-        dlg.Closed += (_, _) => { if (dlg.SelectedHex != null) box.Text = dlg.SelectedHex; };
+        dlg.Closed += (_, _) =>
+        {
+            if (dlg.SelectedHex == null) return;
+            box.Text = dlg.SelectedHex;
+            UpdateColorPreview(preview, dlg.SelectedHex);
+        };
+    }
+
+    /// <summary>刷新颜色预览色块（D2）</summary>
+    private static void UpdateColorPreview(Border? preview, string? hex)
+    {
+        if (preview == null || string.IsNullOrEmpty(hex)) return;
+        try { preview.Background = new SolidColorBrush(Color.Parse(hex)); } catch { /* 非法色值保持原样 */ }
     }
 }

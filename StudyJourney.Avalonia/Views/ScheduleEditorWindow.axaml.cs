@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data.Converters;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -77,6 +78,10 @@ public partial class ScheduleEditorWindow : Window
         return list;
     }
 
+    /// <summary>模板改动提示：「应用」或「保存」把时刻写入课表后清除</summary>
+    private void MarkTplDirty() { if (TplDirtyTb != null) TplDirtyTb.IsVisible = true; }
+    private void ClearTplDirty() { if (TplDirtyTb != null) TplDirtyTb.IsVisible = false; }
+
     private static string SerializeData()
         => JsonSerializer.Serialize(App.Schedule.Data, new JsonSerializerOptions { WriteIndented = true });
 
@@ -116,18 +121,35 @@ public partial class ScheduleEditorWindow : Window
     }
 
     // ── 课表 ────────────────────────────────────────────────
+    /// <summary>复制选中课程到同一天的下一个节次（B 修复）：原实现按"总数+1"造节次，
+    /// 会生成不对应任何时段模板、只在平铺表可见的"孤儿课程"</summary>
     private void AddBtn_Click(object? sender, RoutedEventArgs e)
     {
-        App.Schedule.Data.Entries.Add(new ScheduleEntry
+        if (EntryGrid.SelectedItem is not ScheduleEntry src)
         {
-            DayOfWeek = 1,
-            Period = App.Schedule.Data.Entries.Count + 1,
-            Subject = "新课程",
-            StartTimeStr = "08:00",
-            EndTimeStr = "08:45",
-            Type = PeriodType.Normal
+            _ = App.ShowMessageAsync("添加课程", "请先在下方表格选中一行作为模板，再点「复制选中」按钮。");
+            return;
+        }
+        var data = App.Schedule.Data;
+        int day = src.DayOfWeek is >= 1 and <= 7 ? src.DayOfWeek : 1;
+        int nextPeriod = data.Entries.Where(x => x.DayOfWeek == day)
+            .Select(x => x.Period).DefaultIfEmpty(0).Max() + 1;
+        var tpl = data.GetTemplatesFor(day).FirstOrDefault(t => t.Period == nextPeriod);
+        data.Entries.Add(new ScheduleEntry
+        {
+            DayOfWeek = day,
+            Period = nextPeriod,
+            Subject = src.Subject,
+            StartTimeStr = tpl?.StartTime ?? src.StartTimeStr,
+            EndTimeStr = tpl?.EndTime ?? src.EndTimeStr,
+            Type = tpl?.Type ?? src.Type,
         });
+        data.SortEntries();
+        App.Schedule.Save();
+        MarkClean();
         RefreshGrid();
+        RebuildTimetable();
+        ShowStatus($"已复制「{src.Subject}」→ {DayNames[day - 1]}第 {nextPeriod} 节");
     }
 
     private void DeleteBtn_Click(object? sender, RoutedEventArgs e)
@@ -140,6 +162,13 @@ public partial class ScheduleEditorWindow : Window
     }
 
     // ── 考试 ────────────────────────────────────────────────
+    /// <summary>考试数据即改即存（与课表调课风格统一，避免"改了以为已保存"）</summary>
+    private void PersistExams()
+    {
+        App.Schedule.Save();
+        MarkClean();
+    }
+
     private void AddExamBtn_Click(object? sender, RoutedEventArgs e)
     {
         var exam = new ExamEntry
@@ -149,6 +178,7 @@ public partial class ScheduleEditorWindow : Window
             Subjects = new() { new ExamSubject { Name = "科目", StartTimeStr = "09:00", EndTimeStr = "11:00" } }
         };
         App.Schedule.Data.Exams.Add(exam);
+        PersistExams();
         RefreshExamGrid();
         // 选中新考试，直接进入科目编辑
         ExamGrid.SelectedItem = exam;
@@ -159,6 +189,7 @@ public partial class ScheduleEditorWindow : Window
         if (ExamGrid.SelectedItem is ExamEntry exam)
         {
             App.Schedule.Data.Exams.Remove(exam);
+            PersistExams();
             RefreshExamGrid();
         }
     }
@@ -198,6 +229,7 @@ public partial class ScheduleEditorWindow : Window
             StartTimeStr = Format(start),
             EndTimeStr = Format(end)
         });
+        PersistExams();
         ExamStatusTb.Text = $"已添加科目，当前共 {exam.Subjects.Count} 个科目";
     }
 
@@ -207,14 +239,14 @@ public partial class ScheduleEditorWindow : Window
         if (ExamSubjectGrid.SelectedItem is ExamSubject subject)
         {
             exam.Subjects.Remove(subject);
+            PersistExams();
             ExamStatusTb.Text = $"已删除科目，当前共 {exam.Subjects.Count} 个科目";
         }
     }
 
     private void SaveExamsBtn_Click(object? sender, RoutedEventArgs e)
     {
-        App.Schedule.Save();
-        MarkClean();   // #9：即改即存 → 基线对齐
+        PersistExams();   // 即改即存后此按钮主要用于手动确认/刷新提示
         ExamStatusTb.Text = ExamGrid.SelectedItem is ExamEntry exam
             ? $"✓ 已保存「{exam.Name}」及 {exam.Subjects.Count} 个科目 → schedule.json"
             : "✓ 考试日程已保存到 schedule.json";
@@ -223,7 +255,13 @@ public partial class ScheduleEditorWindow : Window
     // ── 公共 ────────────────────────────────────────────────
     private void SaveBtn_Click(object? sender, RoutedEventArgs e)
     {
+        // 保存 = 落盘 + 把时段模板（含按天定制）时刻同步进课表：
+        // 避免"改了模板时间点保存却不生效"（旧实现模板改动只在点「应用」时才写入 Entries）
+        var data = App.Schedule.Data;
+        data.SyncEntryTimesFromTemplates();
+        data.SortEntries();
         App.Schedule.Save();
+        ClearTplDirty();
         RebuildTimetable();
         MarkClean();   // #9：保存后视为无未保存修改（关窗/取消确认依据）
         if (sender is Button btn)
@@ -249,6 +287,9 @@ public partial class ScheduleEditorWindow : Window
                 "有未保存的修改，确定放弃并重新加载课表吗？", "放弃修改", "继续编辑");
             if (!ok) return;
         }
+        // 修复：先把「适用天」重置回默认（否则 Reload 后若停在独立天，
+        // BuildTemplateList → CurrentTemplates 会静默新建该天副本，且发生在 MarkClean 之后 → 误报"未保存"）
+        TplDayCombo.SelectedIndex = 0;
         App.Schedule.Reload();
         MarkClean();
         RefreshGrid();
@@ -651,8 +692,13 @@ public partial class ScheduleEditorWindow : Window
                     HorizontalContentAlignment = HorizontalAlignment.Center,
                     FontSize = 13,
                     IsEnabled = hasTime,                    // 无模板也无课（如周六无第10+节）→ 灰格禁填
+                    // 交互修复：默认只读且不可聚焦 —— 单击只用于"选源/选目标"（换课），
+                    // 原实现单击即抢焦点进入文字编辑，导致"点击就进编辑态、无法换课"
+                    IsReadOnly = true,
+                    Focusable = false,
                     Tag = slot
                 };
+                ToolTip.SetTip(tb, hasTime ? "单击选择（调课）· 双击修改课程名" : "当天没有这个节次");
                 // 右下角小字显示该天该节实际时间（作息不同一目了然）
                 var timeTb = new TextBlock
                 {
@@ -681,6 +727,31 @@ public partial class ScheduleEditorWindow : Window
                 {
                     if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
                         SelectSlot(slot, border);
+                };
+                // 交互修复：双击才进入文字编辑（单击保持"选源/选目标"语义）
+                tb.DoubleTapped += (_, e) =>
+                {
+                    if (!hasTime) return;
+                    tb.Focusable = true;
+                    tb.IsReadOnly = false;
+                    tb.Focus();
+                    tb.SelectAll();
+                    e.Handled = true;
+                };
+                // 编辑结束（失焦 / 回车 / Esc）→ 回到只读不可聚焦，恢复换课交互
+                void EndEdit()
+                {
+                    tb.IsReadOnly = true;
+                    tb.Focusable = false;
+                }
+                tb.LostFocus += (_, _) => EndEdit();
+                tb.KeyDown += (_, e) =>
+                {
+                    if (e.Key is Key.Enter or Key.Escape)
+                    {
+                        EndEdit();
+                        e.Handled = true;
+                    }
                 };
                 border.Child = cellHost;
                 _slotBorders[slot] = border;
@@ -761,7 +832,7 @@ public partial class ScheduleEditorWindow : Window
         SwapTargetLb.Text = _swapTarget != null ? $"目标：{_swapTarget.Display}" : "目标：未选择";
         SwapHintTb.Text = (_swapSource, _swapTarget) switch
         {
-            (null, _) => "点击上方格子选源，再点一个格子选目标",
+            (null, _) => "单击格子选源，再点一个格子选目标；双击格子可改课程名",
             (_, null) => $"已选源「{_swapSource.Subject}」→ 再点一个格子选目标",
             _ => _swapTarget.IsEmpty
                 ? $"源「{_swapSource.Subject}」→ 目标空位 — 点按钮执行"
@@ -872,12 +943,13 @@ public partial class ScheduleEditorWindow : Window
         TplResetBtn.IsVisible = _tplDay != 0;
         TplDayNote.Text = _tplDay switch
         {
-            0 => "编辑全周通用时刻：未单独定制的星期几都跟随它；「应用」把默认模板时刻写入周一~周日未定制的天。",
+            0 => "编辑全周通用时刻：未单独定制的星期几都跟随它；改完点「应用」或底部「保存」即写入课表。",
             6 => "星期六已独立：删掉没有的大课间 / 眼保健操时段、改各节起止，点「应用」写入星期六课表。",
             _ => $"星期{_tplDay}已独立：改完点「应用」写入该天课表；「恢复默认」可取消定制、重新跟随默认模板。"
         };
 
         if (created) { App.Schedule.Save(); MarkClean(); }   // 深拷贝落盘 = 该天定制的起点（避免误把默认当该天改）
+        ClearTplDirty();
         BuildTemplateList();
         RebuildTimetable();
     }
@@ -890,6 +962,7 @@ public partial class ScheduleEditorWindow : Window
         _tplDay = 0;
         App.Schedule.Save();
         MarkClean();
+        ClearTplDirty();
         TplDayCombo.SelectedIndex = 0;   // 触发 handler：刷新 note/按钮/列表/网格
     }
 
@@ -905,25 +978,30 @@ public partial class ScheduleEditorWindow : Window
             var row = new Grid { ColumnDefinitions = new ColumnDefinitions("44,54,54,*,28") };
             var periodBox = new TextBox { Text = t.Period.ToString(), FontSize = 13, MinHeight = 34, VerticalContentAlignment = VerticalAlignment.Center };
             periodBox.TextChanged += (_, _) =>
-            { if (int.TryParse(periodBox.Text, out int p)) t.Period = p; };
+            { if (int.TryParse(periodBox.Text, out int p)) { t.Period = p; MarkTplDirty(); } };
 
             var startBox = new TextBox { Text = t.StartTime, FontSize = 13, MinHeight = 34, VerticalContentAlignment = VerticalAlignment.Center };
-            startBox.TextChanged += (_, _) => t.StartTime = startBox.Text ?? "08:00";
+            startBox.TextChanged += (_, _) => { t.StartTime = startBox.Text ?? "08:00"; MarkTplDirty(); };
 
             var endBox = new TextBox { Text = t.EndTime, FontSize = 13, MinHeight = 34, VerticalContentAlignment = VerticalAlignment.Center };
-            endBox.TextChanged += (_, _) => t.EndTime = endBox.Text ?? "08:45";
+            endBox.TextChanged += (_, _) => { t.EndTime = endBox.Text ?? "08:45"; MarkTplDirty(); };
 
             var typeBox = new ComboBox { FontSize = 13, MinHeight = 34, ItemsSource = PeriodTypeItems, HorizontalAlignment = HorizontalAlignment.Stretch };
             typeBox.SelectedItem = PeriodTypeItems.FirstOrDefault(p => p.Value == t.Type);
             typeBox.SelectionChanged += (_, _) =>
-            { if (typeBox.SelectedItem is PeriodTypeItem item) t.Type = item.Value; };
+            { if (typeBox.SelectedItem is PeriodTypeItem item) { t.Type = item.Value; MarkTplDirty(); } };
 
             var delBtn = new Button { Content = "✕", Padding = new Thickness(4, 0), FontSize = 11, MinHeight = 34 };
-            delBtn.Click += (_, _) =>
+            delBtn.Click += async (_, _) =>
             {
+                // 复查修复：删除模板行加确认（原来误点即删且立即落盘、无法撤销）
+                var ok = await Helpers.DialogHelper.ShowConfirmAsync(this, "删除时段",
+                    $"确定删除第 {t.Period} 节（{t.StartTime}-{t.EndTime}）吗？");
+                if (!ok) return;
                 list.Remove(t);
                 App.Schedule.Save();
                 MarkClean();
+                MarkTplDirty();
                 BuildTemplateList();
                 RebuildTimetable();
             };
@@ -953,6 +1031,7 @@ public partial class ScheduleEditorWindow : Window
         list.Add(new TimeTemplate { Period = nextP, StartTime = start, EndTime = end });
         App.Schedule.Save();
         MarkClean();
+        MarkTplDirty();
         BuildTemplateList();
         RebuildTimetable();
     }
@@ -969,6 +1048,7 @@ public partial class ScheduleEditorWindow : Window
         data.SortEntries();
         App.Schedule.Save();
         MarkClean();
+        ClearTplDirty();
         RebuildTimetable();
         _ = App.ShowMessageAsync("时段模板",
             "模板时刻已按天应用到课表。\n上课提醒、上课前自动开课件、放学判断都会按新时间生效。");

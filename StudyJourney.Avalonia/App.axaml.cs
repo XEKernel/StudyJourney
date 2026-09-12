@@ -309,6 +309,9 @@ public partial class App : Application
         Reminders = null;
         Automation?.Dispose();
         Automation = null;
+        // B9 修复：右键「退出」/系统关机走 Cleanup 路径，原实现不停远程服务 → 与 MainWindow.Closed
+        // 路径不对称（服务残留/端口占用）。Stop 内部会 Join 后台线程（最长 8s），放后台执行避免卡退出。
+        _ = System.Threading.Tasks.Task.Run(() => HttpServerService.Stop());
         _trayIcon?.Dispose();
         _trayIcon = null;
     }

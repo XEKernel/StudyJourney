@@ -228,13 +228,17 @@ namespace StudyJourney.Avalonia.Models
             /// <summary>课表文件完整路径（软件目录 schedule.json，随软件文件夹分发；HTTP 远程管理共用）</summary>
             public static string ScheduleFilePath => _schedulePath;
 
-            /// <summary>按 星期→节次 排序（DataGrid 展示用）</summary>
+            /// <summary>按 星期→节次 排序（DataGrid 展示用）。
+            /// ⚠ 必须**原地排序**：Entries 列表引用被 EntryGrid.ItemsSource / 周视图等外部持有，
+            /// 早期实现用 `Entries = OrderBy(...).ToList()` 替换引用 → 排序后 DataGrid 与模型脱钩
+            /// （新增条目在界面上不出现）。</summary>
             public void SortEntries()
             {
-                Entries = Entries
-                    .OrderBy(e => e.DayOfWeek)
-                    .ThenBy(e => e.Period)
-                    .ToList();
+                Entries.Sort((a, b) =>
+                {
+                    int c = a.DayOfWeek.CompareTo(b.DayOfWeek);
+                    return c != 0 ? c : a.Period.CompareTo(b.Period);
+                });
             }
 
             private static readonly string _schedulePath =
@@ -272,13 +276,16 @@ namespace StudyJourney.Avalonia.Models
                     if (File.Exists(_schedulePath))
                     {
                         var json = File.ReadAllText(_schedulePath);
-                        return JsonSerializer.Deserialize<ScheduleData>(json, _jsonOpts)
-                               ?? new ScheduleData();
+                        var loaded = JsonSerializer.Deserialize<ScheduleData>(json, _jsonOpts)
+                                     ?? new ScheduleData();
+                        Normalize(loaded);   // 修复：外部写入 "Entries": null 等会导致启动即崩（主窗口/提醒 Tick 遍历 NRE）
+                        return loaded;
                     }
                 }
-                catch (Exception ex)
+                catch (JsonException ex)
                 {
-                    // 备份损坏文件，然后删除原文件（保留最近 3 份备份）
+                    // 仅"真损坏"（JSON 解析失败）才备份并删除原文件；
+                    // 修复：原实现 catch(Exception) 把瞬时 IO/权限错误也当损坏 → 误删课表（数据丢失）
                     try
                     {
                         var bak = _schedulePath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -288,10 +295,25 @@ namespace StudyJourney.Avalonia.Models
                         System.Diagnostics.Debug.WriteLine($"[ScheduleData] 已备份损坏文件: {bak}");
                     }
                     catch { }
-                    System.Diagnostics.Debug.WriteLine($"[ScheduleData] 课表文件加载失败，使用空课表: {ex.Message}");
+                    Helpers.AppLogger.Error($"课表文件 JSON 损坏，已备份并重建: {ex.Message}", ex);
+                    return new ScheduleData();
+                }
+                catch (Exception ex)
+                {
+                    // IO/权限等瞬时错误：保留原文件（下次仍可读取），本次返回空课表并记录
+                    Helpers.AppLogger.Warn($"课表文件读取失败（未删除原文件）: {ex.Message}");
                     return new ScheduleData();
                 }
                 return new ScheduleData();
+            }
+
+            /// <summary>集合归一化：反序列化后 Entries/Exams/TimeTemplates/DayTimeTemplates 不可为 null</summary>
+            private static void Normalize(ScheduleData d)
+            {
+                d.Entries ??= new List<ScheduleEntry>();
+                d.Exams ??= new System.Collections.ObjectModel.ObservableCollection<ExamEntry>();
+                d.TimeTemplates ??= new List<TimeTemplate>();
+                d.DayTimeTemplates ??= new Dictionary<int, List<TimeTemplate>>();
             }
 
         /// <summary>清理过期的 .corrupted 备份，只保留最近 maxCount 份</summary>
@@ -312,16 +334,19 @@ namespace StudyJourney.Avalonia.Models
             catch { }
         }
 
-        public void Save()
+        /// <summary>保存课表；返回是否成功（调用方如网页 PUT /api/schedule 据此返回真实结果）</summary>
+        public bool Save()
         {
             try
             {
                 var json = JsonSerializer.Serialize(this, _jsonOpts);
                 Helpers.FileAtomic.WriteAllText(_schedulePath, json);   // #6：原子写，防半截 JSON
+                return true;
             }
             catch (Exception ex)
             {
                 Helpers.AppLogger.Error("保存课表失败", ex);
+                return false;   // 修复：调用方（如网页 PUT /api/schedule）据此返回真实失败，不再"假成功"
             }
         }
     }

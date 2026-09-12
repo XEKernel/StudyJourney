@@ -113,7 +113,9 @@ public partial class MainWindow : Window
             _classEndRestoreTimer?.Stop();
             _weatherTimer?.Stop();
             _quoteTimer?.Stop();
-            HttpServerService.Stop();   // 窗口关闭（含退出）时停止远程服务
+            // B8 修复：Stop() 内部会 Join 后台线程（最长 8s），原实现同步调用会卡住 UI 线程
+            // （退出时像死机）→ 改为后台线程执行，不阻塞窗口关闭
+            _ = System.Threading.Tasks.Task.Run(() => HttpServerService.Stop());
         };
 
         PositionChanged += Window_PositionChanged;
@@ -158,13 +160,16 @@ public partial class MainWindow : Window
             return;
         }
 
-        _examModeWindow = new ExamModeWindow();
-        _examModeWindow.Closed += (_, _) =>
+        var examWin = new ExamModeWindow();
+        _examModeWindow = examWin;
+        examWin.Closed += (_, _) =>
         {
-            // #23 修复：区分退出来源——手动退出（ESC 双击/按钮）立即恢复主窗口；
+            // #23 修复：区分退出来源——手动退出（ESC 双击/按钮/设置页退出）立即恢复主窗口；
             // 考试结束自动退出保留 2 分钟延迟（老师可能继续用大屏，Tick 里的恢复逻辑不变）
-            bool byUser = _examModeWindow.ClosedByUser;
-            _examModeWindow = null;
+            // S1 修复：用捕获的局部引用而非字段取值 —— ExitExamMode 会先把字段置空，
+            // 若 Closed 事件异步派发，原写法会 NRE 且破坏恢复逻辑
+            bool byUser = examWin.ClosedByUser;
+            if (ReferenceEquals(_examModeWindow, examWin)) _examModeWindow = null;
             if (byUser)
             {
                 _hiddenByScheduleOrExam = false;
@@ -175,13 +180,28 @@ public partial class MainWindow : Window
                 Tick();
             }
         };
-        _examModeWindow.Show();
+        try
+        {
+            examWin.Show();
+        }
+        catch (Exception ex)
+        {
+            // S2 修复：Show 失败时清理引用，否则 _examModeWindow 永久非空 → 主窗口被永久隐藏
+            Helpers.AppLogger.Error("打开考试模式窗口失败", ex);
+            _examModeWindow = null;
+            _ = App.ShowMessageAsync("考试模式", $"打开失败：{ex.Message}");
+        }
     }
 
     public void ExitExamMode()
     {
-        _examModeWindow?.Close();
-        _examModeWindow = null;
+        // B7 修复：设置页/托盘「退出考试模式」属用户主动退出 → 必须标记 ClosedByUser，
+        // 否则被主窗口当作"考试结束自动退出"→ 主窗口延迟 2 分钟才恢复（像被吞掉）
+        var win = _examModeWindow;
+        if (win == null) return;
+        win.MarkClosedByUser();
+        win.Close();
+        if (ReferenceEquals(_examModeWindow, win)) _examModeWindow = null;
     }
 
     // ── 初始化 ───────────────────────────────────────────────
@@ -381,7 +401,9 @@ public partial class MainWindow : Window
         ApplySettings();
         PositionToPreset();
         ApplyClickThrough();
+        ApplyWindowLayer();          // S3 修复：置顶类设置保存后立即生效（原只在 Tick 的非常规分支里应用）
         StartWeatherTimer();
+        _ = LoadWeatherAsync();      // B1 修复：天气城市/详细度改动后立即刷新（默认刷新间隔=0 时定时器不跑，原实现会一直显示旧城市直到重启）
         _ = LoadQuoteAsync();
         StartQuoteTimer();
         Tick();
@@ -810,6 +832,14 @@ public partial class MainWindow : Window
             GaokaoPctTb.Text = $"{progress * 100:F1}%";
             GaokaoPctTb.IsVisible = s.ShowProgressText;
         }
+        else
+        {
+            // B2 修复：日期为空/非法时明确提示（原实现整段跳过 → 数字冻结在旧值、老师无感知）
+            GaokaoTb.Text = "高考日期未设置 · 请到「设置 → 倒计时」填写";
+            GaokaoRing.IsVisible = false;
+            GaokaoBar.IsVisible = false;
+            GaokaoPctTb.IsVisible = false;
+        }
 
         // 自定义倒计时（动态）
         RebuildCustomRings(now);
@@ -890,12 +920,14 @@ public partial class MainWindow : Window
             .ToList();
 
         var s = App.Settings;
+        // S4 修复：各字段用分隔符隔开（原直接相连，理论上不同组合可撞出相同签名 → 改样式不重建）
         string sig = string.Join("|", valid.Select(cc => $"{cc.Name}@{cc.DateStr}"))
             + "#" + (s.CountdownProgressBarStyle ? 1 : 0)
-            + (s.ShowProgressBar ? 1 : 0) + (s.ShowProgressText ? 1 : 0)
-            + (s.IslandSeparated ? 1 : 0)
-            + s.MainWindowCornerRadius + s.FontSize + s.FontFamily
-            + s.TextColor + s.AccentColor + s.ShowDays + s.ShowHours + s.ShowMinutes + s.ShowSeconds;
+            + "#" + (s.ShowProgressBar ? 1 : 0) + "#" + (s.ShowProgressText ? 1 : 0)
+            + "#" + (s.IslandSeparated ? 1 : 0)
+            + "#" + s.MainWindowCornerRadius + "#" + s.FontSize + "#" + s.FontFamily
+            + "#" + s.TextColor + "#" + s.AccentColor
+            + "#" + s.ShowDays + "#" + s.ShowHours + "#" + s.ShowMinutes + "#" + s.ShowSeconds;
 
         if (!force && sig == _customRingSig && _customRings.Count == valid.Count)
         {

@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Interactivity;
 using StudyJourney.Avalonia.Models;
 
 namespace StudyJourney.Avalonia.Views.Settings;
@@ -33,6 +34,20 @@ public partial class PositionPage : UserControl, ISettingsPage
         AutoStartCheck.IsChecked = s.AutoStart;
         HideWhenMaximizedCheck.IsChecked = s.HideWhenMaximized;
         HideDuringClassCheck.IsChecked = s.HideDuringClass;
+
+        // D1 修复：自定义坐标输入框随"自定义坐标"选项启用（原 XAML 写死 IsEnabled=False 且无联动
+        // → 选自定义也无法输入，自定义定位实际不可用）
+        SetCustomCoordEnabled(s.PositionPreset == PositionPresetValues.Custom);
+    }
+
+    private void PosCustom_IsCheckedChanged(object? sender, RoutedEventArgs e)
+        => SetCustomCoordEnabled(PosCustom.IsChecked == true);
+
+    private void SetCustomCoordEnabled(bool on)
+    {
+        if (CustomCoordPanel == null) return;   // XAML 加载期保护
+        CustomCoordPanel.IsEnabled = on;
+        CustomCoordPanel.Opacity = on ? 1 : 0.55;
     }
 
     private void CornerRadiusSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)

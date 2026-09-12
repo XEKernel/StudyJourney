@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Animation;
@@ -20,6 +21,17 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
 {
     private Control? _currentPage;
 
+    // S3 修复：全局"未保存修改"快照 —— 7 个页面未实现 IsDirty（滑块/勾选改动切页或关窗会被静默丢弃），
+    // 这里用 AppSettings JSON 快照兜底检测；每次 Load/保存/重置/切页后刷新基线
+    private string _baselineJson = "";
+
+    private static string SerializeSettings()
+        => JsonSerializer.Serialize(App.Settings, new JsonSerializerOptions { WriteIndented = true });
+
+    private bool HasUnsavedSettings() => SerializeSettings() != _baselineJson;
+
+    private void RefreshBaseline() => _baselineJson = SerializeSettings();
+
     public SettingsWindow()
     {
         InitializeComponent();
@@ -37,14 +49,22 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_closeConfirmed) return;
-        if (_currentPage is not ISettingsPage sp || !sp.IsDirty) return;
+        bool pageDirty = _currentPage is ISettingsPage sp && sp.IsDirty;
+        if (!pageDirty && !HasUnsavedSettings()) return;   // S3：快照兜底，页面未实现 IsDirty 也能拦下
 
         e.Cancel = true;   // 先拦下，等用户选择后再真正关闭
         var choice = await Helpers.DialogHelper.ShowChoiceAsync(this,
             "未保存的修改", "当前页面有未保存的修改，关闭前如何处理？",
             "保存并关闭", "放弃修改", "取消");
-        if (choice == 1) { sp.Apply(App.Settings); App.SaveSettings(); _closeConfirmed = true; Close(); }
-        else if (choice == 2) { _closeConfirmed = true; Close(); }
+        if (choice == 1)
+        {
+            if (_currentPage is ISettingsPage sp2) sp2.Apply(App.Settings);
+            App.SaveSettings();
+            RefreshBaseline();
+            _closeConfirmed = true;
+            Close();
+        }
+        else if (choice == 2) { RefreshBaseline(); _closeConfirmed = true; Close(); }
         // choice == 0 → 留在本页
     }
 
@@ -79,7 +99,8 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
     /// 避免切页静默丢失；然后 Load 当前设置 + 滑动淡入动画（渲染线程驱动，可用「页面动画」开关关闭）</summary>
     private async void ShowPage(Control page)
     {
-        if (_currentPage is ISettingsPage oldPage && oldPage != page && oldPage.IsDirty)
+        bool unsavedBefore = HasUnsavedSettings();
+        if (_currentPage is ISettingsPage oldPage && oldPage != page && (oldPage.IsDirty || unsavedBefore))
         {
             var choice = await Helpers.DialogHelper.ShowChoiceAsync(this,
                 "未保存的修改", "当前页面有未保存的修改，如何处理？",
@@ -91,6 +112,7 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
 
         _currentPage = page;
         if (page is ISettingsPage sp) sp.Load(App.Settings);
+        RefreshBaseline();   // 新页已载入 → 以当前设置为新基线
 
         PageHost.Child = page;
 
@@ -140,10 +162,16 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
         page.Opacity = 1;
     }
 
-    /// <summary>恢复默认设置（对齐 WPF ResetButton_Click）：重置为 new AppSettings() 并广播刷新</summary>
+    /// <summary>恢复默认设置（对齐 WPF ResetButton_Click）：重置为 new AppSettings() 并广播刷新。
+    /// 注意：会同时重置存于 settings.json 的业务数据（老师账号→内置账号、选科、自定义倒计时），
+    /// 确认框已明示影响范围；课表/自动化规则/登录状态为独立文件不受影响。</summary>
     private async void ResetBtn_Click(object? sender, RoutedEventArgs e)
     {
-        var ok = await App.ConfirmAsync("重置确认", "确定要将所有设置恢复为默认值吗？");
+        var ok = await App.ConfirmAsync("重置所有设置",
+            "确定要重置所有设置吗？\n\n" +
+            "将恢复默认：外观 / 位置 / 提醒 / 考试模式等偏好；\n" +
+            "并会重置老师账号为内置账号（含初始密码）、清空自定义倒计时、恢复默认选科。\n\n" +
+            "课表、自动化任务规则、登录状态不受影响。");
         if (!ok) return;
 
         App.Settings = new AppSettings();
@@ -151,6 +179,7 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
 
         // 刷新当前页面显示为默认值
         if (_currentPage is ISettingsPage sp) sp.Load(App.Settings);
+        RefreshBaseline();
     }
 
     private void SaveBtn_Click(object? sender, RoutedEventArgs e)
@@ -159,6 +188,7 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
         {
             sp.Apply(App.Settings);
             App.SaveSettings();   // 保存并通知主窗口刷新
+            RefreshBaseline();    // S3：保存后对齐基线
         }
         // 提示保存成功（简单处理：短暂改按钮文字）
         if (sender is Button btn)
