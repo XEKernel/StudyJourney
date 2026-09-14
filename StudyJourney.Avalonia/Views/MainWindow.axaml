@@ -22,6 +22,8 @@
                 BorderThickness="1" Padding="16,10">
             <Border.ContextMenu>
                 <ContextMenu>
+                    <MenuItem Header="打开白板（板书）" Click="WhiteboardMenuItem_Click"/>
+                    <MenuItem Header="屏幕批注（Ctrl+Alt+D）" Click="AnnotationMenuItem_Click"/>
                     <MenuItem Header="进入考试模式" Click="ExamModeMenuItem_Click"/>
                     <MenuItem Header="打开设置" Click="OpenSettingsMenuItem_Click"/>
                     <Separator/>
@@ -109,6 +111,8 @@
                 BorderThickness="1" Padding="14,8" IsVisible="False">
             <Border.ContextMenu>
                 <ContextMenu>
+                    <MenuItem Header="打开白板（板书）" Click="WhiteboardMenuItem_Click"/>
+                    <MenuItem Header="屏幕批注（Ctrl+Alt+D）" Click="AnnotationMenuItem_Click"/>
                     <MenuItem Header="进入考试模式" Click="ExamModeMenuItem_Click"/>
                     <MenuItem Header="打开设置" Click="OpenSettingsMenuItem_Click"/>
                     <Separator/>

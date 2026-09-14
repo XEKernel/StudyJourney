@@ -1323,6 +1323,12 @@ public partial class MainWindow : Window
 
     private void OpenSettingsMenuItem_Click(object? sender, RoutedEventArgs e) => OpenSettings();
 
+    /// <summary>右键菜单「打开白板」（PLANNING 2.4；与托盘/快捷键共用同一入口）</summary>
+    private void WhiteboardMenuItem_Click(object? sender, RoutedEventArgs e) => App.OpenWhiteboardGlobal();
+
+    /// <summary>右键菜单「屏幕批注」（PLANNING 2.3；再点一次即收起）</summary>
+    private void AnnotationMenuItem_Click(object? sender, RoutedEventArgs e) => App.ToggleScreenAnnotationGlobal();
+
     private void ExitMenuItem_Click(object? sender, RoutedEventArgs e)
     {
         _isExiting = true;

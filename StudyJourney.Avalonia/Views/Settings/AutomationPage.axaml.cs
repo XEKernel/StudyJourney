@@ -35,10 +35,14 @@ public partial class AutomationPage : UserControl, ISettingsPage
     {
         InitializeComponent();
 
-        TriggerTypeCombo.ItemsSource = new[] { "固定时间", "上课前", "下课时", "放学时", "闲置一段时间", "软件启动后" };
+        // 顺序必须与枚举 AutomationTriggerKind / AutomationActionKind 一致（索引即枚举值）
+        TriggerTypeCombo.ItemsSource = new[]
+        {
+            "固定时间", "上课前", "下课时", "放学时", "闲置一段时间", "软件启动后", "上午放学"
+        };
         ActionTypeCombo.ItemsSource = new[]
         {
-            "打开文件", "打开科目课件（取最新）", "播放音频", "关闭屏幕", "关机", "重启", "弹出提醒"
+            "打开文件", "打开科目课件", "播放音频", "关闭屏幕", "关机", "重启", "弹出提醒", "关闭软件"
         };
 
         // 默认选中必须在 _ready 置位前（事件处理期间判空直接 return，再由下面手动刷新面板）
@@ -149,6 +153,10 @@ public partial class AutomationPage : UserControl, ISettingsPage
     }
     private bool _deleteBusy;
 
+    /// <summary>「关闭软件」下拉里"当前正在运行的程序"快照（与下拉项一一对应，索引 0 = 占位提示）</summary>
+    private List<(string Exe, string Title)> _runningApps = new();
+    private bool _loadingCloseCombo;
+
     private void NewRuleBtn_Click(object? sender, RoutedEventArgs e)
     {
         var rule = new AutomationRule
@@ -192,13 +200,13 @@ public partial class AutomationPage : UserControl, ISettingsPage
             // 科目（A7 修复：过滤科目已被删除时显示「⚠ 已失效」占位并保持原值，
             // 原实现静默降级为「全部科目」，保存后过滤丢失、规则扩大到每节课）
             LoadSubjectCombo(r.TriggerSubject);
-            int idx;
-            if (string.IsNullOrWhiteSpace(r.TriggerSubject)) idx = 0;
-            else
+            // A7 + 2.5.7b：按合并后的实际下拉项定位（找不到 → 末位「已失效」占位，保留原过滤值）
+            var subjectItems = SubjectCombo.ItemsSource as List<string> ?? new List<string>();
+            int idx = 0;
+            if (!string.IsNullOrWhiteSpace(r.TriggerSubject))
             {
-                var subjects = App.Settings.Subjects ?? new List<string>();
-                int i = subjects.IndexOf(r.TriggerSubject);
-                idx = i >= 0 ? i + 1 : (SubjectCombo.ItemsSource as List<string>)!.Count - 1;   // 末位 = 已失效占位
+                int i = subjectItems.FindIndex(x => string.Equals(x, r.TriggerSubject, StringComparison.Ordinal));
+                idx = i >= 0 ? i : Math.Max(subjectItems.Count - 1, 0);
             }
             SubjectCombo.SelectedIndex = Math.Max(idx, 0);
 
@@ -207,6 +215,14 @@ public partial class AutomationPage : UserControl, ISettingsPage
             AudioPathBox.Text = r.ActionPath;
             PowerSecondsBox.Text = Math.Max(r.ActionDelaySeconds, 5).ToString();
             MsgBox.Text = r.ActionMessage;
+            CloseTargetBox.Text = r.CloseTarget;
+            RememberLastCheck.IsChecked = r.RememberLast;
+            AutoAdvanceCheck.IsChecked = r.AutoAdvance;
+            ActivateIfOpenCheck.IsChecked = r.ActivateIfOpen;
+            _loadingCloseCombo = true;
+            CloseAppCombo.SelectedIndex = 0;
+            _loadingCloseCombo = false;
+            if (r.ActionKind == AutomationActionKind.CloseApp) RefreshProcessList();
 
             RefreshPanels();
             UpdatePreview();
@@ -233,10 +249,22 @@ public partial class AutomationPage : UserControl, ISettingsPage
     private void LoadSubjectCombo(string? invalidSubject = null)
     {
         if (SubjectCombo == null) return;
-        var subjects = App.Settings.Subjects ?? new List<string>();
+        // 2.5.7b：优先用课表里实际出现的科目（与真实课表一致，避免与"可选科目"配置脱节），
+        // 再并入设置页的可选科目补集，最后去重
         var items = new List<string> { "全部科目（每一节都触发）" };
-        items.AddRange(subjects);
-        if (!string.IsNullOrWhiteSpace(invalidSubject) && !subjects.Contains(invalidSubject))
+        var merged = new List<string>();
+        try
+        {
+            merged.AddRange(App.Schedule.Data.Entries
+                .Select(e => e.Subject?.Trim() ?? "")
+                .Where(x => x.Length > 0));
+        }
+        catch { /* 课表未就绪时退回设置里的科目 */ }
+        merged.AddRange(App.Settings.Subjects ?? new List<string>());
+        foreach (var subj in merged)
+            if (!items.Contains(subj)) items.Add(subj);
+
+        if (!string.IsNullOrWhiteSpace(invalidSubject) && !items.Contains(invalidSubject))
             items.Add(InvalidSubjectPrefix + invalidSubject);
         SubjectCombo.ItemsSource = items;
     }
@@ -251,8 +279,8 @@ public partial class AutomationPage : UserControl, ISettingsPage
         if (_current == null) return;
 
         _current.Name = NameBox.Text?.Trim() ?? "";
-        _current.TriggerKind = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 5);
-        _current.ActionKind = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 6);
+        _current.TriggerKind = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 6);
+        _current.ActionKind = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 7);
 
         switch (_current.TriggerKind)
         {
@@ -294,7 +322,15 @@ public partial class AutomationPage : UserControl, ISettingsPage
             case AutomationActionKind.ShowMessage:
                 _current.ActionMessage = MsgBox.Text?.Trim() ?? "";
                 break;
+            case AutomationActionKind.CloseApp:
+                _current.CloseTarget = CloseTargetBox.Text?.Trim() ?? "";
+                break;
         }
+
+        // 打开类动作的智能行为（对非打开类动作保存也无害，切回时保持原选择）
+        _current.RememberLast = RememberLastCheck.IsChecked == true;
+        _current.AutoAdvance = AutoAdvanceCheck.IsChecked == true;
+        _current.ActivateIfOpen = ActivateIfOpenCheck.IsChecked == true;
     }
 
     /// <summary>星期勾选 → TriggerDays（勾满 7 天或一个没勾 = 每天 = 空列表；取消「每天」却一个没勾则兜底周一）</summary>
@@ -326,8 +362,8 @@ public partial class AutomationPage : UserControl, ISettingsPage
 
     private void RefreshPanels()
     {
-        var tk = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 5);
-        var ak = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 6);
+        var tk = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 6);
+        var ak = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 7);
 
         FixedPanel.IsVisible = tk == AutomationTriggerKind.FixedTime;
         SubjectPanel.IsVisible = tk is AutomationTriggerKind.BeforeClassStart or AutomationTriggerKind.AtClassEnd;
@@ -339,6 +375,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
         DayEndPanel.IsVisible = tk == AutomationTriggerKind.AtDayEnd;
         IdlePanel.IsVisible = tk == AutomationTriggerKind.Idle;
         AppStartPanel.IsVisible = tk == AutomationTriggerKind.AppStarted;
+        MorningDayEndPanel.IsVisible = tk == AutomationTriggerKind.AtMorningDayEnd;
 
         OpenFilePanel.IsVisible = ak == AutomationActionKind.OpenFile;
         CoursewarePanel.IsVisible = ak == AutomationActionKind.OpenCourseware;
@@ -346,6 +383,11 @@ public partial class AutomationPage : UserControl, ISettingsPage
         ScreenOffPanel.IsVisible = ak == AutomationActionKind.ScreenOff;
         PowerPanel.IsVisible = ak is AutomationActionKind.Shutdown or AutomationActionKind.Restart;
         MsgPanel.IsVisible = ak == AutomationActionKind.ShowMessage;
+        CloseAppPanel.IsVisible = ak == AutomationActionKind.CloseApp;
+        // 顺序记忆/连堂幂等只对三类"打开"动作有意义
+        SequencePanel.IsVisible = ak is AutomationActionKind.OpenFile
+                                     or AutomationActionKind.OpenCourseware
+                                     or AutomationActionKind.PlayAudio;
     }
 
     /// <summary>文本类控件改动：仅刷新预览（不重建列表 —— 打字每帧重建会让 ListBox 滚动条跳回顶部）。
@@ -398,6 +440,9 @@ public partial class AutomationPage : UserControl, ISettingsPage
         if (!_ready) return;
         if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); }
         RefreshPanels();
+        // 切到「关闭软件」时按需枚举当前运行程序（Process 枚举较重，不放在每秒轮询里）
+        if (!_loadingEditor && ActionTypeCombo.SelectedIndex == (int)AutomationActionKind.CloseApp)
+            RefreshProcessList();
         if (!_loadingEditor) UpdatePreview();
     }
 
@@ -478,6 +523,60 @@ public partial class AutomationPage : UserControl, ISettingsPage
     {
         if (!_ready) return;
         if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); UpdatePreview(); }
+    }
+
+    // ── 关闭软件 / 顺序记忆（2.5.7 / 2.5.8 / 2.5.9）─────────
+
+    private void CloseTargetBox_TextChanged(object? sender, TextChangedEventArgs e)
+    {
+        if (!_ready) return;
+        if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); RefreshPreviewOnly(); }
+    }
+
+    /// <summary>顺序记忆三个勾选项共用：提交 + 标脏 + 刷新预览/列表摘要</summary>
+    private void SequenceOption_Toggled(object? sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); UpdatePreview(); }
+    }
+
+    private void RefreshProcessListBtn_Click(object? sender, RoutedEventArgs e) => RefreshProcessList();
+
+    /// <summary>列当前有窗口的运行中程序，老师点选即可（不用记 exe 名字）；失败不抛出</summary>
+    private void RefreshProcessList()
+    {
+        if (CloseAppCombo == null) return;
+        try
+        {
+            _runningApps = Helpers.WindowEnumerator.RunningApps()
+                .Select(a => (a.Exe, a.Title))
+                .ToList();
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn($"枚举运行中程序失败: {ex.Message}");
+            _runningApps = new List<(string, string)>();
+        }
+
+        var items = new List<string> { "— 从下面选择正在运行的软件 —" };
+        items.AddRange(_runningApps.Select(a => $"{a.Exe}　·　{a.Title}"));
+
+        _loadingCloseCombo = true;
+        CloseAppCombo.ItemsSource = items;
+        CloseAppCombo.SelectedIndex = 0;
+        _loadingCloseCombo = false;
+
+        // 没检测到就静默（老师可直接手填进程名），避免每次切到本动作都弹窗
+        if (_runningApps.Count == 0)
+            Helpers.AppLogger.Info("「关闭软件」：未检测到有窗口的运行中程序，可手填进程名");
+    }
+
+    private void CloseAppCombo_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (!_ready || _loadingCloseCombo) return;
+        int i = CloseAppCombo.SelectedIndex - 1;   // 0 = 占位提示
+        if (i < 0 || i >= _runningApps.Count) return;
+        CloseTargetBox.Text = _runningApps[i].Exe;   // 触发 TextChanged → 提交并标脏
     }
 
     // ── 文件浏览 ───────────────────────────────────────────

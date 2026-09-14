@@ -81,8 +81,10 @@ public partial class App : Application
 
     // ── 全局快捷键 ID（与 WPF 版一致）────────────────────────
     private const int HotKeyToggleMain = 1;   // Ctrl+Shift+H
+    private const int HotKeyWhiteboard = 2;   // Ctrl+Shift+W（白板，PLANNING 2.4）
     private const int HotKeyExamMode   = 3;   // Ctrl+Shift+E
-    private const uint VK_H = 0x48, VK_E = 0x45;
+    private const int HotKeyAnnotation = 4;   // Ctrl+Alt+D（屏幕批注，PLANNING 2.3/2.7#7）
+    private const uint VK_H = 0x48, VK_E = 0x45, VK_W = 0x57, VK_D = 0x44;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -138,6 +140,14 @@ public partial class App : Application
                 _ = EnterExamModeDelayedAsync();
 
             _mainWindow.Show();
+
+            // 自检钩子（仅 SJ_SELFTEST=whiteboard 时生效，用于验证白板渲染链路）——
+            // 不改变正常启动行为，跑完即退出，便于自动化冒烟测试。
+            if (Environment.GetEnvironmentVariable("SJ_SELFTEST") == "whiteboard")
+            {
+                Dispatcher.UIThread.Post(RunWhiteboardSelfTest, DispatcherPriority.Background);
+                return;
+            }
 
             // 远程 HTTP 服务：设置开启则延迟 1.5s 自动启动（不阻塞首屏；失败记日志不影响主程序）
             if (Settings.AutoStartHttpServer)
@@ -220,6 +230,16 @@ public partial class App : Application
         if (!GlobalHotKeyManager.Register(HotKeyExamMode, VK_E, true, true, false,
                 () => Dispatcher.UIThread.Post(() => EnterExamMode())))
             Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+E 注册失败（可能被其他程序占用）");
+
+        // Ctrl+Shift+W 打开白板（PLANNING 2.4；老师板书随时唤起）
+        if (!GlobalHotKeyManager.Register(HotKeyWhiteboard, VK_W, true, true, false,
+                () => Dispatcher.UIThread.Post(OpenWhiteboardGlobal)))
+            Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+W 注册失败（可能被其他程序占用）");
+
+        // Ctrl+Alt+D 屏幕批注（PLANNING 2.3：在任意应用之上圈画）
+        if (!GlobalHotKeyManager.Register(HotKeyAnnotation, VK_D, true, false, true,
+                () => Dispatcher.UIThread.Post(ToggleScreenAnnotationGlobal)))
+            Helpers.AppLogger.Warn("全局快捷键 Ctrl+Alt+D 注册失败（可能被其他程序占用）");
     }
 
     /// <summary>统一入口：进入考试模式（托盘/快捷键/设置页共用）</summary>
@@ -239,6 +259,98 @@ public partial class App : Application
     {
         if (Current is App app && app._mainWindow is MainWindow mw) mw.OpenSettings();
         else new SettingsWindow().Show();
+    }
+
+    // ── 白板（PLANNING 2.4）──────────────────────────────────
+    // 单例：重复触发只激活已有窗口，避免老师连按快捷键开出多个白板（板书会分散在多个窗口里）
+
+    private static WhiteboardWindow? _whiteboard;
+
+    /// <summary>统一入口：打开白板（托盘 / 全局快捷键 / 主窗口菜单共用）</summary>
+    public static void OpenWhiteboardGlobal()
+    {
+        if (_whiteboard is { IsVisible: true })
+        {
+            if (_whiteboard.WindowState == WindowState.Minimized)
+                _whiteboard.WindowState = WindowState.Normal;
+            _whiteboard.Activate();
+            return;
+        }
+        _whiteboard = new WhiteboardWindow();
+        _whiteboard.Closed += (_, _) => _whiteboard = null;
+        _whiteboard.Show();
+    }
+
+    // ── 屏幕批注（PLANNING 2.3）──────────────────────────────
+
+    private static ScreenAnnotationWindow? _annotation;
+
+    /// <summary>开关屏幕批注覆盖层（快捷键/托盘共用）。已开则关闭（再按一次退出，符合"随时收起"直觉）</summary>
+    public static void ToggleScreenAnnotationGlobal()
+    {
+        if (_annotation is { IsVisible: true })
+        {
+            _annotation.Close();
+            return;
+        }
+        _annotation = new ScreenAnnotationWindow();
+        _annotation.Closed += (_, _) => _annotation = null;
+        _annotation.Show();
+    }
+
+    /// <summary>
+    /// 白板渲染链路自检（SJ_SELFTEST=whiteboard）：真正实例化窗口 + 走一遍导出渲染，
+    /// 验证 InkCanvas 几何构建与 RenderTargetBitmap 在真实 Avalonia 平台下可用。
+    /// 结果写日志后退出进程（仅测试用，正常启动不进入）。
+    /// </summary>
+    private static void RunWhiteboardSelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            sb.AppendLine("[SELFTEST] 白板渲染链路自检开始");
+
+            // 1. 文档逻辑：增 / 撤销 / 重做 / 擦除
+            var doc = new Helpers.InkDocument();
+            var s1 = new Helpers.InkStroke { Color = Colors.Red, Thickness = 3, Tool = Helpers.InkTool.Pen };
+            s1.Points.Add(new global::Avalonia.Point(10, 10));
+            s1.Points.Add(new global::Avalonia.Point(60, 40));
+            s1.Points.Add(new global::Avalonia.Point(120, 20));
+            doc.Add(s1);
+            sb.AppendLine($"[SELFTEST] 笔画数={doc.Strokes.Count} canUndo={doc.CanUndo}");
+            sb.AppendLine($"[SELFTEST] undo={doc.Undo()} → {doc.Strokes.Count} canRedo={doc.CanRedo}");
+            sb.AppendLine($"[SELFTEST] redo={doc.Redo()} → {doc.Strokes.Count}");
+
+            // 2. 几何构建（真实平台；控制台自检跑到这里会抛 IPlatformRenderInterface 未定位）
+            var geo = Helpers.InkGeometry.BuildGeometry(s1, Helpers.IdentityInkSurface.Instance);
+            sb.AppendLine($"[SELFTEST] 几何构建 OK bounds={geo.Bounds}");
+
+            // 3. 全部背景样式渲染
+            foreach (Helpers.BoardBackground bg in Enum.GetValues<Helpers.BoardBackground>())
+            {
+                using var bmp = Helpers.BoardRenderer.RenderPage(bg, doc.Strokes, 800, 600, 1.0);
+                if (bmp.PixelSize.Width <= 0) throw new Exception($"背景 {bg} 渲染尺寸为 0");
+                sb.AppendLine($"[SELFTEST] 背景 {bg} 渲染 OK {bmp.PixelSize.Width}x{bmp.PixelSize.Height}");
+            }
+
+            // 4. 真实窗口实例化（会触发 InkCanvas 构造 + 背景层）
+            var win = new Views.WhiteboardWindow();
+            sb.AppendLine("[SELFTEST] WhiteboardWindow 实例化 OK（未 Show，避免干扰桌面）");
+            win.Close();
+
+            sb.AppendLine("[SELFTEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[SELFTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
     }
 
     private void EnterExamMode()
@@ -261,6 +373,12 @@ public partial class App : Application
             var examItem = new NativeMenuItem("进入考试模式");
             examItem.Click += (_, _) => EnterExamMode();
 
+            var boardItem = new NativeMenuItem("打开白板（板书）");
+            boardItem.Click += (_, _) => OpenWhiteboardGlobal();
+
+            var annotItem = new NativeMenuItem("屏幕批注（Ctrl+Alt+D）");
+            annotItem.Click += (_, _) => ToggleScreenAnnotationGlobal();
+
             var settingsItem = new NativeMenuItem("打开设置");
             settingsItem.Click += (_, _) => OpenSettingsGlobal();
 
@@ -270,6 +388,8 @@ public partial class App : Application
             var menu = new NativeMenu();
             menu.Add(showItem);
             menu.Add(examItem);
+            menu.Add(boardItem);
+            menu.Add(annotItem);
             menu.Add(settingsItem);
             menu.Add(new NativeMenuItemSeparator());
             menu.Add(exitItem);

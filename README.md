@@ -1,7 +1,7 @@
 ﻿# 学程
 
-> 🎓 高考倒计时桌面伴侣 — 倒计时 · 课表 · 考试 · 天气 · 提醒 · 远程管理 · 自动化任务
-> 基于 Avalonia + FluentAvalonia 构建，WinUI 3 风格界面 ｜ 当前版本：**v2.8.1**
+> 🎓 高考倒计时桌面伴侣 — 倒计时 · 课表 · 考试 · 天气 · 提醒 · 远程管理 · 自动化任务 · 白板 · 屏幕批注
+> 基于 Avalonia + FluentAvalonia 构建，WinUI 3 风格界面 ｜ 当前版本：**v2.9.0**
 >
 > 📦 框架迁移已完成（WPF → Avalonia）；**旧 WPF 版已确认淘汰（2026-09-05），不再维护**，源码归档于 `LegacyWPF/`（本地保留、不入库）
 > 🔐 老师账号密码采用 **PBKDF2 哈希存储**（v2.7.0 起），settings.json 不再保存明文密码
@@ -69,11 +69,21 @@
 - 📋 **操作日志** — 登录/改课表/上传全记录（按老师显示名），管理员可查
 - 🏫 **班级信息** — 班级名 / 老师名网页端与设置页均可改
 - 🔐 **安全** — Token 持久化登录、**登录限速**（同 IP 错 5 次锁 2 分钟）、**PBKDF2 密码哈希**（v2.7.0，旧明文登录后自动迁移）、账号名不外泄、IP 白名单可选开关
-- ⌨️ **全局快捷键** — Ctrl+Shift+H 显隐主窗 / Ctrl+Shift+E 考试模式
+- ⌨️ **全局快捷键** — Ctrl+Shift+H 显隐主窗 / Ctrl+Shift+E 考试模式 / **Ctrl+Shift+W 白板** / **Ctrl+Alt+D 屏幕批注**
 - 🎯 **始终置顶** — 可选始终置顶或正常窗口层级
 - 🚀 **自动更新** — GitHub Release 检查，自包含/框架依赖版自动匹配下载
 - 🔒 **单实例** — 重复启动时激活已有窗口（按进程名校验，不误激活同名窗口）
 - 💾 **配置持久化** — JSON 文件存储（settings.json / schedule.json / automations.json），重启不丢失；支持一键备份/恢复
+
+### 🖊 白板与屏幕批注（v2.9.0 新增）
+- 📝 **白板** — 独立板书画布，画笔 / 荧光笔 / 橡皮 / 激光笔，7 色板 + 4 档粗细，**多页**切换，**5 种背景**（白板 / 网格 / 横线 / 点阵 / 黑板）
+- ↩️ **笔迹级撤销重做** — Ctrl+Z / Ctrl+Y（撤销栈 200 步）
+- 🖼 **导出 PNG** — 2× 超采样导出当前页，可存档或发学生
+- 🎯 **屏幕批注** — 全屏透明覆盖层，可在任意应用（PDF / PPT / 网页）之上直接圈画
+- 🖱 **穿透模式** — 批注时捕获指针、一键切穿透让下层应用继续操作
+- 📸 **截屏保存** — 抓取屏幕并与墨迹合成，一键另存 PNG（零第三方依赖）
+- 🖐 **触屏友好** — 触控笔/鼠标书写，手指滑动仍留给滚动；工具栏按钮 44px 触屏热区
+- ⌨️ **快捷键** — Ctrl+Shift+W 打开白板 / Ctrl+Alt+D 开关屏幕批注（托盘与右键菜单同入口）
 
 ---
 
@@ -141,10 +151,11 @@ StudyJourney.Avalonia/
 │   ├── AppSettings.cs              # 应用设置（JSON 持久化；含 TeacherAccount 与选科）
 │   ├── ScheduleEntry.cs            # 课表/考试条目/时段模板/课程表网格行
 │   ├── ScheduleManager.cs          # 课表与考试数据管理（加载/保存/查询/导入）
-│   └── AutomationRule.cs           # 自动化规则（触发/动作拼块枚举 + automations.json 存储）
+│   ├── AutomationRule.cs           # 自动化规则（触发/动作拼块枚举 + automations.json 存储）
+│   └── OpenState.cs                # 打开类动作运行期状态（open-state.json：顺序记忆/已打开进程/待打开）
 │
 ├── Services/                       # 服务层（业务逻辑）
-│   ├── ReminderService.cs          # 提醒调度服务（上课/下课/考试/60 秒倒计时）
+│   ├── ReminderService.cs          # 提醒调度服务（上课/下课/考试/课间语义）
 │   ├── AutomationService.cs        # 自动化任务调度（触发判定/动作执行/闲置与熄屏 P/Invoke）
 │   ├── HttpServerService.cs        # 远程管理 Minimal API（内嵌教师端 Web 控制台）
 │   ├── WeatherService.cs           # 天气服务（HTTP + JSON 解析）
@@ -155,13 +166,21 @@ StudyJourney.Avalonia/
 │   ├── FileAtomic.cs               # 原子写文件（settings/schedule/tokens/automations）
 │   ├── PasswordHasher.cs           # 密码哈希（PBKDF2-SHA256，登录凭据存储）
 │   ├── ColorUtils.cs               # 颜色解析/天气表情符号
-│   └── GlobalHotKeyManager.cs      # 全局快捷键（Win32 RegisterHotKey）
+│   ├── GlobalHotKeyManager.cs      # 全局快捷键（Win32 RegisterHotKey）
+│   ├── WindowEnumerator.cs         # 顶层窗口标题枚举（顺序记忆/连堂幂等）
+│   ├── FileSequence.cs             # 文件名自然序号解析（01/unit1/第1讲）
+│   ├── InkLayer.cs                 # 墨迹模型层（InkStroke/InkDocument/IInkSurface/InkGeometry）
+│   ├── InkCanvas.cs                # 墨迹绘制控件（指针分流/采样过滤/激光笔/分层重绘）
+│   └── BoardRenderer.cs            # 白板背景绘制 + 离屏 PNG 导出
 │
 ├── Views/                          # 窗口与页面（UI 层）
 │   ├── MainWindow.axaml(.cs)       # 主窗口（灵动岛：时间/课表/天气/倒计时/一言，含上课收缩）
 │   ├── ExamModeWindow.axaml(.cs)   # 考试全屏倒计时
 │   ├── SettingsWindow.axaml(.cs)   # 设置窗口（FAAppWindow + NavigationView 8 页）
 │   ├── ScheduleEditorWindow.axaml(.cs) # 课表/考试编辑（DataGrid + 周视图调课）
+│   ├── WhiteboardWindow.cs         # 白板（多页/5 背景/导出 PNG）
+│   ├── ScreenAnnotationWindow.cs   # 屏幕批注全屏透明覆盖层（穿透/截屏）
+│   ├── ScreenOffPromptWindow.cs    # 熄屏前可取消倒计时提示
 │   ├── ColorPickerDialog.axaml(.cs)# 颜色选择对话框
 │   └── Settings/                   # 8 个设置页
 │       ├── CountdownPage.axaml(.cs)  # 倒计时
@@ -189,7 +208,7 @@ StudyJourney.Avalonia/
 | 📋 课表 | 提醒开关（预备铃/上课/课间/下课等）、提示音、提醒方式（胶囊弹窗 / Windows 通知）、课表编辑入口 |
 | 📝 考试 | 考试模式开关、自动进入、字号、颜色、字体 |
 | 🌐 服务器 | 远程服务开关/自启、课件存放位置（预设+自定义）、班级信息、老师账号（密码加密存储）、可选科目、操作日志 |
-| 🧩 自动化 | 总开关、规则列表（增删/启停）、拼图式编辑器（触发块 + 动作块 + 实时预览） |
+| 🧩 自动化 | 总开关、规则列表（增删/启停）、拼图式编辑器（触发块 + 动作块 + 实时预览 + 智能打开选项） |
 | ℹ 关于 | 版本信息、检查更新、GitHub 仓库 |
 
 ---

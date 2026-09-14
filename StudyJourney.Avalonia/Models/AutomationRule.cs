@@ -8,27 +8,32 @@ namespace StudyJourney.Avalonia.Models
 {
     // ── 自动化任务：拼图式规则（触发拼块 + 动作拼块）────────────────
 
-    /// <summary>触发拼块类型</summary>
+    /// <summary>触发拼块类型。
+    /// ⚠ 同样以整数落盘 automations.json，只能末尾追加，不能重排。</summary>
     public enum AutomationTriggerKind
     {
-        FixedTime,       // 固定时间（每天/指定星期）
-        BeforeClassStart,// 上课前 N 分钟（可选科目；空=每一节普通课）
-        AtClassEnd,      // 下课时（可选科目；空=每节课）
-        AtDayEnd,        // 放学时（当天最后一节下课）
-        Idle,            // 闲置 N 分钟无操作
-        AppStarted,      // 软件启动后 N 分钟（本次运行一次）
+        FixedTime,        // 0 固定时间（每天/指定星期）
+        BeforeClassStart, // 1 上课前 N 分钟（可选科目；空=每一节普通课）
+        AtClassEnd,       // 2 下课时（可选科目；空=每节课）
+        AtDayEnd,         // 3 放学时（当天最后一节下课）
+        Idle,             // 4 闲置 N 分钟无操作
+        AppStarted,       // 5 软件启动后 N 分钟（本次运行一次）
+        AtMorningDayEnd,  // 6 上午放学（上午最后一节下课，后接长间隔；2.8，追加于末尾）
     }
 
-    /// <summary>动作拼块类型</summary>
+    /// <summary>动作拼块类型。
+    /// ⚠ 枚举以整数落盘 automations.json，**只能往末尾追加新值，不能重排/删除**，
+    /// 否则老配置文件的动作会被解析成别的类型（2.5.7 追加 CloseApp 时的硬约束）。</summary>
     public enum AutomationActionKind
     {
-        OpenFile,        // 打开文件（系统默认程序）
-        OpenCourseware,  // 打开「上传目录\课件\<科目>」最新课件（科目取触发里的当堂科目）
-        PlayAudio,       // 播放音频（默认播放器）
-        ScreenOff,       // 熄屏（只关显示器，不动系统；触屏/鼠标即唤醒）
-        Shutdown,        // 关机（倒计时可取消：shutdown /a）
-        Restart,         // 重启
-        ShowMessage,     // 弹出提醒
+        OpenFile,        // 0 打开文件（系统默认程序）
+        OpenCourseware,  // 1 打开「上传目录\课件\<科目>」里的课件（按顺序记忆，见 AutomationRule.RememberLast）
+        PlayAudio,       // 2 播放音频（默认播放器）
+        ScreenOff,       // 3 熄屏（只关显示器，不动系统；触屏/鼠标即唤醒）
+        Shutdown,        // 4 关机（倒计时可取消：shutdown /a）
+        Restart,         // 5 重启
+        ShowMessage,     // 6 弹出提醒
+        CloseApp,        // 7 关闭软件（按进程名结束；2.5.7，追加于末尾）
     }
 
     /// <summary>
@@ -59,6 +64,16 @@ namespace StudyJourney.Avalonia.Models
         public int ActionDelaySeconds { get; set; } = 60;
         /// <summary>ShowMessage 提醒内容（空=用规则名）</summary>
         public string ActionMessage { get; set; } = "";
+        /// <summary>CloseApp 要关闭的进程名（如 POWERPNT.exe / wps.exe）。不带 .exe 也可，执行时自动补</summary>
+        public string CloseTarget { get; set; } = "";
+
+        // ── 打开类动作的智能行为（2.5.8 / 2.5.9）──────────────
+        /// <summary>顺序记忆：自动打开"上次用到的文件"，老师手动打开别的文件即跟随推进（默认开）</summary>
+        public bool RememberLast { get; set; } = true;
+        /// <summary>纯自动顺次：每次触发自动指向序列下一份（听力场景；默认关 = 由老师手动推进）</summary>
+        public bool AutoAdvance { get; set; } = false;
+        /// <summary>目标已打开时：true = 激活到前台，false = 直接跳过（连堂防重复打开，默认跳过）</summary>
+        public bool ActivateIfOpen { get; set; } = false;
 
         // ── 人类可读摘要（列表/日志用）──────────────────
         public string TriggerText => DescribeTrigger();
@@ -93,6 +108,8 @@ namespace StudyJourney.Avalonia.Models
                            (TriggerMinutes > 0 ? $"下课后 {TriggerMinutes} 分钟" : "下课时");
                 case AutomationTriggerKind.AtDayEnd:
                     return "放学时（当天最后一节下课）";
+                case AutomationTriggerKind.AtMorningDayEnd:
+                    return "上午放学时（上午最后一节下课）";
                 case AutomationTriggerKind.Idle:
                     return $"闲置 {Math.Max(TriggerMinutes, 0)} 分钟无操作";
                 case AutomationTriggerKind.AppStarted:
@@ -107,11 +124,13 @@ namespace StudyJourney.Avalonia.Models
             switch (ActionKind)
             {
                 case AutomationActionKind.OpenFile:
-                    return string.IsNullOrWhiteSpace(ActionPath) ? "打开文件（未选文件）" : $"打开文件 {Path.GetFileName(ActionPath)}";
+                    if (string.IsNullOrWhiteSpace(ActionPath)) return "打开文件（未选文件）";
+                    return $"打开文件 {Path.GetFileName(ActionPath)}{MemoryHint()}";
                 case AutomationActionKind.OpenCourseware:
-                    return "打开课件目录最新文件";
+                    return "打开当堂科目课件" + (AutoAdvance ? "（自动顺次下一份）" : RememberLast ? "（续用上次那份）" : "（编号第一份）");
                 case AutomationActionKind.PlayAudio:
-                    return string.IsNullOrWhiteSpace(ActionPath) ? "播放音频（未选文件）" : $"播放音频 {Path.GetFileName(ActionPath)}";
+                    if (string.IsNullOrWhiteSpace(ActionPath)) return "播放音频（未选文件）";
+                    return $"播放音频 {Path.GetFileName(ActionPath)}{MemoryHint()}";
                 case AutomationActionKind.ScreenOff:
                     return "关闭屏幕（熄屏）";
                 case AutomationActionKind.Shutdown:
@@ -120,10 +139,16 @@ namespace StudyJourney.Avalonia.Models
                     return $"重启（{Math.Max(ActionDelaySeconds, 30)} 秒倒计时）";
                 case AutomationActionKind.ShowMessage:
                     return "弹出提醒：" + (string.IsNullOrWhiteSpace(ActionMessage) ? Name : ActionMessage);
+                case AutomationActionKind.CloseApp:
+                    return string.IsNullOrWhiteSpace(CloseTarget) ? "关闭软件（未选目标）" : $"关闭软件 {CloseTarget}";
                 default:
                     return "";
             }
         }
+
+        /// <summary>打开类动作的统一记忆提示（顺序记忆开着时的轻标记）</summary>
+        private string MemoryHint()
+            => !RememberLast ? "" : AutoAdvance ? "（自动顺次下一份）" : "（续用上次那份）";
     }
 
     /// <summary>自动化任务容器：全局总开关 + 规则列表，独立存 automations.json（不混入 settings.json，

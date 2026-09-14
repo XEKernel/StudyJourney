@@ -578,6 +578,135 @@ public static class HttpServerService
                 }
             });
 
+            // ── 下节课打开什么：GET /api/open-targets（2.5.9B，需有效 Token）──
+            // 返回：可选课件（按科目分组，带完整路径）+ 常用软件 + 当前已有指定
+            app.MapGet("/api/open-targets", () =>
+            {
+                var subjects = new List<object>();
+                try
+                {
+                    var root = Path.Combine(UploadRootPath, "课件");
+                    if (Directory.Exists(root))
+                    {
+                        foreach (var dir in Directory.GetDirectories(root).OrderBy(d => d, StringComparer.Ordinal))
+                        {
+                            var files = Helpers.FileSequence.ListCandidates(dir)
+                                .Select(f => new { name = Path.GetFileName(f), path = f })
+                                .ToList();
+                            if (files.Count > 0)
+                                subjects.Add(new { subject = Path.GetFileName(dir), files });
+                        }
+                    }
+                    // 回退：若还没建科目子文件夹，把上传目录根下的文件列成「未分科目」，
+                    // 保证老师一进来就能选（上传默认落在根目录，科目分组是 2.5.5 的约定）
+                    if (subjects.Count == 0)
+                    {
+                        var loose = Helpers.FileSequence.ListCandidates(UploadRootPath)
+                            .Select(f => new { name = Path.GetFileName(f), path = f })
+                            .ToList();
+                        if (loose.Count > 0) subjects.Add(new { subject = "（未分科目）", files = loose });
+                    }
+                }
+                catch (Exception ex) { Helpers.AppLogger.Warn($"枚举课件目录失败: {ex.Message}"); }
+
+                // 常用软件 = 老师以前指定/打开过的 + 当前正在运行且有路径的
+                var apps = new List<object>();
+                var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var a in OpenStateStore.GetKnownApps())
+                {
+                    if (string.IsNullOrWhiteSpace(a.Path) || !seenPaths.Add(a.Path)) continue;
+                    apps.Add(new { name = a.Name, path = a.Path });
+                }
+                try
+                {
+                    foreach (var (exe, _, full) in Helpers.WindowEnumerator.RunningApps())
+                    {
+                        if (string.IsNullOrWhiteSpace(full) || !seenPaths.Add(full)) continue;
+                        apps.Add(new { name = Path.GetFileNameWithoutExtension(exe) + "（正在运行）", path = full });
+                    }
+                }
+                catch { /* 枚举失败不影响其它字段 */ }
+
+                var pending = OpenStateStore.GetPending();
+                return Results.Json(new
+                {
+                    ok = true,
+                    coursewareRoot = Path.Combine(UploadRootPath, "课件"),
+                    subjects,
+                    apps,
+                    pending = pending == null ? null : new
+                    {
+                        kind = pending.Kind,
+                        path = pending.Path,
+                        subject = pending.Subject,
+                        note = pending.Note,
+                        setBy = pending.SetBy,
+                        setAt = pending.SetAt,
+                    },
+                });
+            });
+
+            // ── 指定下节课打开的内容：POST /api/pending-open（2.5.9B）──
+            // body: { "kind": "file"|"app", "path": "...", "subject": "语文", "note": "..." }
+            // 一次性消费：自动打开动作命中后自动清除，可随时 DELETE 撤回
+            app.MapPost("/api/pending-open", async (HttpRequest request) =>
+            {
+                PendingOpenRequest? req = null;
+                try { req = await request.ReadFromJsonAsync<PendingOpenRequest>(); }
+                catch { /* 非法 JSON 走空值校验 */ }
+
+                var path = req?.Path?.Trim() ?? "";
+                var kind = string.Equals(req?.Kind, "app", StringComparison.OrdinalIgnoreCase) ? "app" : "file";
+                if (path.Length == 0)
+                    return Results.Json(new { success = false, message = "请先选择要打开的文件或软件" },
+                        statusCode: StatusCodes.Status400BadRequest);
+
+                if (kind == "app")
+                {
+                    var resolved = ResolveAppPath(path);
+                    if (resolved == null)
+                        return Results.Json(new { success = false, message = $"找不到这个软件：{path}\n请填完整路径（.exe）" },
+                            statusCode: StatusCodes.Status400BadRequest);
+                    path = resolved;
+                    OpenStateStore.AddKnownApp(path, Path.GetFileNameWithoutExtension(path));
+                }
+                else if (!File.Exists(path))
+                {
+                    return Results.Json(new { success = false, message = $"文件不存在：{path}" },
+                        statusCode: StatusCodes.Status400BadRequest);
+                }
+                else if (IsExecutablePath(path))
+                {
+                    // L5 加固：kind=file 不允许指向可执行文件 —— 否则教师端可把任意 .exe/.bat/.ps1
+                    // 当作"课件"打开（Process.Start(UseShellExecute) 会直接执行）。要启动软件请显式用 kind=app。
+                    return Results.Json(new { success = false, message = "这个文件是可执行程序，请改用「启动软件」指定。" },
+                        statusCode: StatusCodes.Status400BadRequest);
+                }
+
+                var pending = new PendingOpen
+                {
+                    Kind = kind,
+                    Path = path,
+                    Subject = req?.Subject?.Trim() ?? "",
+                    Note = req?.Note?.Trim() ?? "",
+                    SetBy = GetCurrentDisplayName(request),
+                    SetAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                };
+                OpenStateStore.SetPending(pending);
+
+                Logger.Log($"[{pending.SetBy}] 指定下节课打开{(kind == "app" ? "软件" : "文件")} {Path.GetFileName(path)}");
+                Helpers.AppLogger.Info($"教师端指定下节课打开：{path}");
+                return Results.Json(new { success = true, message = $"已指定，下次自动打开时优先用它（只用一次）" });
+            });
+
+            // ── 撤回指定：DELETE /api/pending-open（2.5.9B）──
+            app.MapDelete("/api/pending-open", (HttpRequest request) =>
+            {
+                OpenStateStore.ClearPending();
+                Logger.Log($"[{GetCurrentDisplayName(request)}] 撤回了下节课打开指定");
+                return Results.Json(new { success = true, message = "已撤回指定" });
+            });
+
             // ── 班级信息：GET /api/config（需有效 Token）──
             // 返回班级名称 / 当前登录老师显示名 / 登录账号 / 可选科目，供页面顶部与状态页显示
             app.MapGet("/api/config", (HttpRequest request) => Results.Json(new
@@ -995,6 +1124,49 @@ public static class HttpServerService
         public string? TeacherName { get; set; }
     }
 
+    /// <summary>POST /api/pending-open 请求体：指定下节课打开的文件或软件（2.5.9B）</summary>
+    private sealed class PendingOpenRequest
+    {
+        /// <summary>"file" = 打开文件（课件）/ "app" = 启动软件</summary>
+        public string? Kind { get; set; }
+        public string? Path { get; set; }
+        /// <summary>限定科目（可空 = 不限）</summary>
+        public string? Subject { get; set; }
+        public string? Note { get; set; }
+    }
+
+    /// <summary>把"进程名/相对名"解析成可执行文件完整路径（优先已在运行的进程，其次原样判断文件是否存在）</summary>
+    private static string? ResolveAppPath(string input)
+    {
+        try
+        {
+            if (File.Exists(input)) return input;
+            var name = Path.GetFileNameWithoutExtension(input);
+            if (string.IsNullOrWhiteSpace(name)) return null;
+            foreach (var (exe, _, full) in Helpers.WindowEnumerator.RunningApps())
+            {
+                if (string.IsNullOrWhiteSpace(full)) continue;
+                if (string.Equals(Path.GetFileNameWithoutExtension(exe), name, StringComparison.OrdinalIgnoreCase))
+                    return full;
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    /// <summary>L5：可执行/脚本类后缀 —— 教师端「打开文件」不接受这些，必须走「启动软件」</summary>
+    private static readonly HashSet<string> ExecutableExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".exe", ".com", ".bat", ".cmd", ".msi", ".ps1", ".vbs", ".vbe", ".js", ".jse",
+        ".wsf", ".wsh", ".scr", ".pif", ".lnk", ".reg", ".hta", ".cpl", ".jar",
+    };
+
+    private static bool IsExecutablePath(string path)
+    {
+        try { return ExecutableExtensions.Contains(Path.GetExtension(path)); }
+        catch { return false; }
+    }
+
     // ── 静态文件 / 本机 IP / 端口 ──────────────────────────
     /// <summary>确保 Uploads 目录存在，并放一个 .placeholder（防止空目录被 git 忽略）</summary>
     private static void EnsureUploads()
@@ -1130,6 +1302,7 @@ public static class HttpServerService
                       <div class="tab" data-tab="t2">📎 课件投递</div>
                       <div class="tab" data-tab="t3">📊 班级状态</div>
                       <div class="tab" data-tab="t4">📋 操作日志</div>
+                      <div class="tab" data-tab="t5">📌 下节课打开</div>
                     </nav>
 
                     <div class="glass pane on" id="t1">
@@ -1192,6 +1365,29 @@ public static class HttpServerService
                         <button class="btn ghost" id="refreshLogsBtn">刷新</button>
                       </div>
                       <div class="logbox" id="logBox"><div class="hint">（暂无操作记录）</div></div>
+                    </div>
+
+                    <div class="glass pane" id="t5">
+                      <div class="hint" style="margin-top:0">指定下节课自动打开的内容。不指定时，学程会按「上次用过的那份课件」自动打开；指定后只用这一次，可随时撤回。</div>
+
+                      <div class="row" style="margin-top:16px"><div class="hint">① 打开课件文件</div></div>
+                      <div class="row">
+                        <select id="poSubject" style="flex:1;min-width:140px;padding:9px;background:#1a1a1a;color:var(--text);border:1px solid #444;font-size:14px"></select>
+                        <select id="poFile" style="flex:2;min-width:220px;padding:9px;background:#1a1a1a;color:var(--text);border:1px solid #444;font-size:14px"></select>
+                        <button class="btn" id="poFileBtn">📌 指定这个文件</button>
+                      </div>
+
+                      <div class="row" style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px"><div class="hint">② 启动软件</div></div>
+                      <div class="row">
+                        <select id="poApp" style="flex:1;min-width:200px;padding:9px;background:#1a1a1a;color:var(--text);border:1px solid #444;font-size:14px"></select>
+                        <input type="text" id="poAppPath" placeholder="或手填完整路径，如 C:\Program Files\...\xxx.exe" style="flex:2;min-width:220px;padding:9px;background:#1a1a1a;color:var(--text);border:1px solid #444;font-size:14px">
+                        <button class="btn" id="poAppBtn">📌 指定这个软件</button>
+                      </div>
+
+                      <div class="row" style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;justify-content:space-between">
+                        <div class="hint" id="poCurrent">当前指定：无</div>
+                        <button class="btn ghost" id="poClearBtn">撤回指定</button>
+                      </div>
                     </div>
                   </div>
 
@@ -1502,6 +1698,56 @@ public static class HttpServerService
                 /* ── 初始化 ── */
                 loadTeachers();   // 未登录也能拉取老师账号下拉
                 if(token){showApp();loadAll();startStatusPolling();}
+                /* ── 下节课打开（2.5.9B）：指定文件 / 软件，未指定则按顺序记忆自动打开 ── */
+                let poData=null;
+                async function loadOpenTargets(){
+                  try{
+                    const j=await api('/open-targets');
+                    if(!j.ok)return;
+                    poData=j;
+                    const ss=$('poSubject');ss.innerHTML='';
+                    const subs=j.subjects||[];
+                    if(!subs.length){const o=document.createElement('option');o.value='';o.textContent='（课件目录为空）';ss.appendChild(o);}
+                    subs.forEach(x=>{const o=document.createElement('option');o.value=x.subject;o.textContent=x.subject;ss.appendChild(o);});
+                    renderPoFiles();
+                    const as=$('poApp');as.innerHTML='';
+                    const o0=document.createElement('option');o0.value='';o0.textContent='（选择用过的软件）';as.appendChild(o0);
+                    (j.apps||[]).forEach(a=>{const o=document.createElement('option');o.value=a.path;o.textContent=a.name;as.appendChild(o);});
+                    renderPoCurrent();
+                  }catch(e){toast(e.message,'err');}
+                }
+                function renderPoFiles(){
+                  if(!poData)return;
+                  const subj=$('poSubject').value;
+                  const hit=(poData.subjects||[]).find(x=>x.subject===subj);
+                  const fs=$('poFile');fs.innerHTML='';
+                  const files=hit?hit.files:[];
+                  if(!files.length){const o=document.createElement('option');o.value='';o.textContent='（该科目暂无课件）';fs.appendChild(o);return;}
+                  files.forEach(f=>{const o=document.createElement('option');o.value=f.path;o.textContent=f.name;fs.appendChild(o);});
+                }
+                function renderPoCurrent(){
+                  const p=poData&&poData.pending;
+                  $('poCurrent').textContent = p
+                    ? ('当前指定：'+(p.kind==='app'?'【软件】':'【文件】')+p.path+(p.subject?('（'+p.subject+'）'):'')+'  · '+(p.setBy||'')+' '+(p.setAt||''))
+                    : '当前指定：无（将按上次用过的那份课件自动打开）';
+                }
+                async function poSpecify(kind,path,subject){
+                  if(!path){toast('请先选择要打开的内容','err');return;}
+                  try{
+                    const j=await api('/pending-open',{method:'POST',json:{kind:kind,path:path,subject:subject||''}});
+                    toast(j.message||'已指定',j.success?'ok':'err');
+                    if(j.success)loadOpenTargets();
+                  }catch(e){toast(e.message,'err');}
+                }
+                $('poSubject').onchange=renderPoFiles;
+                $('poApp').onchange=()=>{const v=$('poApp').value;if(v)$('poAppPath').value=v;};
+                $('poFileBtn').onclick=()=>poSpecify('file',$('poFile').value,$('poSubject').value);
+                $('poAppBtn').onclick=()=>poSpecify('app',($('poAppPath').value||'').trim()||$('poApp').value,'');
+                $('poClearBtn').onclick=async()=>{
+                  try{const j=await api('/pending-open',{method:'DELETE'});toast(j.message||'已撤回');loadOpenTargets();}
+                  catch(e){toast(e.message,'err');}
+                };
+
                 document.querySelectorAll('.tab').forEach(t=>{
                   t.onclick=()=>{
                     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
@@ -1511,6 +1757,7 @@ public static class HttpServerService
                     if(t.dataset.tab==='t2')loadDirSettings();
                     if(t.dataset.tab==='t3')loadStatus();
                     if(t.dataset.tab==='t4')loadLogs();
+                    if(t.dataset.tab==='t5')loadOpenTargets();
                   };
                 });
                 </script>

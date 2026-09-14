@@ -33,6 +33,7 @@ public enum ReminderType
     ReadingStart,        // 晚读开始
     ReadingEnd,          // 晚读结束
     ExamEndSoon,         // 考试还有 15 分钟结束
+    MorningDayEnd,       // 2.8：中午放学（上午最后一节下课，后接长间隔）
 }
 
 /// <summary>
@@ -104,12 +105,53 @@ public class ReminderService : IDisposable
             CheckExamReminders(now);
     }
 
+    /// <summary>相邻两节之间的间隔类型（2.8 课间语义）</summary>
+    private enum GapKind
+    {
+        Normal,       // 普通课间（1 ~ 60 分钟）
+        Consecutive,  // 连堂：几乎没有课间（≤1 分钟，两节其实是一节大课）
+        Dismissal,    // 放学级：长间隔（≥60 分钟，如中午放学 / 傍晚放学）
+    }
+
+    private static readonly TimeSpan ConsecutiveGapMax = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan DismissalGapMin = TimeSpan.FromMinutes(60);
+
+    /// <summary>「上午放学」的时间上界：结束时间早于此视为中午放学（而不是傍晚的长间隔）</summary>
+    private static readonly TimeSpan NoonCutoff = TimeSpan.FromHours(13);
+
+    /// <summary>判定 current → next 的间隔类型；任一为空或时间异常（跨天课）→ Normal（不压制）。
+    /// 注：current/next 都可为 null（首节无前、末节无后），调用方无需预先判空。</summary>
+    private static GapKind ClassifyGap(ScheduleEntry? current, ScheduleEntry? next, DateTime date)
+    {
+        // 首节没有上一节、末节没有下一节 —— 都不是"间隔"概念，按普通处理（不压制任何提醒）
+        if (current == null || next == null) return GapKind.Normal;
+        try
+        {
+            var gap = next.GetStartDateTime(date) - current.GetEndDateTimeActual(date);
+            if (gap < TimeSpan.Zero) return GapKind.Normal;   // 跨天课/时间异常 → 不压制
+            if (gap <= ConsecutiveGapMax) return GapKind.Consecutive;
+            if (gap >= DismissalGapMin) return GapKind.Dismissal;
+        }
+        catch { /* 时间串非法等异常 → 按普通课间处理 */ }
+        return GapKind.Normal;
+    }
+
     private void CheckClassReminders(ScheduleEntry entry, DateTime now, List<ScheduleEntry> allEntries)
     {
         var startDt = entry.GetStartDateTime(now.Date);
         // 跨天课（EndTime < StartTime）的真实结束时刻在次日，否则下课/放学提醒永不触发
         var endDt = entry.GetEndDateTimeActual(now.Date);
         string prefix = $"{now:yyyyMMdd}_{entry.DayOfWeek}_{entry.Period}";
+
+        // 2.8：课间语义 —— 找出前后相邻课，判定连堂与"放学级"长间隔
+        int idx = allEntries.IndexOf(entry);
+        var prev = idx > 0 ? allEntries[idx - 1] : null;
+        var next = idx >= 0 && idx + 1 < allEntries.Count ? allEntries[idx + 1] : null;
+        // 本节的「快上课了」是否压掉：与上一节几乎无课间（连堂）或隔了一个放学级长间隔（中午/傍晚）
+        // —— 这两种情况下提示"5 分钟后 XX 开始"都是噪音
+        var gapFromPrev = ClassifyGap(prev, entry, now.Date);
+        bool suppressNextClassSoon = gapFromPrev is GapKind.Consecutive or GapKind.Dismissal;
+        var gapKindToNext = ClassifyGap(entry, next, now.Date);
 
         if (App.Settings.RemindClassStart)
             TryFire($"{prefix}_start", now, startDt, TimeSpan.Zero,
@@ -135,7 +177,7 @@ public class ReminderService : IDisposable
             TryFire($"{prefix}_end", now, endDt, TimeSpan.Zero,
                 ReminderType.ClassEnd, "下课", $"{entry.Subject} 下课了");
 
-        if (App.Settings.RemindNextClassSoon)
+        if (App.Settings.RemindNextClassSoon && !suppressNextClassSoon)
             TryFire($"{prefix}_nextclass", now, startDt, TimeSpan.FromMinutes(-5),
                 ReminderType.NextClassSoon, "快上课了", $"5 分钟后 {entry.Subject} 开始");
 
@@ -143,8 +185,18 @@ public class ReminderService : IDisposable
         {
             var lastEntry = allEntries[allEntries.Count - 1];
             if (entry == lastEntry)
+            {
                 TryFire($"{prefix}_dayend", now, endDt, TimeSpan.Zero,
                     ReminderType.DayEnd, "放学", "今天的课程全部结束");
+            }
+            else if (gapKindToNext == GapKind.Dismissal && endDt.TimeOfDay < NoonCutoff)
+            {
+                // 2.8：上午最后一节下课也是一次放学（中午回家）。只认"结束时间在 13:00 之前"的长间隔，
+                // 避免傍晚的长间隔（如 17:05 下课 → 19:00 晚自习）被误报成"放学" ——
+                // 傍晚那一段只压掉「快上课了」（见上方 suppressNextClassSoon），不额外插放学提醒。
+                TryFire($"{prefix}_noonend", now, endDt, TimeSpan.Zero,
+                    ReminderType.MorningDayEnd, "上午放学", "上午课程结束，午间休息");
+            }
         }
 
         if (entry.Type == PeriodType.Morning && App.Settings.RemindSpecialPeriod)

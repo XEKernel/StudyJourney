@@ -161,6 +161,16 @@
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
+
+                                <!-- 上午放学（2.8）-->
+                                <StackPanel x:Name="MorningDayEndPanel" Spacing="4">
+                                    <TextBlock Text="上午最后一节下课时触发（中午放学）。"
+                                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Text="与「放学时」区分：那个只管当天最后一节，所以中午不会误触发放学关机。"
+                                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
@@ -239,6 +249,39 @@
                                     <TextBox x:Name="MsgBox" FontSize="12"
                                              PlaceholderText="留空则显示规则名称"
                                              TextChanged="MsgBox_TextChanged"/>
+                                </StackPanel>
+
+                                <!-- 顺序记忆（打开文件/科目课件/播放音频 共用，2.5.8/2.5.9）-->
+                                <StackPanel x:Name="SequencePanel" Spacing="4">
+                                    <TextBlock Text="智能打开" FontSize="12"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                    <CheckBox x:Name="RememberLastCheck" Content="记住上次那份（自动续用，默认开）"
+                                              IsCheckedChanged="SequenceOption_Toggled"/>
+                                    <CheckBox x:Name="AutoAdvanceCheck" Content="每次自动开下一份（听力连播）"
+                                              Margin="24,0,0,0" IsCheckedChanged="SequenceOption_Toggled"/>
+                                    <CheckBox x:Name="ActivateIfOpenCheck" Content="已打开时切到前台（不勾＝跳过不重复打开）"
+                                              IsCheckedChanged="SequenceOption_Toggled"/>
+                                    <TextBlock Text="老师手动打开目录里哪份，下次就续用哪份；临时换另一套，原序列不丢。"
+                                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- 关闭软件（2.5.7）-->
+                                <StackPanel x:Name="CloseAppPanel" Spacing="6">
+                                    <TextBlock Text="要关闭的软件" FontSize="12"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                    <ComboBox x:Name="CloseAppCombo" FontSize="12"
+                                              SelectionChanged="CloseAppCombo_SelectionChanged"/>
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBox x:Name="CloseTargetBox" FontSize="12"
+                                                 PlaceholderText="进程名，如 POWERPNT.exe"
+                                                 TextChanged="CloseTargetBox_TextChanged"/>
+                                        <Button Grid.Column="1" Content="刷新列表" Margin="6,0,0,0" FontSize="11"
+                                                Padding="10,3" Click="RefreshProcessListBtn_Click"/>
+                                    </Grid>
+                                    <TextBlock Text="关闭时程序会正常提示是否保存，不会强杀、不丢未保存内容。"
+                                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               TextWrapping="Wrap"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
