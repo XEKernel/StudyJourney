@@ -42,7 +42,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
         };
         ActionTypeCombo.ItemsSource = new[]
         {
-            "打开文件", "打开科目课件", "播放音频", "关闭屏幕", "关机", "重启", "弹出提醒", "关闭软件"
+            "打开文件", "打开科目课件", "播放音频", "关闭屏幕", "关机", "重启", "弹出提醒", "关闭软件", "打开白板"
         };
 
         // 默认选中必须在 _ready 置位前（事件处理期间判空直接 return，再由下面手动刷新面板）
@@ -280,7 +280,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
 
         _current.Name = NameBox.Text?.Trim() ?? "";
         _current.TriggerKind = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 6);
-        _current.ActionKind = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 7);
+        _current.ActionKind = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 8);
 
         switch (_current.TriggerKind)
         {
@@ -363,7 +363,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
     private void RefreshPanels()
     {
         var tk = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 6);
-        var ak = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 7);
+        var ak = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 8);
 
         FixedPanel.IsVisible = tk == AutomationTriggerKind.FixedTime;
         SubjectPanel.IsVisible = tk is AutomationTriggerKind.BeforeClassStart or AutomationTriggerKind.AtClassEnd;
@@ -384,6 +384,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
         PowerPanel.IsVisible = ak is AutomationActionKind.Shutdown or AutomationActionKind.Restart;
         MsgPanel.IsVisible = ak == AutomationActionKind.ShowMessage;
         CloseAppPanel.IsVisible = ak == AutomationActionKind.CloseApp;
+        WhiteboardPanel.IsVisible = ak == AutomationActionKind.OpenWhiteboard;
         // 顺序记忆/连堂幂等只对三类"打开"动作有意义
         SequencePanel.IsVisible = ak is AutomationActionKind.OpenFile
                                      or AutomationActionKind.OpenCourseware

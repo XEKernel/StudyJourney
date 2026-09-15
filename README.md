@@ -1,7 +1,7 @@
 ﻿# 学程
 
-> 🎓 高考倒计时桌面伴侣 — 倒计时 · 课表 · 考试 · 天气 · 提醒 · 远程管理 · 自动化任务 · 白板 · 屏幕批注
-> 基于 Avalonia + FluentAvalonia 构建，WinUI 3 风格界面 ｜ 当前版本：**v2.9.1**
+> 🎓 高考倒计时桌面伴侣 — 倒计时 · 课表 · 考试 · 天气 · 提醒 · 远程管理 · 自动化任务 · 白板 · 屏幕批注 · PDF 阅读
+> 基于 Avalonia + FluentAvalonia 构建，WinUI 3 风格界面 ｜ 当前版本：**v2.11.0**
 >
 > 📦 框架迁移已完成（WPF → Avalonia）；**旧 WPF 版已确认淘汰（2026-09-05），不再维护**，源码归档于 `LegacyWPF/`（本地保留、不入库）
 > 🔐 老师账号密码采用 **PBKDF2 哈希存储**（v2.7.0 起），settings.json 不再保存明文密码
@@ -56,7 +56,8 @@
 ### 🧩 自动化任务（v2.7.0 新增）
 - 🧩 **拼图式规则** — 像拼积木一样把「① 触发条件」与「② 要做的动作」两块拼起来，无需写配置
 - ⏰ **触发拼块** — 固定时间（每天/指定星期）· 上课前 N 分钟 · 下课时 · 放学时（当天末节下课）· 闲置 N 分钟 · 软件启动后
-- ⚙️ **动作拼块** — 打开文件 · 打开科目课件（自动取课件目录最新文件）· 播放音频 · 熄屏 · 关机/重启（倒计时可取消）· 弹出提醒
+- ⚙️ **动作拼块** — 打开文件 · 打开科目课件（自动取课件目录最新文件）· 播放音频 · 熄屏 · 关机/重启（倒计时可取消）· 弹出提醒 · 关闭软件 · **打开白板**
+- 🔢 **智能识别课件序号** — 文件名里是 `01` / `unit1` / `第1讲` 还是 `一、` `第二讲` `十一` 都能识别，自动按顺序播/打开
 - 🛡 **防误触** — 考试模式/上课时段不触发闲置熄屏；自习班会课前不自动开课件；每条规则独立启停 + 全局总开关
 - 💾 **独立配置** — 规则存 automations.json（随软件文件夹分发，「恢复默认设置」不会误删）
 
@@ -69,9 +70,9 @@
 - 📋 **操作日志** — 登录/改课表/上传全记录（按老师显示名），管理员可查
 - 🏫 **班级信息** — 班级名 / 老师名网页端与设置页均可改
 - 🔐 **安全** — Token 持久化登录、**登录限速**（同 IP 错 5 次锁 2 分钟）、**PBKDF2 密码哈希**（v2.7.0，旧明文登录后自动迁移）、账号名不外泄、IP 白名单可选开关
-- ⌨️ **全局快捷键** — Ctrl+Shift+H 显隐主窗 / Ctrl+Shift+E 考试模式 / **Ctrl+Shift+W 白板** / **Ctrl+Alt+D 屏幕批注**
+- ⌨️ **全局快捷键** — Ctrl+Shift+H 显隐主窗 / Ctrl+Shift+E 考试模式 / **Ctrl+Shift+W 白板** / **Ctrl+Alt+D 屏幕批注** / **Ctrl+Shift+P PDF 阅读**
 - 🎯 **始终置顶** — 可选始终置顶或正常窗口层级
-- 🚀 **自动更新** — GitHub Release 检查，自包含/框架依赖版自动匹配下载
+- 🚀 **自动更新** — GitHub Release 检查，自包含/框架依赖版自动匹配下载；**走国内加速镜像**（直连 GitHub 很慢，关于页可开关/改地址）、带下载进度与取消
 - 🔒 **单实例** — 重复启动时激活已有窗口（按进程名校验，不误激活同名窗口）
 - 💾 **配置持久化** — JSON 文件存储（settings.json / schedule.json / automations.json），重启不丢失；支持一键备份/恢复
 
@@ -84,6 +85,17 @@
 - 📸 **截屏保存** — 抓取屏幕并与墨迹合成，一键另存 PNG（零第三方依赖）
 - 🖐 **触屏友好** — 触控笔/鼠标书写，手指滑动仍留给滚动；工具栏按钮 44px 触屏热区
 - ⌨️ **快捷键** — Ctrl+Shift+W 打开白板 / Ctrl+Alt+D 开关屏幕批注（托盘与右键菜单同入口）
+
+### 📄 PDF 阅读与批注（v2.10.0 新增）
+- 📖 **内置 PDF 阅读器** — 打开本地 PDF 直接看，不依赖 WPS / Office / 浏览器
+- ✍️ **直接在页面上批注** — 画笔 / 荧光笔 / 橡皮 / 激光笔 + 颜色，与白板同一套墨迹引擎
+- 🧭 **墨迹跟着内容走** — 滚动、缩放时笔迹始终贴在原本那一页的位置上，不会漂移
+- 🖐 **触屏友好** — 手指滑动滚动、触控笔书写；缩放/翻页按钮 44px 热区
+- ⚡ **大文件不卡** — 只渲染当前可见页（前后各留一页缓冲），渲染在后台线程；已渲染页面按需淘汰
+- 🔖 **自动续读** — 记住每个 PDF 上次读到第几页，下次打开直接跳回去
+- 💾 **导出当前页** — 页面与批注合成一张 PNG 带走
+- 🧾 **页码跳转** — 直接输入页码按回车即可跳转
+- ⌨️ **快捷键** — Ctrl+Shift+P 打开（托盘与右键菜单同入口）
 
 ---
 
@@ -152,7 +164,8 @@ StudyJourney.Avalonia/
 │   ├── ScheduleEntry.cs            # 课表/考试条目/时段模板/课程表网格行
 │   ├── ScheduleManager.cs          # 课表与考试数据管理（加载/保存/查询/导入）
 │   ├── AutomationRule.cs           # 自动化规则（触发/动作拼块枚举 + automations.json 存储）
-│   └── OpenState.cs                # 打开类动作运行期状态（open-state.json：顺序记忆/已打开进程/待打开）
+│   ├── OpenState.cs                # 打开类动作运行期状态（open-state.json：顺序记忆/已打开进程/待打开）
+│   └── PdfReadingState.cs          # PDF 阅读进度（pdf-state.json：路径 → 上次页码）
 │
 ├── Services/                       # 服务层（业务逻辑）
 │   ├── ReminderService.cs          # 提醒调度服务（上课/下课/考试/课间语义）
@@ -171,7 +184,8 @@ StudyJourney.Avalonia/
 │   ├── FileSequence.cs             # 文件名自然序号解析（01/unit1/第1讲）
 │   ├── InkLayer.cs                 # 墨迹模型层（InkStroke/InkDocument/IInkSurface/InkGeometry）
 │   ├── InkCanvas.cs                # 墨迹绘制控件（指针分流/采样过滤/激光笔/分层重绘）
-│   └── BoardRenderer.cs            # 白板背景绘制 + 离屏 PNG 导出
+│   ├── BoardRenderer.cs            # 白板背景绘制 + 离屏 PNG 导出
+│   └── PdfRenderer.cs              # PDF 渲染（PDFium/Docnet.Core 封装）
 │
 ├── Views/                          # 窗口与页面（UI 层）
 │   ├── MainWindow.axaml(.cs)       # 主窗口（灵动岛：时间/课表/天气/倒计时/一言，含上课收缩）
@@ -180,7 +194,9 @@ StudyJourney.Avalonia/
 │   ├── ScheduleEditorWindow.axaml(.cs) # 课表/考试编辑（DataGrid + 周视图调课）
 │   ├── WhiteboardWindow.cs         # 白板（多页/5 背景/导出 PNG）
 │   ├── ScreenAnnotationWindow.cs   # 屏幕批注全屏透明覆盖层（穿透/截屏）
+│   ├── PdfReaderWindow.cs          # PDF 阅读器（滚动/缩放/批注/续读）
 │   ├── ScreenOffPromptWindow.cs    # 熄屏前可取消倒计时提示
+│   ├── UpdateProgressWindow.cs     # 更新下载进度窗（进度条 + 取消）
 │   ├── ColorPickerDialog.axaml(.cs)# 颜色选择对话框
 │   └── Settings/                   # 8 个设置页
 │       ├── CountdownPage.axaml(.cs)  # 倒计时

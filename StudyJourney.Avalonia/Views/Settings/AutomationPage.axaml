@@ -283,6 +283,18 @@
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
+
+                                <!-- 打开白板（2026-09-15）—— 无参数，仅说明 -->
+                                <StackPanel x:Name="WhiteboardPanel" Spacing="4">
+                                    <TextBlock Text="打开白板板书" FontSize="12"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                    <TextBlock Text="到点自动打开全屏白板，可直接板书讲解（等同按 Ctrl+Shift+W）。"
+                                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Text="白板已打开时不会重复开窗，只会把已有窗口切到前台。"
+                                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
                     </Grid>

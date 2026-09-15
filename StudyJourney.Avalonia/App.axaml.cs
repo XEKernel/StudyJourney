@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -84,7 +85,8 @@ public partial class App : Application
     private const int HotKeyWhiteboard = 2;   // Ctrl+Shift+W（白板，PLANNING 2.4）
     private const int HotKeyExamMode   = 3;   // Ctrl+Shift+E
     private const int HotKeyAnnotation = 4;   // Ctrl+Alt+D（屏幕批注，PLANNING 2.3/2.7#7）
-    private const uint VK_H = 0x48, VK_E = 0x45, VK_W = 0x57, VK_D = 0x44;
+    private const int HotKeyPdfReader  = 5;   // Ctrl+Shift+P（PDF 阅读器，PLANNING 2.1）
+    private const uint VK_H = 0x48, VK_E = 0x45, VK_W = 0x57, VK_D = 0x44, VK_P = 0x50;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -127,8 +129,22 @@ public partial class App : Application
             Automation = new AutomationService(Schedule);
             Automation.Start();
 
+            // ── 自检模式（SJ_SELFTEST）────────────────────────────
+            // 必须在建托盘/窗口之前判断：自检实例**不显示托盘图标、不显示主窗口**。
+            // 否则一个卡住的自检实例会留下一个点不动的托盘图标，看起来像"软件卡死"。
+            var selfTest = Environment.GetEnvironmentVariable("SJ_SELFTEST");
+            if (!string.IsNullOrEmpty(selfTest))
+            {
+                RunSelfTest(selfTest);
+                return;
+            }
+
             SetupTrayIcon();
             SetupGlobalHotKeys();
+
+            // 更新下载通道：把设置里的加速镜像灌进 UpdateService（空前缀 = 直连 GitHub）。
+            // 本机实测 github.com 的 release 资产直连基本不通，所以默认开镜像。
+            UpdateService.ProxyPrefix = Settings.UpdateUseProxy ? Settings.UpdateProxyPrefix : "";
 
             // 自动检查更新（延迟 5 秒，不阻塞启动）
             if (Settings.AutoCheckUpdate)
@@ -141,20 +157,64 @@ public partial class App : Application
 
             _mainWindow.Show();
 
-            // 自检钩子（仅 SJ_SELFTEST=whiteboard 时生效，用于验证白板渲染链路）——
-            // 不改变正常启动行为，跑完即退出，便于自动化冒烟测试。
-            if (Environment.GetEnvironmentVariable("SJ_SELFTEST") == "whiteboard")
-            {
-                Dispatcher.UIThread.Post(RunWhiteboardSelfTest, DispatcherPriority.Background);
-                return;
-            }
-
             // 远程 HTTP 服务：设置开启则延迟 1.5s 自动启动（不阻塞首屏；失败记日志不影响主程序）
             if (Settings.AutoStartHttpServer)
                 _ = StartHttpServerDelayedAsync();
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>
+    /// 自检分发。全部走 UI 线程，但**绝不允许在 UI 线程上同步等待 async** ——
+    /// 续体要回到被阻塞的 UI 线程会直接死锁，表现为"启动后界面全无反应"。
+    /// </summary>
+    private static void RunSelfTest(string mode)
+    {
+        ArmSelfTestWatchdog(mode == "update" ? 180 : 90);
+
+        switch (mode)
+        {
+            case "whiteboard":
+                Dispatcher.UIThread.Post(RunWhiteboardSelfTest, DispatcherPriority.Background);
+                break;
+            case "pdf":
+                Dispatcher.UIThread.Post(RunPdfSelfTest, DispatcherPriority.Background);
+                break;
+            case "update":
+                // 真异步（内部有网络等待），不能用 Post(sync) 包一层
+                _ = RunUpdateSelfTestAsync();
+                break;
+            default:
+                Helpers.AppLogger.Warn($"未知自检模式：{mode}");
+                Environment.Exit(2);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 自检看门狗：无论卡在哪一步，超时后写结果并强退，**绝不留僵尸进程**。
+    /// 起因（2026-09-15）：自检里在 UI 线程上 .GetAwaiter().GetResult() 等一个 async 下载，
+    /// 续体要回到已被阻塞的 UI 线程 → 死锁；进程活着但界面全无反应，
+    /// 还留下一个点不动的托盘图标，被误判成"软件卡死"。看门狗让这类问题最多影响 3 分钟。
+    /// </summary>
+    private static void ArmSelfTestWatchdog(int seconds)
+    {
+        var t = new System.Threading.Thread(() =>
+        {
+            System.Threading.Thread.Sleep(seconds * 1000);
+            try
+            {
+                System.IO.File.WriteAllText(
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+                    $"[WATCHDOG] 自检超过 {seconds} 秒仍未结束，已强制退出。\n" +
+                    "多半是在 UI 线程上同步等待 async（死锁），或网络请求卡住。\n");
+            }
+            catch { }
+            Environment.Exit(3);
+        })
+        { IsBackground = true };
+        t.Start();
     }
 
     /// <summary>延迟启动远程 HTTP 服务（供老师局域网访问；#10：走 StartAsync 不阻塞任何线程）</summary>
@@ -178,24 +238,74 @@ public partial class App : Application
         {
             await System.Threading.Tasks.Task.Delay(5000);
             var info = await UpdateService.CheckAsync("XEKernel", "StudyJourney");
-            if (info.HasUpdate && _mainWindow is MainWindow mw)
+            if (!info.HasUpdate) return;
+
+            var mode = info.IsSelfContained ? "自包含版" : "框架依赖版";
+            var sizeHint = info.IsSelfContained ? "约 84 MB" : "约 38 MB";
+            var msg = $"新版本 v{info.LatestVersion} 可用！（当前 v{UpdateService.CurrentVersion}）\n" +
+                      $"将自动下载 {mode}（{sizeHint}）\n\n是否立即更新？";
+
+            if (!await ConfirmAsync("学程 — 发现新版本", msg, "立即更新", "取消")) return;
+            await RunUpdateAsync(info);
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn($"[UpdateService] 启动时检查更新异常: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 执行一次完整的自动更新：进度窗 → 下载 → 拉起更新程序 → 退出本体。
+    /// 每一步失败都给出**明确原因**（原实现下载失败时静默什么都不做，
+    /// 老师看到的是"点了立即更新然后没反应"）。
+    /// </summary>
+    public static async System.Threading.Tasks.Task RunUpdateAsync(UpdateInfo info)
+    {
+        // 更新程序不在位就没必要白下几十 MB
+        if (!UpdateService.UpdaterPresent)
+        {
+            await ConfirmAsync("学程 — 无法自动更新",
+                "程序目录里缺少更新程序 StudyJourney.Updater.exe，无法自动安装。\n\n" +
+                "请到 GitHub Releases 手动下载完整压缩包覆盖。", "知道了", "关闭");
+            return;
+        }
+
+        Views.UpdateProgressWindow? win = null;
+        try
+        {
+            win = new Views.UpdateProgressWindow();
+            win.Show();
+
+            var progress = new Progress<UpdateProgress>(p => win?.Report(p));
+
+            bool started = await UpdateService.StartUpdateAsync(
+                info.DownloadUrl, Environment.ProcessId, zipPath: null, progress: progress, ct: win.Token);
+
+            win.SwitchToInstalling();
+            if (started)
             {
-                var mode = info.IsSelfContained ? "自包含版" : "框架依赖版";
-                var msg = $"新版本 v{info.LatestVersion} 可用！（当前 v{UpdateService.CurrentVersion}）\n" +
-                          $"将自动下载 {mode}\n\n是否立即更新？";
-                await Dispatcher.UIThread.InvokeAsync(async () =>
-                {
-                    var ok = await ConfirmAsync("学程 — 发现新版本", msg, "立即更新", "取消");
-                    if (ok)
-                    {
-                        var result = await UpdateService.StartUpdateAsync(info.DownloadUrl,
-                            Environment.ProcessId);
-                        if (result) Environment.Exit(0);
-                    }
-                });
+                Helpers.AppLogger.Info("[Updater] 更新程序已启动，主程序即将退出");
+                // 退出前把资源让出去（HTTP 服务/托盘），再用 Exit 保证进程真结束
+                try { Services.HttpServerService.Stop(); } catch { }
+                Environment.Exit(0);
+            }
+            else
+            {
+                win.Close();
+                await ConfirmAsync("学程 — 更新未完成",
+                    "没能启动更新程序。\n\n可以稍后重试，或到 GitHub Releases 手动下载。", "知道了", "关闭");
             }
         }
-        catch { /* 网络不可用，静默 */ }
+        catch (OperationCanceledException)
+        {
+            win?.Close();
+        }
+        catch (Exception ex)
+        {
+            try { win?.Close(); } catch { }
+            Helpers.AppLogger.Error("[Updater] 自动更新失败", ex);
+            await ConfirmAsync("学程 — 更新失败", $"更新失败：\n{ex.Message}", "知道了", "关闭");
+        }
     }
 
     /// <summary>开考自动进入考试模式：延迟 2 秒（对齐 WPF MainWindow.Schedule.cs）</summary>
@@ -240,6 +350,11 @@ public partial class App : Application
         if (!GlobalHotKeyManager.Register(HotKeyAnnotation, VK_D, true, false, true,
                 () => Dispatcher.UIThread.Post(ToggleScreenAnnotationGlobal)))
             Helpers.AppLogger.Warn("全局快捷键 Ctrl+Alt+D 注册失败（可能被其他程序占用）");
+
+        // Ctrl+Shift+P 打开 PDF 阅读器（PLANNING 2.1；老师上课翻课件随时唤起）
+        if (!GlobalHotKeyManager.Register(HotKeyPdfReader, VK_P, true, true, false,
+                () => Dispatcher.UIThread.Post(() => OpenPdfReaderGlobal())))
+            Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+P 注册失败（可能被其他程序占用）");
     }
 
     /// <summary>统一入口：进入考试模式（托盘/快捷键/设置页共用）</summary>
@@ -296,6 +411,29 @@ public partial class App : Application
         _annotation = new ScreenAnnotationWindow();
         _annotation.Closed += (_, _) => _annotation = null;
         _annotation.Show();
+    }
+
+    // ── PDF 阅读器（PLANNING 2.1）────────────────────────────
+    // 单例：重复触发只激活已有窗口；传了 path 就直接加载（远程投递/自动化"打开课件"复用这里）
+
+    private static PdfReaderWindow? _pdfReader;
+
+    /// <summary>统一入口：打开 PDF 阅读器（托盘 / 全局快捷键 / 主窗口菜单共用）</summary>
+    public static void OpenPdfReaderGlobal(string? path = null)
+    {
+        if (_pdfReader is { IsVisible: true })
+        {
+            if (_pdfReader.WindowState == WindowState.Minimized)
+                _pdfReader.WindowState = WindowState.Normal;
+            _pdfReader.Activate();
+            if (!string.IsNullOrWhiteSpace(path)) _ = _pdfReader.OpenFileAsync(path);
+            return;
+        }
+
+        _pdfReader = new PdfReaderWindow();
+        _pdfReader.Closed += (_, _) => _pdfReader = null;
+        _pdfReader.Show();
+        if (!string.IsNullOrWhiteSpace(path)) _ = _pdfReader.OpenFileAsync(path);
     }
 
     /// <summary>
@@ -413,6 +551,229 @@ public partial class App : Application
         Environment.Exit(0);
     }
 
+    /// <summary>
+    /// PDF 渲染链路自检（SJ_SELFTEST=pdf）：现场生成一份最小 PDF → PDFium 打开 → 渲染一页
+    /// → 校验像素真的画出来了；再校验 ZoomInkSurface 的坐标往返（"墨迹随缩放"的核心换算）。
+    ///
+    /// 这个自检最重要的价值：验证 **Docnet.Core 的原生 pdfium.dll 在本构建产物里能被加载**
+    /// —— 原生库解析（runtimes/win-x64/native）是最容易在发布时才翻车的环节，必须能提前发现。
+    /// </summary>
+    private static void RunPdfSelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            sb.AppendLine("[PDFTEST] PDF 渲染链路自检开始");
+
+            var pdfPath = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "studyjourney-selftest.pdf");
+            BuildSamplePdf(pdfPath);
+            sb.AppendLine($"[PDFTEST] 生成样本 PDF OK（{new System.IO.FileInfo(pdfPath).Length} 字节）");
+
+            using var pdf = new Helpers.PdfRenderer(pdfPath);
+            var p0 = pdf.PageSizesPt[0];
+            sb.AppendLine($"[PDFTEST] PDFium 打开 OK：{pdf.PageCount} 页，第 1 页 {p0.Width:0}×{p0.Height:0} pt");
+            if (pdf.PageCount != 1) throw new Exception($"页数应为 1，实际 {pdf.PageCount}");
+
+            var page = pdf.RenderPage(0, Helpers.PdfRenderer.PtToDip);
+            int expected = page.Width * page.Height * 4;
+            sb.AppendLine($"[PDFTEST] 渲染第 1 页 OK：{page.Width}×{page.Height} px / {page.Bgra.Length} 字节（期望 {expected}）");
+            if (page.Bgra.Length != expected) throw new Exception("像素数据长度与页面尺寸不匹配");
+            if (page.Width <= 1 || page.Height <= 1) throw new Exception("渲染尺寸非法");
+
+            // 统计"非白"像素：证明真的渲染出了内容，而不是一张空白图
+            int nonWhite = 0;
+            for (int i = 0; i + 3 < page.Bgra.Length; i += 4)
+                if (page.Bgra[i] < 200 || page.Bgra[i + 1] < 200 || page.Bgra[i + 2] < 200) nonWhite++;
+            sb.AppendLine($"[PDFTEST] 非白像素 {nonWhite} 个（应远大于 0，证明内容真的画出来了）");
+            if (nonWhite < 50) throw new Exception($"渲染结果几乎全白（非白像素 {nonWhite}）—— PDFium 可能没真正工作");
+
+            // 缩放坐标往返（PDF 阅读器"笔迹随缩放一起动"的核心换算）
+            var surface = new Helpers.ZoomInkSurface { Zoom = 2.5 };
+            var content = new global::Avalonia.Point(123.5, 456.25);
+            var canvasPt = surface.FromContent(content);
+            var back = surface.ToContent(canvasPt);
+            sb.AppendLine($"[PDFTEST] ZoomInkSurface 往返 OK：(123.5,456.25) → 画布({canvasPt.X:0.###},{canvasPt.Y:0.###}) → 内容({back.X:0.###},{back.Y:0.###})");
+            if (Math.Abs(back.X - content.X) > 1e-6 || Math.Abs(back.Y - content.Y) > 1e-6)
+                throw new Exception("ZoomInkSurface 坐标往返有偏差");
+
+            // 窗口实例化（不 Show，避免干扰桌面）
+            var w = new Views.PdfReaderWindow();
+            sb.AppendLine("[PDFTEST] PdfReaderWindow 实例化 OK（未 Show）");
+            w.Close();
+
+            sb.AppendLine("[PDFTEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[PDFTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
+    /// <summary>现场拼一份最小可用的单页 PDF（仅自检用：手写 PDF 语法 + 正确 xref 字节偏移，不引第三方库）</summary>
+    private static void BuildSamplePdf(string path)
+    {
+        var sb = new System.Text.StringBuilder();
+        var offsets = new System.Collections.Generic.List<int>();
+
+        void Obj(int n, string body)
+        {
+            offsets.Add(System.Text.Encoding.ASCII.GetByteCount(sb.ToString()));
+            sb.Append(n).Append(" 0 obj\n").Append(body).Append("\nendobj\n");
+        }
+
+        sb.Append("%PDF-1.4\n");
+        Obj(1, "<< /Type /Catalog /Pages 2 0 R >>");
+        Obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+        Obj(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 200] " +
+               "/Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>");
+        const string content = "BT /F1 36 Tf 40 80 Td (StudyJourney PDF) Tj ET";
+        Obj(4, $"<< /Length {System.Text.Encoding.ASCII.GetByteCount(content)} >>\nstream\n{content}\nendstream");
+        Obj(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+
+        int xref = System.Text.Encoding.ASCII.GetByteCount(sb.ToString());
+        sb.Append("xref\n0 6\n0000000000 65535 f \n");
+        foreach (var o in offsets) sb.Append(o.ToString("0000000000")).Append(" 00000 n \n");
+        sb.Append("trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n").Append(xref).Append("\n%%EOF\n");
+
+        System.IO.File.WriteAllText(path, sb.ToString(), System.Text.Encoding.ASCII);
+    }
+
+    /// <summary>
+    /// 纯逻辑自检（SJ_SELFTEST=update）：课件序号解析（含中文数字）+ 更新下载通道。
+    ///
+    /// 这些都是"错了也不会崩、只会静默做错事"的逻辑（序号排错 → 课件顺序错；
+    /// 下载通道错 → 更新永远失败），所以专门用断言把它们钉住。
+    /// 其中更新通道会**真的走一次镜像下载**（用别家仓库的小 zip），端到端验证代理可用。
+    /// </summary>
+    private static async System.Threading.Tasks.Task RunUpdateSelfTestAsync()
+    {
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            sb.AppendLine("[UPDTEST] 逻辑自检开始");
+
+            // ── 1. 课件序号解析（含中文数字）──
+            var cases = new (string Name, int Expect)[]
+            {
+                ("01.pptx", 1),
+                ("Unit 03.mp3", 3),
+                ("第1讲 力学.pdf", 1),
+                ("Lesson2.docx", 2),
+                ("第一讲 力学.pdf", 1),
+                ("第十讲 力学.pdf", 10),
+                ("一、牛顿第一定律.pptx", 1),
+                ("二、牛顿第二定律.pptx", 2),
+                ("三 化学平衡.pptx", 3),
+                ("十一、复习.pptx", 11),
+                ("二十、复习.pptx", 20),
+                ("二十三、复习.pptx", 23),
+                ("五单元 化学.pptx", 5),
+                ("廿三、复习.pptx", 23),
+                ("第两讲.pdf", 2),
+                ("复习.pptx", -1),
+                ("一次函数.pptx", -1),        // 误报抑制：中文数字不在序号语境
+                ("高三复习2024.pptx", -1),    // 年份不算序号
+                ("二〇二四 复习.pptx", -1),   // 中文年份也不算
+            };
+            foreach (var (name, expect) in cases)
+            {
+                int got = Helpers.FileSequence.ExtractNumber(name);
+                string mark = got == expect ? "ok" : "✗";
+                sb.AppendLine($"[UPDTEST]   {mark} {name,-26} 期望 {expect,3}  实际 {got,3}");
+                if (got != expect)
+                    throw new Exception($"序号解析不符：\"{name}\" 期望 {expect}，实际 {got}");
+            }
+
+            // 排序：中文与阿拉伯数字混排应按数值顺序
+            var sorted = Helpers.FileSequence.Sort(new[]
+            {
+                "第三讲.pptx", "01.pptx", "第二讲.pptx", "十二、复习.pptx", "复习.pptx"
+            });
+            sb.AppendLine($"[UPDTEST] 混排顺序：{string.Join(" → ", sorted.Select(System.IO.Path.GetFileName))}");
+            if (System.IO.Path.GetFileName(sorted[0]) != "01.pptx" ||
+                System.IO.Path.GetFileName(sorted[^1]) != "复习.pptx")
+                throw new Exception("自然序号排序结果不符（应数字 1、2、3、12，最后无序号）");
+
+            // ── 2. 动作枚举只能末尾追加（落盘整数约束）──
+            if ((int)Models.AutomationActionKind.CloseApp != 7)
+                throw new Exception("CloseApp 不再是 7 —— 枚举被重排了，会破坏老配置文件！");
+            if ((int)Models.AutomationActionKind.OpenWhiteboard != 8)
+                throw new Exception("OpenWhiteboard 应为 8（追加在末尾）");
+            sb.AppendLine("[UPDTEST] 动作枚举追加合规：CloseApp=7、OpenWhiteboard=8");
+
+            // ── 3. 更新下载通道（代理前缀拼接）──
+            const string assetUrl = "https://github.com/o/r/releases/download/v1/x-fd.zip";
+            var cands = Services.UpdateService.BuildCandidates(assetUrl);
+            sb.AppendLine($"[UPDTEST] 候选通道 {cands.Count} 个：");
+            foreach (var c in cands) sb.AppendLine($"[UPDTEST]    {c}");
+            if (cands.Count < 2) throw new Exception("候选通道过少（应至少含镜像 + 直连）");
+            if (!cands[0].StartsWith(Services.UpdateService.DefaultProxyPrefix))
+                throw new Exception("首选通道不是配置的镜像");
+            if (cands[^1] != assetUrl) throw new Exception("最后一个候选应为直连原链接");
+
+            // ── 4. Release JSON 解析 + 自包含/框架依赖资产匹配 ──
+            const string json = """
+            {"tag_name":"v99.0.0","body":"note","assets":[
+              {"name":"StudyJourney-v99.0.0-win-x64.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/sc.zip"},
+              {"name":"StudyJourney-v99.0.0-win-x64-fd.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/fd.zip"},
+              {"name":"StudyJourney-v99.0.0-win-x64-fdx.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/fdx.zip"}]}
+            """;
+            var parsed = Services.UpdateService.ParseRelease(json);
+            string wantSuffix = Services.UpdateService.IsSelfContained ? "/sc.zip" : "/fd.zip";
+            sb.AppendLine($"[UPDTEST] 解析 v{parsed.LatestVersion} → {parsed.DownloadUrl}（自包含={Services.UpdateService.IsSelfContained}）");
+            if (parsed.LatestVersion != "99.0.0") throw new Exception("tag_name 解析错误");
+            if (!parsed.HasUpdate) throw new Exception("99.0.0 应判为有新版本");
+            if (!parsed.DownloadUrl.EndsWith(wantSuffix, StringComparison.Ordinal))
+                throw new Exception($"资产匹配错误：期望以 {wantSuffix} 结尾（\"-fdx.zip\" 不该被当成 -fd 包）");
+
+            // 只有 -fdx.zip（非法名）时应当匹配不到 → 判为不可更新，避免下到错包
+            const string badJson = """
+            {"tag_name":"v99.0.0","body":"","assets":[
+              {"name":"x-fdx.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/x-fdx.zip"}]}
+            """;
+            var bad = Services.UpdateService.ParseRelease(badJson);
+            sb.AppendLine($"[UPDTEST] 非法资产名 → HasUpdate={bad.HasUpdate}（应为 False）");
+            if (bad.HasUpdate) throw new Exception("非法资产名被错误匹配，可能下载到错误文件");
+
+            // ── 5. 真的走一次镜像下载（端到端验证代理可用）──
+            //    用一个别家仓库的小 zip（约 90KB），验证：镜像拼接 + 流式下载 + zip 魔数校验
+            const string probe = "https://github.com/WJQSERVER-STUDIO/ghproxy/archive/refs/heads/main.zip";
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            using var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(120));
+            string zipPath = await Services.UpdateService.DownloadUpdateAsync(probe, null, cts.Token);
+            sw.Stop();
+            var fi = new System.IO.FileInfo(zipPath);
+            sb.AppendLine($"[UPDTEST] 镜像下载 OK：{fi.Length / 1024.0:0.0} KB，耗时 {sw.Elapsed.TotalSeconds:0.0}s");
+            if (fi.Length < 10 * 1024) throw new Exception("下载内容过小，疑似镜像返回了错误页");
+            using (var fs = System.IO.File.OpenRead(zipPath))
+            {
+                var head = new byte[2];
+                fs.ReadExactly(head);
+                if (head[0] != 0x50 || head[1] != 0x4B) throw new Exception("下载结果不是 zip");
+            }
+
+            sb.AppendLine("[UPDTEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[UPDTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
     private void EnterExamMode()
     {
         EnterExamModeGlobal();
@@ -439,6 +800,9 @@ public partial class App : Application
             var annotItem = new NativeMenuItem("屏幕批注（Ctrl+Alt+D）");
             annotItem.Click += (_, _) => ToggleScreenAnnotationGlobal();
 
+            var pdfItem = new NativeMenuItem("PDF 阅读（Ctrl+Shift+P）");
+            pdfItem.Click += (_, _) => OpenPdfReaderGlobal();
+
             var settingsItem = new NativeMenuItem("打开设置");
             settingsItem.Click += (_, _) => OpenSettingsGlobal();
 
@@ -450,6 +814,7 @@ public partial class App : Application
             menu.Add(examItem);
             menu.Add(boardItem);
             menu.Add(annotItem);
+            menu.Add(pdfItem);
             menu.Add(settingsItem);
             menu.Add(new NativeMenuItemSeparator());
             menu.Add(exitItem);

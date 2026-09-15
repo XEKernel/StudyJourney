@@ -37,3 +37,7 @@ backups/
 # 内部架构/迁移文档（仅本地，不提交仓库）
 /ARCHITECTURE.md
 /MIGRATION_AVALONIA.md
+
+# 本地 NuGet 包源（本机 api.nuget.org 被拦截，PDFium 封装包走 www.nuget.org 的 v2 端点手动下载）
+# CI 网络正常，直接从 nuget.org 还原，无需提交这些二进制（Docnet.Core 约 18MB）
+/local-nupkg/*.nupkg

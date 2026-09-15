@@ -185,6 +185,13 @@ namespace StudyJourney.Avalonia.Models
 
         // ── 更新检查 ──────────────────────────────────────────
         public bool AutoCheckUpdate      { get; set; } = true;
+        /// <summary>下载更新时走国内加速镜像（2026-09-15）。
+        /// 实测：本机 github.com 的 release 资产**直连 20 秒 0 字节**（基本不通），
+        /// api.github.com 直连反而可用 → 所以资产下载必须走镜像。</summary>
+        public bool UpdateUseProxy       { get; set; } = true;
+        /// <summary>加速镜像前缀（形如 https://gh-proxy.com/ ，会把原始 GitHub 链接拼在后面）。
+        /// 默认值实测可用；留空等价于直连 GitHub。</summary>
+        public string UpdateProxyPrefix  { get; set; } = "https://gh-proxy.com/";
 
         // ── 考试模式 ──────────────────────────────────────────
         public bool EnableExamMode       { get; set; } = false;

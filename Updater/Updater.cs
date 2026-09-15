@@ -59,7 +59,11 @@ class Program
                 ZipFile.ExtractToDirectory(opts.ZipPath, tempDir, true);
 
                 // 3. 复制文件（覆盖）
-                CopyDirectory(tempDir, opts.TargetDir);
+                // ⚠ 必须跳过"更新程序自己那一组文件"（StudyJourney.Updater.exe/.dll/...）。
+                //    发布包根目录也含这些文件，而本进程正是从目标目录启动的 —— 运行时已把
+                //    更新的 exe 与 dll 锁住，覆盖会抛共享冲突，导致**整个更新失败**。
+                //    （新版更新程序由主程序在拉起本进程"之前"就整组替换好了，这里无需再换。）
+                CopyDirectory(tempDir, opts.TargetDir, "StudyJourney.Updater.");
 
                 // 清理
                 Directory.Delete(tempDir, true);
@@ -121,18 +125,43 @@ class Program
         return new UpdaterOptions { Pid = pid, ZipPath = zip, TargetDir = target, ExePath = exe };
     }
 
-    private static void CopyDirectory(string source, string dest)
+    /// <summary>
+    /// 把 source 下的文件覆盖到 dest。
+    /// <paramref name="skipFileNamePrefix"/> 用来跳过正在运行、被系统锁定的更新器自身文件。
+    /// </summary>
+    private static void CopyDirectory(string source, string dest, string? skipFileNamePrefix = null)
     {
         Directory.CreateDirectory(dest);
+        int skipped = 0, copied = 0;
+
         foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
         {
+            string fileName = Path.GetFileName(file);
+            if (!string.IsNullOrEmpty(skipFileNamePrefix) &&
+                fileName.StartsWith(skipFileNamePrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                skipped++;
+                continue;
+            }
+
             string rel = Path.GetRelativePath(source, file);
             string destFile = Path.Combine(dest, rel);
             Directory.CreateDirectory(Path.GetDirectoryName(destFile)!);
             File.Copy(file, destFile, true);
+            copied++;
         }
+
+        if (skipped > 0)
+            Debug.WriteLine($"[Updater] 跳过 {skipped} 个更新器自身文件（正在运行，由主程序预先替换）");
+        Debug.WriteLine($"[Updater] 已复制 {copied} 个文件");
     }
 
+    /// <summary>
+    /// 本进程退出后删除自身的 exe。
+    ///
+    /// ⚠ 原实现用 `:retry / del / if exist goto retry` **无延时忙等** —— 正在运行的 exe
+    /// 删不掉，于是 bat 会以满 CPU 空转直到本进程真正退出。这里改成"带延时 + 次数上限"。
+    /// </summary>
     private static void ScheduleSelfDelete()
     {
         try
@@ -141,12 +170,22 @@ class Program
             if (string.IsNullOrEmpty(self)) return;
 
             string bat = Path.Combine(Path.GetTempPath(), $"sj_updater_cleanup_{DateTime.Now.Ticks}.bat");
+
+            // ping 当延时用（timeout 命令需要控制台，隐藏窗口下会报错）
             File.WriteAllText(bat,
                 "@echo off\r\n" +
+                "setlocal\r\n" +
+                $"set \"SELF={self}\"\r\n" +
+                "set /a n=0\r\n" +
                 ":retry\r\n" +
-                $"del /F /Q \"{self}\" 2>nul\r\n" +
-                $"if exist \"{self}\" goto retry\r\n" +
-                $"del /F /Q \"{bat}\" 2>nul\r\n");
+                "del /F /Q \"%SELF%\" >nul 2>&1\r\n" +
+                "if not exist \"%SELF%\" goto done\r\n" +
+                "set /a n+=1\r\n" +
+                "if %n% GEQ 60 goto done\r\n" +
+                "ping -n 1 -w 500 127.0.0.1 >nul\r\n" +
+                "goto retry\r\n" +
+                ":done\r\n" +
+                "del /F /Q \"%~f0\" >nul 2>&1\r\n");
 
             Process.Start(new ProcessStartInfo
             {

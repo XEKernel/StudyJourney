@@ -116,6 +116,35 @@ public sealed class IdentityInkSurface : IInkSurface
 }
 
 /// <summary>
+/// 缩放变换的墨迹坐标系：画布坐标 = 内容坐标 × <see cref="Zoom"/>。
+///
+/// 适用场景（PDF 阅读器，PLANNING 2.1）：画布本身按 zoom 放大铺在**未缩放的文档空间**之上，
+/// 笔迹存的是文档空间坐标，因此
+///   · 缩放 → 改 Zoom + 重新布局画布尺寸 → 笔迹自动跟着内容放大（几何重算即对齐）
+///   · 滚动 → **不需要参与换算**：画布放在 ScrollViewer 的内容里，滚动由宿主完成，
+///            画布与页面一起被滚动，笔迹天然跟随内容（这正是需求"墨迹随内容滚动"）
+/// </summary>
+public sealed class ZoomInkSurface : IInkSurface
+{
+    /// <summary>缩放系数（1.0 = 内容原始尺寸）</summary>
+    public double Zoom { get; set; } = 1.0;
+
+    /// <summary>内容坐标下的可视区域（用于绘制裁剪；宿主在滚动时更新，可显著减少重绘）</summary>
+    public Rect? Visible { get; set; }
+
+    public Point ToContent(Point canvasPoint)
+    {
+        double z = Zoom <= 0 ? 1.0 : Zoom;
+        return new Point(canvasPoint.X / z, canvasPoint.Y / z);
+    }
+
+    public Point FromContent(Point contentPoint)
+        => new(contentPoint.X * Zoom, contentPoint.Y * Zoom);
+
+    public Rect? VisibleContentRect => Visible;
+}
+
+/// <summary>
 /// 墨迹文档：一组笔画 + 撤销/重做栈。与 UI 无关，可被宿主的多页（如白板分页、PDF 多页）各持一份。
 /// </summary>
 public sealed class InkDocument

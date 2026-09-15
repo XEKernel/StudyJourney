@@ -345,6 +345,23 @@ public class AutomationService : IDisposable
                 case AutomationActionKind.CloseApp:
                     CloseApp(rule);
                     break;
+
+                case AutomationActionKind.OpenWhiteboard:
+                    // 打开白板板书（2026-09-15 新增）。开窗必须回 UI 线程 ——
+                    // 本服务是 DispatcherTimer（已在 UI 线程），但显式封送更稳，也便于以后换调度方式
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        try
+                        {
+                            App.OpenWhiteboardGlobal();
+                            Helpers.AppLogger.Info($"自动化「{rule.Name}」：已打开白板");
+                        }
+                        catch (Exception ex)
+                        {
+                            Helpers.AppLogger.Error($"自动化「{rule.Name}」打开白板失败", ex);
+                        }
+                    });
+                    break;
             }
         }
         catch (Exception ex)

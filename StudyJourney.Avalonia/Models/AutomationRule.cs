@@ -34,6 +34,7 @@ namespace StudyJourney.Avalonia.Models
         Restart,         // 5 重启
         ShowMessage,     // 6 弹出提醒
         CloseApp,        // 7 关闭软件（按进程名结束；2.5.7，追加于末尾）
+        OpenWhiteboard,  // 8 打开白板（板书；2026-09-15，追加于末尾）
     }
 
     /// <summary>
@@ -141,6 +142,8 @@ namespace StudyJourney.Avalonia.Models
                     return "弹出提醒：" + (string.IsNullOrWhiteSpace(ActionMessage) ? Name : ActionMessage);
                 case AutomationActionKind.CloseApp:
                     return string.IsNullOrWhiteSpace(CloseTarget) ? "关闭软件（未选目标）" : $"关闭软件 {CloseTarget}";
+                case AutomationActionKind.OpenWhiteboard:
+                    return "打开白板（板书）";
                 default:
                     return "";
             }

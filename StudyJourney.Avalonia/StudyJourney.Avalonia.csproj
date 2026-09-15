@@ -8,8 +8,8 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 2.9.1：AssemblyVersion=2.9.1.0，InformationalVersion=2.9.1（更新检查解析用） -->
-    <Version>2.9.1</Version>
+    <!-- 2.11.0：AssemblyVersion=2.11.0.0，InformationalVersion=2.11.0（更新检查解析用） -->
+    <Version>2.11.0</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
@@ -21,6 +21,10 @@
     <PackageReference Include="Avalonia.Controls.DataGrid" Version="12.0.0" />
     <PackageReference Include="Avalonia.Controls.ColorPicker" Version="12.0.0" />
     <PackageReference Include="FluentAvaloniaUI" Version="3.0.2" />
+    <!-- PDF 阅读器（PLANNING 2.1）渲染内核：PDFium 的 .NET 封装，自带各平台原生库。
+         本机 api.nuget.org 被拦截 → 走仓库根的 local-nupkg 本地源（见该目录 README）；
+         CI 网络正常，直接从 nuget.org 还原。 -->
+    <PackageReference Include="Docnet.Core" Version="2.6.0" />
   </ItemGroup>
 
   <!-- 远程管理：ASP.NET Core Minimal API（Kestrel 后台线程运行，不阻塞 UI 线程） -->

@@ -1329,6 +1329,9 @@ public partial class MainWindow : Window
     /// <summary>右键菜单「屏幕批注」（PLANNING 2.3；再点一次即收起）</summary>
     private void AnnotationMenuItem_Click(object? sender, RoutedEventArgs e) => App.ToggleScreenAnnotationGlobal();
 
+    /// <summary>右键菜单「PDF 阅读」（PLANNING 2.1；与托盘/快捷键共用同一入口）</summary>
+    private void PdfReaderMenuItem_Click(object? sender, RoutedEventArgs e) => App.OpenPdfReaderGlobal();
+
     private void ExitMenuItem_Click(object? sender, RoutedEventArgs e)
     {
         _isExiting = true;

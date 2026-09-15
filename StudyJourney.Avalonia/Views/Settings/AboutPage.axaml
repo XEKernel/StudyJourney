@@ -29,6 +29,20 @@
                     <TextBlock Text="发现新版本后会弹出对话框提示" FontSize="11"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
+
+                    <CheckBox x:Name="UseProxyCheck" Content="下载更新走国内加速镜像（推荐）"
+                              Margin="0,8,0,0" IsCheckedChanged="UseProxyCheck_Changed"/>
+                    <TextBlock Text="国内直连 GitHub 下载很慢甚至不通，开启后经镜像下载（只加速更新包，不涉及其它联网功能）"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Margin="24,0,0,0" TextWrapping="Wrap"/>
+
+                    <StackPanel x:Name="ProxyBoxPanel" Spacing="4" Margin="24,6,0,0">
+                        <TextBlock Text="镜像地址（一般不用改）" FontSize="11"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                        <TextBox x:Name="ProxyPrefixBox" FontSize="12"
+                                 PlaceholderText="留空 = 直连 GitHub"
+                                 TextChanged="ProxyPrefixBox_TextChanged"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
