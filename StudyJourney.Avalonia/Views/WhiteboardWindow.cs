@@ -61,6 +61,7 @@ public sealed class WhiteboardWindow : Window
     // ── 控件 ─────────────────────────────────────────────────
     private readonly InkCanvas _ink;
     private readonly Border _boardBorder;
+    private readonly BoardBackgroundLayer _bgLayer;
     private readonly TextBlock _pageLabel;
     private readonly StackPanel _palettePanel;
     private readonly StackPanel _thicknessPanel;
@@ -71,9 +72,12 @@ public sealed class WhiteboardWindow : Window
     public WhiteboardWindow()
     {
         Title = "白板 · 学程";
-        Width = 1180;
-        Height = 760;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
+
+        // 全屏板书：老师在大屏上写整块屏，减少干扰与误触。
+        // 退出靠 Esc 或工具栏「退出白板」（两者都会走未导出内容的二次确认）。
+        WindowDecorations = WindowDecorations.None;
+        WindowState = WindowState.FullScreen;
+        CanResize = false;
         Background = new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x14));
 
         _ink = new InkCanvas
@@ -89,21 +93,30 @@ public sealed class WhiteboardWindow : Window
         _pages[0].Changed += UpdateUndoButtons;
         _ink.Tool = InkTool.Pen;
 
+        // ── 画布视觉树只构建一次 ──
+        // 背景层与墨迹层固定挂在同一个 Grid 上，切背景只改 _bgLayer 的枚举值并重绘。
+        // （早期实现每次点背景按钮都新建 Grid 并把 _ink 重新挂进去 —— 那会让 _ink
+        //   同时被新旧两个父级持有，视觉树损坏，点背景按钮直接卡死/闪退。）
+        _bgLayer = new BoardBackgroundLayer(_background) { IsHitTestVisible = false };
+        var boardGrid = new Grid();
+        boardGrid.Children.Add(_bgLayer);
+        boardGrid.Children.Add(_ink);
+
         _boardBorder = new Border
         {
             Background = new SolidColorBrush(BoardRenderer.BaseColor(_background)),
             CornerRadius = new CornerRadius(0),
-            Child = _ink,
-            Margin = new Thickness(0, 0, 0, 0),
+            Child = boardGrid,
         };
-        _boardBorder.SizeChanged += (_, _) => UpdateBoardSize();
+        // 注意：不要再用 SizeChanged 给 _ink 显式设 Width/Height ——
+        // _ink 在 Grid 里自然会拉伸填满，显式设尺寸会形成"布局→事件→再设尺寸"的反馈环。
 
         _pageLabel = new TextBlock
         {
-            FontSize = 12,
+            FontSize = 14,
             VerticalAlignment = VerticalAlignment.Center,
             Foreground = new SolidColorBrush(Color.FromArgb(0xCC, 0xFF, 0xFF, 0xFF)),
-            Margin = new Thickness(10, 0),
+            Margin = new Thickness(8, 0),
         };
 
         _thicknessPreview = new StrokeThicknessPreview(DefaultPenThickness, Palette[1].Color);
@@ -111,11 +124,14 @@ public sealed class WhiteboardWindow : Window
         _thicknessPanel = BuildThicknessPanel();
 
         var toolbar = BuildToolbar();
-        var root = new Grid { RowDefinitions = new RowDefinitions("Auto,*") };
-        Grid.SetRow(toolbar, 0);
-        Grid.SetRow(_boardBorder, 1);
-        root.Children.Add(toolbar);
+
+        // 工具栏放**底部**（2026-09-15 用户反馈：放顶部老师在大屏前够不到）；
+        // 画布占满其余空间。
+        var root = new Grid { RowDefinitions = new RowDefinitions("*,Auto") };
+        Grid.SetRow(_boardBorder, 0);
+        Grid.SetRow(toolbar, 1);
         root.Children.Add(_boardBorder);
+        root.Children.Add(toolbar);
         Content = root;
 
         // 快捷键：撤销/重做/清屏/翻页
@@ -123,9 +139,9 @@ public sealed class WhiteboardWindow : Window
 
         Opened += (_, _) =>
         {
-            UpdateBoardSize();
             UpdatePageLabel();
             UpdateToolVisuals();
+            UpdateBgVisuals();
             UpdateUndoButtons();
             _ink.Focus();
         };
@@ -141,7 +157,7 @@ public sealed class WhiteboardWindow : Window
             Height = ToolbarHeight,
             Background = new SolidColorBrush(Color.FromRgb(0x1B, 0x1B, 0x1B)),
             BorderBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
-            BorderThickness = new Thickness(0, 0, 0, 1),
+            BorderThickness = new Thickness(0, 1, 0, 0),   // 底栏 → 分隔线画在上边
             Padding = new Thickness(10, 0),
             CornerRadius = new CornerRadius(0),
         };
@@ -153,44 +169,48 @@ public sealed class WhiteboardWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        // 工具
-        row.Children.Add(MakeToolButton("✏", "画笔 (P)", InkTool.Pen));
-        row.Children.Add(MakeToolButton("🖍", "荧光笔 (H)", InkTool.Highlighter));
-        row.Children.Add(MakeToolButton("◻", "橡皮 (E)", InkTool.Eraser));
-        row.Children.Add(MakeToolButton("●", "激光笔 (L)", InkTool.Laser));
+        // 书写工具
+        row.Children.Add(MakeToolButton("✏", "画笔", "画笔：正常粗细的实线 (P)", InkTool.Pen));
+        row.Children.Add(MakeToolButton("🖍", "荧光笔", "荧光笔：半透明粗线，适合划重点 (H)", InkTool.Highlighter));
+        row.Children.Add(MakeToolButton("◻", "橡皮", "橡皮：按整笔擦除 (E)", InkTool.Eraser));
+        row.Children.Add(MakeToolButton("●", "激光笔", "激光笔：只做指示，约 1.6 秒后自动消失、不导出 (L)", InkTool.Laser));
         row.Children.Add(MakeSeparator());
 
-        // 撤销 / 重做 / 清空
-        _undoBtn = MakeActionButton("↶", "撤销 (Ctrl+Z)", Undo_Click);
-        _redoBtn = MakeActionButton("↷", "重做 (Ctrl+Y)", Redo_Click);
-        row.Children.Add(_undoBtn);
-        row.Children.Add(_redoBtn);
-        row.Children.Add(MakeActionButton("🗑", "清空本页", Clear_Click));
-        row.Children.Add(MakeSeparator());
-
-        // 颜色 + 粗细
+        // 图层状态提示
+        row.Children.Add(MakeLabel("颜色"));
         row.Children.Add(_palettePanel);
+        row.Children.Add(MakeLabel("粗细"));
         row.Children.Add(_thicknessPanel);
         row.Children.Add(MakeSeparator());
 
+        // 编辑
+        _undoBtn = MakeActionButton("↶", "撤销", "撤销上一笔 (Ctrl+Z)", Undo_Click);
+        _redoBtn = MakeActionButton("↷", "重做", "重做 (Ctrl+Y)", Redo_Click);
+        row.Children.Add(_undoBtn);
+        row.Children.Add(_redoBtn);
+        row.Children.Add(MakeActionButton("🗑", "清空", "清空当前页的所有笔迹", Clear_Click));
+        row.Children.Add(MakeSeparator());
+
         // 背景
-        row.Children.Add(MakeBgButton("白", BoardBackground.Blank, "纯白背景"));
-        row.Children.Add(MakeBgButton("▦", BoardBackground.Grid, "网格背景"));
-        row.Children.Add(MakeBgButton("☰", BoardBackground.Ruled, "横线背景"));
-        row.Children.Add(MakeBgButton("∴", BoardBackground.Dots, "点阵背景"));
-        row.Children.Add(MakeBgButton("黑", BoardBackground.Blackboard, "黑板背景"));
+        row.Children.Add(MakeLabel("背景"));
+        row.Children.Add(MakeBgButton("", "纯白", BoardBackground.Blank, "纯白背景：自由板书"));
+        row.Children.Add(MakeBgButton("▦", "网格", BoardBackground.Grid, "网格背景：理科作图 / 坐标系"));
+        row.Children.Add(MakeBgButton("☰", "横线", BoardBackground.Ruled, "横线背景：文科书写 / 英文"));
+        row.Children.Add(MakeBgButton("∴", "点阵", BoardBackground.Dots, "点阵背景：轻量对齐参考"));
+        row.Children.Add(MakeBgButton("", "黑板", BoardBackground.Blackboard, "黑板背景：深色底，投影对比强"));
         row.Children.Add(MakeSeparator());
 
         // 分页
-        row.Children.Add(MakeActionButton("◀", "上一页 (PgUp)", () => SwitchPage(_pageIndex - 1)));
+        row.Children.Add(MakeActionButton("◀", "上一页", "上一页 (PgUp)", () => SwitchPage(_pageIndex - 1)));
         row.Children.Add(_pageLabel);
-        row.Children.Add(MakeActionButton("▶", "下一页 (PgDn)", () => SwitchPage(_pageIndex + 1)));
-        row.Children.Add(MakeActionButton("＋", "新增一页", AddPage));
-        row.Children.Add(MakeActionButton("－", "删除本页", DeletePage));
+        row.Children.Add(MakeActionButton("▶", "下一页", "下一页 (PgDn)", () => SwitchPage(_pageIndex + 1)));
+        row.Children.Add(MakeActionButton("＋", "新增页", "在当前页之后新增一页白板", AddPage));
+        row.Children.Add(MakeActionButton("－", "删除本页", "删除当前页（只剩一页时等于清空）", DeletePage));
         row.Children.Add(MakeSeparator());
 
-        // 导出
-        row.Children.Add(MakeActionButton("💾", "导出本页 PNG", Export_Click));
+        // 导出 / 退出
+        row.Children.Add(MakeActionButton("💾", "导出 PNG", "把当前页（含背景）导出为 PNG 图片，2 倍分辨率", Export_Click));
+        row.Children.Add(MakeActionButton("✕", "退出白板", "退出白板 (Esc)；有未导出内容会先询问", Close));
 
         var scroll = new ScrollViewer
         {
@@ -204,30 +224,63 @@ public sealed class WhiteboardWindow : Window
 
     private Button _undoBtn = null!, _redoBtn = null!;
 
-    private Button MakeToolButton(string glyph, string tip, InkTool tool)
+    /// <summary>工具条里的分组小标题（"颜色" / "粗细" / "背景"）</summary>
+    private static TextBlock MakeLabel(string text) => new()
     {
-        var b = MakeBaseButton(glyph, tip);
+        Text = text,
+        FontSize = 13,
+        VerticalAlignment = VerticalAlignment.Center,
+        Foreground = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF)),
+        Margin = new Thickness(6, 0, 0, 0),
+    };
+
+    private Button MakeToolButton(string glyph, string text, string tip, InkTool tool)
+    {
+        var b = MakeBaseButton(glyph, text, tip);
         b.Click += (_, _) => { _ink.Tool = tool; UpdateToolVisuals(); };
         b.Tag = tool;
         _toolButtons.Add(b);
         return b;
     }
 
-    private Button MakeActionButton(string glyph, string tip, Action onClick)
+    private Button MakeActionButton(string glyph, string text, string tip, Action onClick)
     {
-        var b = MakeBaseButton(glyph, tip);
+        var b = MakeBaseButton(glyph, text, tip);
         b.Click += (_, _) => onClick();
         return b;
     }
 
-    private Button MakeBaseButton(string glyph, string tip)
+    /// <summary>工具条按钮：图标 + 中文文字（2026-09-15 用户反馈：纯图标看不懂）。
+    /// 高度 44px 满足触屏热区下限，宽度自适应文字。</summary>
+    private Button MakeBaseButton(string glyph, string text, string tip)
     {
+        var content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        if (!string.IsNullOrEmpty(glyph))
+            content.Children.Add(new TextBlock
+            {
+                Text = glyph,
+                FontSize = 16,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        if (!string.IsNullOrEmpty(text))
+            content.Children.Add(new TextBlock
+            {
+                Text = text,
+                FontSize = 14,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+
         var b = new Button
         {
-            Content = new TextBlock { Text = glyph, FontSize = 17, HorizontalAlignment = HorizontalAlignment.Center },
-            Width = ToolButtonSize,
+            Content = content,
             Height = ToolButtonSize,
-            Padding = new Thickness(0),
+            MinWidth = ToolButtonSize,
+            Padding = new Thickness(12, 0),
             CornerRadius = new CornerRadius(0),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -281,9 +334,8 @@ public sealed class WhiteboardWindow : Window
         panel.Children.Add(_thicknessPreview);
         foreach (double t in new[] { 2.0, 4.0, 7.0, 12.0 })
         {
-            var b = MakeBaseButton(ThicknessGlyph(t), $"{t:0} px 粗");
-            b.Width = 34;
-            b.Height = 34;
+            var b = MakeBaseButton(ThicknessGlyph(t), $"{t:0}", $"{t:0} px 粗的笔迹");
+            b.MinWidth = 46;
             var captured = t;
             b.Click += (_, _) =>
             {
@@ -305,12 +357,16 @@ public sealed class WhiteboardWindow : Window
         _ => "⬤",
     };
 
-    private Button MakeBgButton(string glyph, BoardBackground bg, string tip)
+    private Button MakeBgButton(string glyph, string text, BoardBackground bg, string tip)
     {
-        var b = MakeBaseButton(glyph, tip);
-        b.Width = 36;
+        var b = MakeBaseButton(glyph, text, tip);
         b.Tag = bg;
-        b.Click += (_, _) => { _background = bg; ApplyBackground(); UpdateBgVisuals(); };
+        b.Click += (_, _) =>
+        {
+            _background = bg;
+            ApplyBackground();
+            UpdateBgVisuals();
+        };
         _bgButtons.Add(b);
         return b;
     }
@@ -347,22 +403,20 @@ public sealed class WhiteboardWindow : Window
 
     private void UpdatePageLabel() => _pageLabel.Text = $"{_pageIndex + 1} / {_pages.Count}";
 
+    /// <summary>
+    /// 切换画布背景（纯白 / 网格 / 横线 / 点阵 / 黑板）。
+    ///
+    /// ⚠ 只更新已有背景层的枚举值并重绘，**绝不重建视觉树**。
+    /// 早期实现写的是 `_boardBorder.Child = new Grid { Children = { layer, _ink } }` ——
+    /// 每点一次背景按钮就把 _ink 从旧父节点摘下来塞进新建的 Grid，导致同一个
+    /// InkCanvas 被新旧两个父级同时持有（Avalonia 视觉树损坏），表现为
+    /// 「点背景按钮卡死 / 闪退」。
+    /// </summary>
     private void ApplyBackground()
     {
+        _bgLayer.SetBackground(_background);
+        // 底色也同步给 Border，避免切换瞬间露出上一层底色
         _boardBorder.Background = new SolidColorBrush(BoardRenderer.BaseColor(_background));
-        // 背景线由 InkCanvas 之下的一层绘制：这里用一个专用控件铺在 border 内部
-        _boardBorder.Child = new Grid
-        {
-            Children = { new BoardBackgroundLayer(_background) { IsHitTestVisible = false }, _ink },
-        };
-    }
-
-    private void UpdateBoardSize()
-    {
-        var size = _boardBorder.Bounds.Size;
-        if (size.Width <= 1 || size.Height <= 1) return;
-        _ink.Width = size.Width;
-        _ink.Height = size.Height;
     }
 
     // ── 分页 ─────────────────────────────────────────────────
@@ -491,11 +545,21 @@ public sealed class WhiteboardWindow : Window
     }
 }
 
-/// <summary>白板背景层（网格/横线/点阵），铺在 InkCanvas 之下，不吃指针事件</summary>
+/// <summary>白板背景层（网格/横线/点阵），铺在 InkCanvas 之下，不吃指针事件。
+/// 背景可**原地切换**（SetBackground）—— 宿主只需这一个实例，不必重建视觉树。</summary>
 internal sealed class BoardBackgroundLayer : Control
 {
-    private readonly BoardBackground _bg;
+    private BoardBackground _bg;
+
     public BoardBackgroundLayer(BoardBackground bg) => _bg = bg;
+
+    /// <summary>切换背景样式并重绘（不更换控件实例）</summary>
+    public void SetBackground(BoardBackground bg)
+    {
+        if (_bg == bg) return;
+        _bg = bg;
+        InvalidateVisual();
+    }
 
     public override void Render(DrawingContext context)
     {

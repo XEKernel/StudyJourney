@@ -33,7 +33,7 @@ namespace StudyJourney.Avalonia.Views;
 /// </summary>
 public sealed class ScreenAnnotationWindow : Window
 {
-    private const double ToolbarButtonSize = 40;
+    private const double ToolbarButtonSize = 44;   // 触屏热区下限（PLANNING 2.0 UI 约定）
 
     private static readonly (string Name, Color Color)[] Palette =
     {
@@ -101,20 +101,38 @@ public sealed class ScreenAnnotationWindow : Window
         {
             var screens = Screens.All;
             if (screens.Count == 0) return;
+
             // 覆盖所有屏幕的并集（教室单屏时就是主屏全屏）
             int minX = screens.Min(s => s.Bounds.X);
             int minY = screens.Min(s => s.Bounds.Y);
             int maxX = screens.Max(s => s.Bounds.X + s.Bounds.Width);
             int maxY = screens.Max(s => s.Bounds.Y + s.Bounds.Height);
 
+            // Bounds 是**物理像素**，Window.Width/Height 是 **DIP** —— 缩放不是 100%
+            // 时必须换算，否则窗口会比屏幕大一圈（超出屏幕）。
+            double scaling = ScalingAt(minX, minY);
             Position = new PixelPoint(minX, minY);
-            Width = maxX - minX;
-            Height = maxY - minY;
+            Width = (maxX - minX) / scaling;
+            Height = (maxY - minY) / scaling;
         }
         catch (Exception ex)
         {
             Helpers.AppLogger.Warn($"屏幕批注定屏失败: {ex.Message}");
         }
+    }
+
+    /// <summary>指定虚拟桌面坐标所在屏幕的缩放系数（取不到时按 1.0 处理）</summary>
+    private double ScalingAt(int x, int y)
+    {
+        try
+        {
+            var screen = Screens.ScreenFromPoint(new PixelPoint(x, y))
+                         ?? Screens.ScreenFromWindow(this)
+                         ?? Screens.Primary;
+            double s = screen?.Scaling ?? 1.0;
+            return s <= 0 ? 1.0 : s;
+        }
+        catch { return 1.0; }
     }
 
     // ── 工具条 ───────────────────────────────────────────────
@@ -128,12 +146,19 @@ public sealed class ScreenAnnotationWindow : Window
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(0),      // 直角：项目统一视觉约定
             Padding = new Thickness(10, 6),
-            // 屏幕顶部居中（不遮挡中央内容 —— 遵循审查 #12「通知类浮层让出屏幕中央」规范）
+            // 屏幕**底部**居中：老师站在大屏前，顶部够不到（2026-09-15 用户反馈）。
+            // 底部同样不遮挡画面中央，仍符合 #12「通知类浮层让出屏幕中央」的精神。
             HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Top,
-            Margin = new Thickness(0, 16, 0, 0),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 0, 16),
+            MaxWidth = 1600,                          // 极窄屏时交给横向滚动，不撑破屏幕
         };
-        border.Child = _toolbarRow;
+        border.Child = new ScrollViewer
+        {
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            Content = _toolbarRow,
+        };
         return border;
     }
 
@@ -146,18 +171,18 @@ public sealed class ScreenAnnotationWindow : Window
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        row.Children.Add(MakeToolButton("✏", "画笔 (P)", InkTool.Pen));
-        row.Children.Add(MakeToolButton("🖍", "荧光笔 (H)", InkTool.Highlighter));
-        row.Children.Add(MakeToolButton("◻", "橡皮 (E)", InkTool.Eraser));
-        row.Children.Add(MakeToolButton("●", "激光笔 (L)", InkTool.Laser));
+        row.Children.Add(MakeToolButton("✏", "画笔", "画笔：正常粗细的实线 (P)", InkTool.Pen));
+        row.Children.Add(MakeToolButton("🖍", "荧光笔", "荧光笔：半透明粗线，适合划重点 (H)", InkTool.Highlighter));
+        row.Children.Add(MakeToolButton("◻", "橡皮", "橡皮：按整笔擦除 (E)", InkTool.Eraser));
+        row.Children.Add(MakeToolButton("●", "激光笔", "激光笔：只做指示，约 1.6 秒后自动消失 (L)", InkTool.Laser));
         row.Children.Add(Separator());
 
         foreach (var (name, color) in Palette)
         {
             var swatch = new Button
             {
-                Width = 24,
-                Height = 24,
+                Width = 30,
+                Height = 30,
                 Padding = new Thickness(0),
                 CornerRadius = new CornerRadius(0),
                 Background = new SolidColorBrush(color),
@@ -165,7 +190,7 @@ public sealed class ScreenAnnotationWindow : Window
                 BorderThickness = new Thickness(1),
             };
             var captured = color;
-            ToolTip.SetTip(swatch, name);
+            ToolTip.SetTip(swatch, $"{name}（笔迹颜色）");
             swatch.Click += (_, _) => { _ink.Color = captured; UpdateToolVisuals(); };
             row.Children.Add(swatch);
         }
@@ -173,56 +198,69 @@ public sealed class ScreenAnnotationWindow : Window
         // 粗细（三档够用，避免工具条过长）
         foreach (double t in new[] { 2.0, 4.0, 8.0 })
         {
-            var b = MakeBaseButton(t switch { <= 2.5 => "·", <= 5 => "•", _ => "●" }, $"{t:0} px 粗");
-            b.Width = 26; b.Height = 26;
+            var b = MakeBaseButton(ThicknessGlyph(t), $"{t:0}", $"{t:0} px 粗的笔迹（粗细也一并放大橡皮）");
+            b.MinWidth = 46;
             var captured = t;
-            b.Click += (_, _) => { _ink.Thickness = captured; _ink.EraserRadius = Math.Max(captured * 3.5, 14); };
+            b.Click += (_, _) =>
+            {
+                _ink.Thickness = captured;
+                _ink.EraserRadius = Math.Max(captured * 3.5, 14);
+            };
             row.Children.Add(b);
         }
 
         row.Children.Add(Separator());
 
-        _undoBtn = MakeActionButton("↶", "撤销 (Ctrl+Z)", () => _ink.Document.Undo());
-        _redoBtn = MakeActionButton("↷", "重做 (Ctrl+Y)", () => _ink.Document.Redo());
+        _undoBtn = MakeActionButton("↶", "撤销", "撤销上一笔 (Ctrl+Z)", () => _ink.Document.Undo());
+        _redoBtn = MakeActionButton("↷", "重做", "重做 (Ctrl+Y)", () => _ink.Document.Redo());
         row.Children.Add(_undoBtn);
         row.Children.Add(_redoBtn);
-        row.Children.Add(MakeActionButton("🗑", "清除全部批注", ClearAll));
+        row.Children.Add(MakeActionButton("🗑", "清除", "清除全部批注", ClearAll));
         row.Children.Add(Separator());
 
-        _passThroughBtn = MakeActionButton("↔", "穿透模式：让鼠标操作底层应用（可再点返回批注）", TogglePassThrough);
+        _passThroughBtn = MakeActionButton("↔", "穿透模式",
+            "穿透模式：让鼠标去操作底层应用（再点一次回到批注）", TogglePassThrough);
         row.Children.Add(_passThroughBtn);
 
-        row.Children.Add(MakeActionButton("📷", "截屏保存（批注 + 桌面合成一张图）", SaveScreenshot));
-        row.Children.Add(MakeActionButton("✕", "退出批注 (Esc)", Close));
+        row.Children.Add(MakeActionButton("📷", "截屏保存", "把当前批注与桌面合成一张 PNG 保存", SaveScreenshot));
+        row.Children.Add(MakeActionButton("✕", "退出批注", "退出批注模式 (Esc)", Close));
         return row;
     }
 
+    private static string ThicknessGlyph(double t) => t switch
+    {
+        <= 2.5 => "·",
+        <= 5 => "•",
+        _ => "●",
+    };
+
     private Button _undoBtn = null!, _redoBtn = null!;
 
-    private Button MakeToolButton(string glyph, string tip, InkTool tool)
+    private Button MakeToolButton(string glyph, string text, string tip, InkTool tool)
     {
-        var b = MakeBaseButton(glyph, tip);
+        var b = MakeBaseButton(glyph, text, tip);
         b.Tag = tool;
         b.Click += (_, _) => { _ink.Tool = tool; UpdateToolVisuals(); };
         _toolButtons.Add(b);
         return b;
     }
 
-    private Button MakeActionButton(string glyph, string tip, Action onClick)
+    private Button MakeActionButton(string glyph, string text, string tip, Action onClick)
     {
-        var b = MakeBaseButton(glyph, tip);
+        var b = MakeBaseButton(glyph, text, tip);
         b.Click += (_, _) => onClick();
         return b;
     }
 
-    private static Button MakeBaseButton(string glyph, string tip)
+    /// <summary>工具条按钮：图标 + 中文文字（2026-09-15 用户反馈：纯图标看不懂）。</summary>
+    private static Button MakeBaseButton(string glyph, string text, string tip)
     {
         var b = new Button
         {
-            Content = new TextBlock { Text = glyph, FontSize = 16, HorizontalAlignment = HorizontalAlignment.Center },
-            Width = ToolbarButtonSize,
+            Content = BuildButtonContent(glyph, text),
             Height = ToolbarButtonSize,
-            Padding = new Thickness(0),
+            MinWidth = ToolbarButtonSize,
+            Padding = new Thickness(12, 0),
             CornerRadius = new CornerRadius(0),
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
@@ -232,6 +270,32 @@ public sealed class ScreenAnnotationWindow : Window
         };
         ToolTip.SetTip(b, tip);
         return b;
+    }
+
+    /// <summary>「图标 + 文字」横向内容（图标或文字为空时自动省略）</summary>
+    private static StackPanel BuildButtonContent(string glyph, string text)
+    {
+        var content = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        if (!string.IsNullOrEmpty(glyph))
+            content.Children.Add(new TextBlock
+            {
+                Text = glyph,
+                FontSize = 16,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        if (!string.IsNullOrEmpty(text))
+            content.Children.Add(new TextBlock
+            {
+                Text = text,
+                FontSize = 14,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+        return content;
     }
 
     private static Control Separator() => new Border
@@ -271,22 +335,36 @@ public sealed class ScreenAnnotationWindow : Window
         {
             if (_passThrough)
             {
-                // 缩到工具条大小并留在顶部：其余区域完全交给底层应用
-                Height = _toolbar.Bounds.Height + 40;
+                // 缩到"工具条高度"的一条，并**贴到屏幕底部**（工具栏在底部，
+                // 若只改 Height 而不改 Position，窗口仍锚在左上角 → 工具条会跑到屏幕上方）。
+                var h = Math.Max(_toolbar.Bounds.Height, ToolbarButtonSize) + 64;
+                var screens = Screens.All;
+                if (screens.Count > 0)
+                {
+                    int minX = screens.Min(s => s.Bounds.X);
+                    int maxX = screens.Max(s => s.Bounds.X + s.Bounds.Width);
+                    int maxY = screens.Max(s => s.Bounds.Y + s.Bounds.Height);
+                    Width = maxX - minX;
+                    Height = h;
+                    Position = new PixelPoint(minX, maxY - (int)h);
+                }
+                else
+                {
+                    Height = h;
+                }
+
                 _ink.IsReadOnly = true;
-                _toolbarRow.Children.Remove(_passThroughBtn);   // 按钮已随尺寸收起，避免误点
-                _passThroughBtn = MakeActionButton("✏", "返回批注模式", TogglePassThrough);
-                _passThroughBtn.Background = ActiveBrush;
-                _toolbarRow.Children.Add(_passThroughBtn);
-                _passThroughBtn.IsEnabled = true;
+
+                // ⚠ 不要在这里把按钮从 _toolbarRow 移除再加一个新的 —— 本方法正是由
+                // 这个按钮的 Click 触发的，在控件自己的事件处理过程中把它摘离视觉树
+                // 会让事件路由访问已脱离的控件。改为复用同一个按钮，只换文字与配色。
+                SetPassThroughButtonVisual(true);
             }
             else
             {
                 CoverAllScreens();
                 _ink.IsReadOnly = false;
-                _toolbarRow.Children.Remove(_passThroughBtn);
-                _passThroughBtn = MakeActionButton("↔", "穿透模式：让鼠标操作底层应用（可再点返回批注）", TogglePassThrough);
-                _toolbarRow.Children.Add(_passThroughBtn);
+                SetPassThroughButtonVisual(false);
                 _ink.Focus();
             }
         }
@@ -296,37 +374,50 @@ public sealed class ScreenAnnotationWindow : Window
         }
     }
 
+    /// <summary>更新穿透按钮的文字 / 配色（复用同一控件实例，不重建按钮）</summary>
+    private void SetPassThroughButtonVisual(bool passThrough)
+    {
+        _passThroughBtn.Content = BuildButtonContent(passThrough ? "✏" : "↔",
+            passThrough ? "返回批注" : "穿透模式");
+        _passThroughBtn.Background = passThrough ? ActiveBrush : IdleBrush;
+        ToolTip.SetTip(_passThroughBtn, passThrough
+            ? "返回批注模式：重新铺满全屏并捕获书写"
+            : "穿透模式：让鼠标去操作底层应用（再点一次回到批注）");
+    }
+
     // ── 截屏保存 ─────────────────────────────────────────────
 
     /// <summary>把"当前整屏画面 + 批注"合成一张 PNG。
     /// 截图走系统屏幕抓取（含底层应用），再把墨迹叠加绘制上去。</summary>
     private async void SaveScreenshot()
     {
+        bool wasToolbarVisible = _toolbar.IsVisible;
+        bool wasTopmost = Topmost;
         try
         {
-            var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
-            if (screen == null) return;
-
-            int wPx = screen.Bounds.Width;
-            int hPx = screen.Bounds.Height;
+            // 抓屏区域 = 窗口自身当前占据的区域（物理像素）。
+            // 注意不能用"主屏 Bounds"——本窗口是铺满所有屏的并集，用单屏尺寸会导致
+            // 合成出来的墨迹与桌面画面对不齐（尤其在多屏/缩放非 100% 时）。
+            double scaling = ScalingAt(Position.X, Position.Y);
+            int wPx = (int)Math.Round(Width * scaling);
+            int hPx = (int)Math.Round(Height * scaling);
             if (wPx <= 1 || hPx <= 1) return;
 
             // 1. 先把本覆盖层临时隐藏，避免把自己的工具条也拍进去
-            bool wasToolbarVisible = _toolbar.IsVisible;
             _toolbar.IsVisible = false;
             await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Render);
 
             // 2. 抓屏
-            using var screenShot = CaptureScreen(screen.Bounds);
+            using var screenShot = CaptureScreen(new PixelRect(Position.X, Position.Y, wPx, hPx));
 
-            // 3. 合成墨迹
-            var composite = new RenderTargetBitmap(new PixelSize(wPx, hPx), new Vector(96, 96));
+            // 3. 合成墨迹（RTB 的 DPI 跟着缩放走，这样墨迹的 DIP 坐标能对上物理像素）
+            using var composite = new RenderTargetBitmap(new PixelSize(wPx, hPx), new Vector(96 * scaling, 96 * scaling));
             using (var ctx = composite.CreateDrawingContext())
             {
                 if (screenShot != null)
-                    ctx.DrawImage(screenShot, new Rect(0, 0, wPx, hPx));
+                    ctx.DrawImage(screenShot, new Rect(0, 0, Width, Height));
                 else
-                    ctx.FillRectangle(new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x20)), new Rect(0, 0, wPx, hPx));
+                    ctx.FillRectangle(new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x20)), new Rect(0, 0, Width, Height));
 
                 foreach (var s in _ink.Document.Strokes)
                 {
@@ -337,51 +428,68 @@ public sealed class ScreenAnnotationWindow : Window
 
             _toolbar.IsVisible = wasToolbarVisible;
 
-            // 4. 保存
-            var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+            // 4. 保存（⭐ 打开系统文件对话框前必须取消置顶：
+            //    本窗口是 Topmost + 全屏，系统对话框不是 Topmost，会被永远压在下面 ——
+            //    用户看不到对话框，看起来就是"点了没反应 / 卡死"。）
+            Topmost = false;
+            try
             {
-                Title = "保存批注截图",
-                SuggestedFileName = $"批注_{DateTime.Now:yyyyMMdd_HHmmss}.png",
-                DefaultExtension = "png",
-                FileTypeChoices = new[] { new FilePickerFileType("PNG 图片") { Patterns = new[] { "*.png" } } },
-            });
-            if (file == null) return;
+                var file = await StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+                {
+                    Title = "保存批注截图",
+                    SuggestedFileName = $"批注_{DateTime.Now:yyyyMMdd_HHmmss}.png",
+                    DefaultExtension = "png",
+                    FileTypeChoices = new[] { new FilePickerFileType("PNG 图片") { Patterns = new[] { "*.png" } } },
+                });
+                if (file == null) return;
 
-            await using var stream = await file.OpenWriteAsync();
-            composite.Save(stream);
-            await DialogHelper.ShowMessageAsync(this, "屏幕批注", $"已保存：\n{file.Path.LocalPath}");
+                await using var stream = await file.OpenWriteAsync();
+                composite.Save(stream);
+                await DialogHelper.ShowMessageAsync(this, "屏幕批注", $"已保存：\n{file.Path.LocalPath}");
+            }
+            finally
+            {
+                Topmost = wasTopmost;
+            }
         }
         catch (Exception ex)
         {
             _toolbar.IsVisible = true;
+            Topmost = wasTopmost;
             AppLogger.Error("保存批注截图失败", ex);
             await DialogHelper.ShowMessageAsync(this, "屏幕批注", $"保存失败：{ex.Message}");
         }
     }
 
-    /// <summary>抓取指定屏幕区域（GDI BitBlt，含底层应用画面）</summary>
+    /// <summary>抓取指定屏幕区域（GDI BitBlt，含底层应用画面）。
+    /// GDI 句柄可能创建失败（大尺寸/资源紧张），必须逐个判空 —— 对 IntPtr.Zero
+    /// 调 GetDIBits/DeleteObject 会直接让进程挂掉（"闪退"的隐患之一）。</summary>
     private static Bitmap? CaptureScreen(PixelRect bounds)
     {
+        int w = bounds.Width, h = bounds.Height;
+        if (w <= 0 || h <= 0) return null;
+
+        IntPtr hDesk = IntPtr.Zero, hMem = IntPtr.Zero, hBmp = IntPtr.Zero, old = IntPtr.Zero;
         try
         {
-            int w = bounds.Width, h = bounds.Height;
-            if (w <= 0 || h <= 0) return null;
+            hDesk = GetDC(IntPtr.Zero);
+            if (hDesk == IntPtr.Zero) { AppLogger.Warn("抓屏失败：GetDC 返回空"); return null; }
 
-            IntPtr hDesk = GetDC(IntPtr.Zero);
-            IntPtr hMem = CreateCompatibleDC(hDesk);
-            IntPtr hBmp = CreateCompatibleBitmap(hDesk, w, h);
-            IntPtr old = SelectObject(hMem, hBmp);
+            hMem = CreateCompatibleDC(hDesk);
+            if (hMem == IntPtr.Zero) { AppLogger.Warn("抓屏失败：CreateCompatibleDC 返回空"); return null; }
+
+            hBmp = CreateCompatibleBitmap(hDesk, w, h);
+            if (hBmp == IntPtr.Zero) { AppLogger.Warn($"抓屏失败：CreateCompatibleBitmap 返回空（{w}x{h}）"); return null; }
+
+            old = SelectObject(hMem, hBmp);
 
             // CAPTUREBLT(0x40000000) 让分层窗口（含本程序自己的透明层）也进入位图
             BitBlt(hMem, 0, 0, w, h, hDesk, bounds.X, bounds.Y, 0x00CC0020 | 0x40000000);
 
-            SelectObject(hMem, old);
-            DeleteDC(hMem);
-            ReleaseDC(IntPtr.Zero, hDesk);
+            // 先把原位图选回 DC —— 未取消选中的位图无法被 DeleteObject 释放（GDI 泄漏）
+            if (old != IntPtr.Zero) { SelectObject(hMem, old); old = IntPtr.Zero; }
 
-            // HBITMAP → PNG 字节 → Avalonia Bitmap
             var png = BitmapToPng(hBmp, w, h);
-            DeleteObject(hBmp);
             if (png == null) return null;
 
             using var ms = new MemoryStream(png);
@@ -391,6 +499,13 @@ public sealed class ScreenAnnotationWindow : Window
         {
             AppLogger.Warn($"抓屏失败: {ex.Message}");
             return null;
+        }
+        finally
+        {
+            if (old != IntPtr.Zero && hMem != IntPtr.Zero) SelectObject(hMem, old);
+            if (hMem != IntPtr.Zero) DeleteDC(hMem);
+            if (hDesk != IntPtr.Zero) ReleaseDC(IntPtr.Zero, hDesk);
+            if (hBmp != IntPtr.Zero) DeleteObject(hBmp);
         }
     }
 

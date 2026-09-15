@@ -88,6 +88,17 @@ public static class BoardRenderer
         pixelHeight = Math.Max(pixelHeight, 1);
         scale = Math.Clamp(scale, 1.0, 4.0);   // 上限防超大画布导出爆内存
 
+        // 再按"总像素数"二次收敛：白板现在默认全屏，1920x1080 @2x = 8.3M 像素还行，
+        // 但 4K 屏 @2x 就是 33M 像素（≈132MB 缓冲），在 UI 线程上做会明显卡住。
+        // 这里把总像素压到 16M 以内（≈4096x4096），视觉上几乎无损。
+        const long MaxPixels = 16L * 1024 * 1024;
+        long wanted = (long)Math.Ceiling(pixelWidth * (double)scale) * (long)Math.Ceiling(pixelHeight * (double)scale);
+        if (wanted > MaxPixels)
+        {
+            double shrink = Math.Sqrt(MaxPixels / (double)((long)pixelWidth * pixelHeight));
+            scale = Math.Max(1.0, Math.Min(scale, shrink));
+        }
+
         var bmp = new RenderTargetBitmap(
             new PixelSize((int)Math.Ceiling(pixelWidth * scale), (int)Math.Ceiling(pixelHeight * scale)),
             new Vector(96 * scale, 96 * scale));

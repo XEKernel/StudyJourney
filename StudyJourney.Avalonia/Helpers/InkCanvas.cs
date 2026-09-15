@@ -42,7 +42,6 @@ public sealed class InkCanvas : Control
             InvalidateVisual();
         }
     }
-
     private IInkSurface _surface = IdentityInkSurface.Instance;
     /// <summary>坐标变换（宿主注入；PDF 阅读器传带滚动/缩放的实现）</summary>
     public IInkSurface Surface
@@ -100,7 +99,6 @@ public sealed class InkCanvas : Control
     private bool _sessionIsInk;                 // 本次会话是否被判定为"书写"（否则完全忽略）
 
     private List<(Geometry Geo, IPen Pen)>? _historyCache;   // 历史笔画的绘制缓存
-    private int _historyCacheCount = -1;                     // 缓存对应的笔画数（变了就重建）
 
     private readonly List<InkStroke> _laserStrokes = new();
     private readonly DispatcherTimer _laserTimer;
@@ -112,6 +110,12 @@ public sealed class InkCanvas : Control
     {
         ClipToBounds = true;
         Focusable = true;
+
+        // ⚠ 必须在这里订阅「默认文档」的 Changed。
+        // 订阅逻辑不能只写在 Document 的 setter 里 —— 字段初始化器已经建好一份文档，
+        // 宿主若不显式赋 Document（屏幕批注就是这种用法），Changed 将永远没人接管：
+        // 落笔提交后 _historyCache 不重建，_active 又被清空 → 表现为「一松手笔迹就消失」。
+        _document.Changed += OnDocumentChanged;
 
         _laserTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _laserTimer.Tick += (_, _) =>
@@ -125,17 +129,10 @@ public sealed class InkCanvas : Control
 
     private void OnDocumentChanged()
     {
-        if (_document.Strokes.Count != _historyCacheCount)
-        {
-            RebuildHistory();
-            InvalidateVisual();
-        }
-        else
-        {
-            // 撤销/重做后条数可能相同但内容不同（极少见）——保守重建
-            RebuildHistory();
-            InvalidateVisual();
-        }
+        // 任何变化（Add/Undo/Redo/Clear/EraseAt）都要重建缓存：
+        // 撤销/重做后条数可能与之前相同，只比条数会漏掉内容变化。
+        RebuildHistory();
+        InvalidateVisual();
     }
 
     /// <summary>重建历史笔画缓存（笔画集合变化时调用）</summary>
@@ -145,7 +142,6 @@ public sealed class InkCanvas : Control
         foreach (var s in _document.Strokes)
             list.Add((InkGeometry.BuildGeometry(s, _surface), InkGeometry.BuildPen(s)));
         _historyCache = list;
-        _historyCacheCount = _document.Strokes.Count;
     }
 
     /// <summary>兼容旧名（宿主可能调用）</summary>

@@ -338,6 +338,66 @@ public partial class App : Application
             sb.AppendLine("[SELFTEST] WhiteboardWindow 实例化 OK（未 Show，避免干扰桌面）");
             win.Close();
 
+            // 5. 回归：InkCanvas 的**默认文档**必须订阅 Changed。
+            //    曾经的 bug —— 订阅只写在 Document 的 setter 里，宿主不显式赋值 Document
+            //    （屏幕批注就是这种用法）时，落笔提交不会重建历史缓存，
+            //    表现为「笔迹一松手就消失」。这里用私有缓存字段直接断言。
+            var canvas = new InkCanvas();
+            var cacheField = typeof(InkCanvas).GetField("_historyCache",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+                ?? throw new Exception("找不到 InkCanvas._historyCache（自检需同步更新）");
+            int cacheBefore = (cacheField.GetValue(canvas) as System.Collections.ICollection)?.Count ?? -1;
+
+            var probe = new InkStroke { Color = Colors.Red, Thickness = 3, Tool = InkTool.Pen };
+            probe.Points.Add(new global::Avalonia.Point(5, 5));
+            probe.Points.Add(new global::Avalonia.Point(50, 50));
+            canvas.Document.Add(probe);      // ⚠ 刻意不赋值 Document，走默认实例
+
+            int cacheAfter = (cacheField.GetValue(canvas) as System.Collections.ICollection)?.Count ?? -1;
+            sb.AppendLine($"[SELFTEST] 默认文档订阅：历史缓存 {cacheBefore} → {cacheAfter}");
+            if (cacheAfter != 1)
+                throw new Exception(
+                    $"InkCanvas 未随默认文档变化重建绘制缓存（{cacheBefore}→{cacheAfter}）—— " +
+                    "「笔迹一松手就消失」回归！");
+
+            // 6. 回归：切换白板背景**不得重建视觉树**。
+            //    曾经的 bug —— ApplyBackground 每次新建 Grid 并把 _ink 重新挂进去，
+            //    导致 InkCanvas 被新旧两个父级同时持有（视觉树损坏），点背景按钮卡死/闪退。
+            var wb = new Views.WhiteboardWindow();
+            const System.Reflection.BindingFlags NonPub =
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+            var border = (Border?)typeof(WhiteboardWindow).GetField("_boardBorder", NonPub)?.GetValue(wb)
+                ?? throw new Exception("找不到 WhiteboardWindow._boardBorder");
+            var ink = (InkCanvas?)typeof(WhiteboardWindow).GetField("_ink", NonPub)?.GetValue(wb)
+                ?? throw new Exception("找不到 WhiteboardWindow._ink");
+            var bgField = typeof(WhiteboardWindow).GetField("_background", NonPub)
+                ?? throw new Exception("找不到 WhiteboardWindow._background");
+            var applyM = typeof(WhiteboardWindow).GetMethod("ApplyBackground", NonPub)
+                ?? throw new Exception("找不到 WhiteboardWindow.ApplyBackground");
+
+            var childBefore = border.Child;
+            foreach (var bg in Enum.GetValues<BoardBackground>())
+            {
+                bgField.SetValue(wb, bg);
+                try
+                {
+                    applyM.Invoke(wb, null);
+                }
+                catch (System.Reflection.TargetInvocationException tie)
+                {
+                    throw tie.InnerException ?? tie;   // 展开成真实异常，便于定位
+                }
+            }
+
+            if (!ReferenceEquals(childBefore, border.Child))
+                throw new Exception("切换背景重建了画布视觉树 —— 「背景按钮卡死/闪退」回归！");
+            if (border.Child is not Grid g || !g.Children.Contains(ink))
+                throw new Exception("切换背景后 InkCanvas 已不在画布视觉树内");
+
+            sb.AppendLine($"[SELFTEST] 背景原地切换 OK（5 种，视觉树未重建，InkCanvas 仍在树上）");
+            wb.Close();
+
             sb.AppendLine("[SELFTEST] 结论：PASS");
         }
         catch (Exception ex)
