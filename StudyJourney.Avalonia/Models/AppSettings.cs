@@ -272,30 +272,52 @@ namespace StudyJourney.Avalonia.Models
 
         public static AppSettings Load()
         {
-            if (File.Exists(SettingsPath))
+            if (!File.Exists(SettingsPath)) return new AppSettings();
+
+            try
             {
-                try
-                {
-                    string json = File.ReadAllText(SettingsPath);
-                    return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
-                }
-                catch (Exception ex)
-                {
-                    // 备份损坏文件，然后删除原文件（保留最近 3 份备份，防止无限堆积）
-                    try
-                    {
-                        var bak = SettingsPath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                        File.Copy(SettingsPath, bak, overwrite: true);
-                        File.Delete(SettingsPath);
-                        TrimCorruptedBackups(SettingsPath);
-                        System.Diagnostics.Debug.WriteLine($"[AppSettings] 已备份损坏文件: {bak}");
-                    }
-                    catch { }
-                    System.Diagnostics.Debug.WriteLine($"[AppSettings] 设置文件加载失败，使用默认设置: {ex.Message}");
-                    return new AppSettings();
-                }
+                string json = File.ReadAllText(SettingsPath);
+                return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
             }
-            return new AppSettings();
+            catch (JsonException jex)
+            {
+                // 内容确实不是合法 JSON（真损坏）：备份一份供恢复，再把原文件移走，
+                // 让程序能生成一份干净的设置。
+                Helpers.AppLogger.Error("settings.json 内容损坏，已备份并重建（可从 .corrupted.* 恢复）", jex);
+                BackupAndRemoveCorrupted();
+                return new AppSettings();
+            }
+            catch (Exception ex)
+            {
+                // ⚠ 修复（2026-09-16）：IO/权限等**偶发**失败绝不碰原文件。
+                //
+                // 原来这里把「任何异常」都当成文件损坏 → 复制备份后 `File.Delete` 原文件，
+                // 而且只用 `Debug.WriteLine` 记录（Release 下完全看不见）。后果：
+                //   · 文件被另一个实例的原子写短暂占用、杀软扫描、磁盘抖动 → **静默清空老师的全部设置**，
+                //     下次保存再把默认值写回 → 不可逆、无提示；
+                //   · NativeAOT 下 System.Text.Json 反射被禁用（抛 NotSupportedException），
+                //     跑一次就把 settings.json 删一次（2026-09-16 实测确认）。
+                // 现在：保留原文件 + 用 AppLogger 明确记录，最坏也只是这一次用默认值。
+                Helpers.AppLogger.Error(
+                    $"settings.json 读取失败，本次使用默认设置（原文件已保留，不会丢失）: {ex.Message}", ex);
+                return new AppSettings();
+            }
+        }
+
+        /// <summary>备份损坏的设置文件后移除原文件（保留最近 3 份备份）</summary>
+        private static void BackupAndRemoveCorrupted()
+        {
+            try
+            {
+                var bak = SettingsPath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                File.Copy(SettingsPath, bak, overwrite: true);
+                File.Delete(SettingsPath);
+                TrimCorruptedBackups(SettingsPath);
+            }
+            catch (Exception ex)
+            {
+                Helpers.AppLogger.Warn($"备份损坏的设置文件失败（已跳过，不影响使用）: {ex.Message}");
+            }
         }
 
         // ── 自定义倒计时 ──────────────────────────────────────

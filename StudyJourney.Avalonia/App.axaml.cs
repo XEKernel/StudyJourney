@@ -107,10 +107,29 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // ── 启动耗时诊断（2026-09-16 用户问"启动有点慢，能否换 C++/Qt"）──
+        // 时间基准用**进程真实启动时刻**，而不是进到本方法才开始计时 ——
+        // 否则会把"运行时自举"（CLR 加载 + 程序集解析 + Main 之前的初始化）那段时间漏掉，
+        // 而那恰恰是评估"换原生框架能省多少"的关键部分。
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        long SinceProcessStartMs()
+        {
+            try
+            {
+                var start = System.Diagnostics.Process.GetCurrentProcess().StartTime;
+                return (long)(DateTime.Now - start).TotalMilliseconds;
+            }
+            catch { return sw.ElapsedMilliseconds; }
+        }
+        void Mark(string stage) =>
+            Helpers.AppLogger.Info($"[启动耗时] {stage}: {SinceProcessStartMs()} ms");
+
         Helpers.AppLogger.EnableFileLogging();
         Helpers.AppLogger.Info("学程 Avalonia 启动");
+        Mark("进入应用初始化（=运行时自举已花掉的时间）");
 
         Settings = AppSettings.Load();
+        Mark("settings.json 加载完成");
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
@@ -118,6 +137,7 @@ public partial class App : Application
             _mainWindow = new MainWindow();
             desktop.MainWindow = _mainWindow;
             desktop.ShutdownRequested += (_, _) => Cleanup();
+            Mark("主窗口构建完成（含 XAML 解析）");
 
             // 提醒服务：课表/考试关键节点触发（声音 + 事件）。
             // #3 修复后不再注入 Settings 实例：ReminderService 内部动态读 App.Settings
@@ -128,6 +148,7 @@ public partial class App : Application
             // 注意：automations.json 独立于 settings.json（恢复默认设置不误删规则）
             Automation = new AutomationService(Schedule);
             Automation.Start();
+            Mark("提醒/自动化服务就绪");
 
             // ── 自检模式（SJ_SELFTEST）────────────────────────────
             // 必须在建托盘/窗口之前判断：自检实例**不显示托盘图标、不显示主窗口**。
@@ -141,6 +162,7 @@ public partial class App : Application
 
             SetupTrayIcon();
             SetupGlobalHotKeys();
+            Mark("托盘 + 全局快捷键注册完成");
 
             // 更新下载通道：把设置里的加速镜像灌进 UpdateService（空前缀 = 直连 GitHub）。
             // 本机实测 github.com 的 release 资产直连基本不通，所以默认开镜像。
@@ -156,6 +178,12 @@ public partial class App : Application
                 _ = EnterExamModeDelayedAsync();
 
             _mainWindow.Show();
+            Mark("主窗口 Show() 返回");
+
+            // Show() 只把窗口排进渲染队列，真正"看得见"要等首帧画完；
+            // 用低优先级回调近似测首帧（= 用户可感知的启动时间）
+            Dispatcher.UIThread.Post(() => Mark("首帧渲染完成 ← 用户可感知的启动时间"),
+                DispatcherPriority.Background);
 
             // 远程 HTTP 服务：设置开启则延迟 1.5s 自动启动（不阻塞首屏；失败记日志不影响主程序）
             if (Settings.AutoStartHttpServer)
@@ -534,6 +562,35 @@ public partial class App : Application
                 throw new Exception("切换背景后 InkCanvas 已不在画布视觉树内");
 
             sb.AppendLine($"[SELFTEST] 背景原地切换 OK（5 种，视觉树未重建，InkCanvas 仍在树上）");
+
+            // 7. 回归：白板工具栏**不得横向溢出**（用户反馈"有的按钮跑到屏幕外面去"）。
+            //    量法：给每一行「无限宽度」测一次（得到不折行时的自然宽度），
+            //    再和各档屏幕宽度比 —— 自然宽度 > 屏宽就意味着会被挤出可视区。
+            //    注意不能约束宽度去测（WrapPanel 一折行 DesiredSize 就等于屏宽，测不出问题）。
+            var toolbar = (Border?)typeof(WhiteboardWindow).GetField("_toolbar", NonPub)?.GetValue(wb)
+                ?? throw new Exception("找不到 WhiteboardWindow._toolbar");
+            if (toolbar.Child is not StackPanel rows || rows.Children.Count == 0)
+                throw new Exception("工具栏结构异常：应为若干行 StackPanel/WrapPanel");
+
+            string[] screens = { "1920x1080", "1600x900", "1366x768" };
+            double[] widths = { 1920, 1600, 1366 };
+            double widestRow = 0;
+
+            for (int i = 0; i < rows.Children.Count; i++)
+            {
+                if (rows.Children[i] is not Control row) continue;
+                row.Measure(new global::Avalonia.Size(double.PositiveInfinity, double.PositiveInfinity));
+                double w = row.DesiredSize.Width;
+                widestRow = Math.Max(widestRow, w);
+                sb.AppendLine($"[SELFTEST] 工具栏第 {i + 1} 行自然宽度: {w:0} px");
+            }
+
+            sb.AppendLine($"[SELFTEST] 最宽一行 {widestRow:0} px vs 屏宽 " +
+                          string.Join(" / ", screens.Zip(widths, (s, w) => $"{s}={w:0}")));
+            if (widestRow > 1366)
+                throw new Exception($"工具栏最宽一行 {widestRow:0}px 超过 1366 —— 窄屏上按钮会被挤出屏幕");
+
+            sb.AppendLine("[SELFTEST] 工具栏不溢出 OK（1366 及以上都能完整显示，更窄会行内折行）");
             wb.Close();
 
             sb.AppendLine("[SELFTEST] 结论：PASS");

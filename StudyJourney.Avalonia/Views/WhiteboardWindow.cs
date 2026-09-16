@@ -35,7 +35,6 @@ namespace StudyJourney.Avalonia.Views;
 public sealed class WhiteboardWindow : Window
 {
     // ── 布局常量 ─────────────────────────────────────────────
-    private const double ToolbarHeight = 52;
     private const double ToolButtonSize = 44;      // 触屏热区下限（PLANNING 2.0 UI 统一约定）
     private const double DefaultPenThickness = 3;
     private const double DefaultEraserRadius = 14;
@@ -62,6 +61,7 @@ public sealed class WhiteboardWindow : Window
     private readonly InkCanvas _ink;
     private readonly Border _boardBorder;
     private readonly BoardBackgroundLayer _bgLayer;
+    private readonly Border _toolbar;             // 底部工具栏（自检要量它的实际宽度）
     private readonly TextBlock _pageLabel;
     private readonly StackPanel _palettePanel;
     private readonly StackPanel _thicknessPanel;
@@ -124,6 +124,7 @@ public sealed class WhiteboardWindow : Window
         _thicknessPanel = BuildThicknessPanel();
 
         var toolbar = BuildToolbar();
+        _toolbar = toolbar;
 
         // 工具栏放**底部**（2026-09-15 用户反馈：放顶部老师在大屏前够不到）；
         // 画布占满其余空间。
@@ -149,90 +150,121 @@ public sealed class WhiteboardWindow : Window
     }
 
     // ── 工具栏 ───────────────────────────────────────────────
+    //
+    // 布局演进（2026-09-16 用户反馈："按钮按功能合并、要居中、有的跑到屏幕外"）：
+    //   原实现是**一整条平铺**：7 组按钮全挤在一行，总宽 ≈2100px，
+    //   在 1920/缩放非 100% 的屏上会超出可视区 —— 虽然套了横向 ScrollViewer，
+    //   但触屏上滚动条几乎看不见，表现就是"按钮跑到屏幕外面去"。
+    //   现在改为：**按功能装进带标题的组框** + **两行居中**（每行是 WrapPanel，
+    //   内容放得下就居中，放不下才在行内折行，保证任何分辨率都能点到）。
 
-    private Control BuildToolbar()
+    private Border BuildToolbar()
     {
         var toolbar = new Border
         {
-            Height = ToolbarHeight,
+            // 高度不再写死：分组后可能折行，高度要自适应
             Background = new SolidColorBrush(Color.FromRgb(0x1B, 0x1B, 0x1B)),
             BorderBrush = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
             BorderThickness = new Thickness(0, 1, 0, 0),   // 底栏 → 分隔线画在上边
-            Padding = new Thickness(10, 0),
+            Padding = new Thickness(12, 8),
             CornerRadius = new CornerRadius(0),
         };
 
-        var row = new StackPanel
+        // ── 第一行：写字相关的（工具 / 颜色 / 粗细）──
+        var row1 = NewToolbarRow();
+        row1.Children.Add(MakeGroup("书写",
+            MakeToolButton("✏", "画笔", "画笔：正常粗细的实线 (P)", InkTool.Pen),
+            MakeToolButton("🖍", "荧光笔", "荧光笔：半透明粗线，适合划重点 (H)", InkTool.Highlighter),
+            MakeToolButton("◻", "橡皮", "橡皮：按整笔擦除 (E)", InkTool.Eraser),
+            MakeToolButton("●", "激光笔", "激光笔：只做指示，约 1.6 秒后自动消失、不导出 (L)", InkTool.Laser)));
+
+        row1.Children.Add(MakeGroup("颜色", _palettePanel));
+        row1.Children.Add(MakeGroup("粗细", _thicknessPanel));
+
+        // ── 第二行：改内容的（编辑 / 背景 / 页面 / 文件）──
+        var row2 = NewToolbarRow();
+
+        _undoBtn = MakeActionButton("↶", "撤销", "撤销上一笔 (Ctrl+Z)", Undo_Click);
+        _redoBtn = MakeActionButton("↷", "重做", "重做 (Ctrl+Y)", Redo_Click);
+        row2.Children.Add(MakeGroup("编辑",
+            _undoBtn,
+            _redoBtn,
+            MakeActionButton("🗑", "清空", "清空当前页的所有笔迹", Clear_Click)));
+
+        row2.Children.Add(MakeGroup("背景",
+            MakeBgButton("", "纯白", BoardBackground.Blank, "纯白背景：自由板书"),
+            MakeBgButton("▦", "网格", BoardBackground.Grid, "网格背景：理科作图 / 坐标系"),
+            MakeBgButton("☰", "横线", BoardBackground.Ruled, "横线背景：文科书写 / 英文"),
+            MakeBgButton("∴", "点阵", BoardBackground.Dots, "点阵背景：轻量对齐参考"),
+            MakeBgButton("", "黑板", BoardBackground.Blackboard, "黑板背景：深色底，投影对比强")));
+
+        // 翻页箭头紧挨页码，配「页面」标题后一目了然（不再塞"上一页/下一页"四个字，省宽度）
+        row2.Children.Add(MakeGroup("页面",
+            MakeActionButton("◀", "", "上一页 (PgUp)", () => SwitchPage(_pageIndex - 1)),
+            _pageLabel,
+            MakeActionButton("▶", "", "下一页 (PgDn)", () => SwitchPage(_pageIndex + 1)),
+            MakeActionButton("＋", "加页", "在当前页之后新增一页白板", AddPage),
+            MakeActionButton("－", "删页", "删除当前页（只剩一页时等于清空）", DeletePage)));
+
+        row2.Children.Add(MakeGroup("文件",
+            MakeActionButton("💾", "导出", "把当前页（含背景）导出为 PNG 图片，2 倍分辨率", Export_Click),
+            MakeActionButton("✕", "退出", "退出白板 (Esc)；有未导出内容会先询问", Close)));
+
+        var stack = new StackPanel { Orientation = Orientation.Vertical, Spacing = 8 };
+        stack.Children.Add(row1);
+        stack.Children.Add(row2);
+        toolbar.Child = stack;
+        return toolbar;
+    }
+
+    /// <summary>
+    /// 一行工具栏：WrapPanel + 居中。
+    /// 内容放得下时面板宽度 = 内容宽度 → 整行居中；
+    /// 放不下时才折行（按钮仍在屏幕内，不会"跑出去"）。
+    /// </summary>
+    private static WrapPanel NewToolbarRow() => new()
+    {
+        Orientation = Orientation.Horizontal,
+        HorizontalAlignment = HorizontalAlignment.Center,
+    };
+
+    /// <summary>把按钮按功能装进一个带标题的组框（标题 + 白描边框，一眼看出这几颗是一组）</summary>
+    private static Border MakeGroup(string label, params Control[] children)
+    {
+        var inner = new StackPanel
         {
             Orientation = Orientation.Horizontal,
             Spacing = 6,
             VerticalAlignment = VerticalAlignment.Center,
         };
 
-        // 书写工具
-        row.Children.Add(MakeToolButton("✏", "画笔", "画笔：正常粗细的实线 (P)", InkTool.Pen));
-        row.Children.Add(MakeToolButton("🖍", "荧光笔", "荧光笔：半透明粗线，适合划重点 (H)", InkTool.Highlighter));
-        row.Children.Add(MakeToolButton("◻", "橡皮", "橡皮：按整笔擦除 (E)", InkTool.Eraser));
-        row.Children.Add(MakeToolButton("●", "激光笔", "激光笔：只做指示，约 1.6 秒后自动消失、不导出 (L)", InkTool.Laser));
-        row.Children.Add(MakeSeparator());
-
-        // 图层状态提示
-        row.Children.Add(MakeLabel("颜色"));
-        row.Children.Add(_palettePanel);
-        row.Children.Add(MakeLabel("粗细"));
-        row.Children.Add(_thicknessPanel);
-        row.Children.Add(MakeSeparator());
-
-        // 编辑
-        _undoBtn = MakeActionButton("↶", "撤销", "撤销上一笔 (Ctrl+Z)", Undo_Click);
-        _redoBtn = MakeActionButton("↷", "重做", "重做 (Ctrl+Y)", Redo_Click);
-        row.Children.Add(_undoBtn);
-        row.Children.Add(_redoBtn);
-        row.Children.Add(MakeActionButton("🗑", "清空", "清空当前页的所有笔迹", Clear_Click));
-        row.Children.Add(MakeSeparator());
-
-        // 背景
-        row.Children.Add(MakeLabel("背景"));
-        row.Children.Add(MakeBgButton("", "纯白", BoardBackground.Blank, "纯白背景：自由板书"));
-        row.Children.Add(MakeBgButton("▦", "网格", BoardBackground.Grid, "网格背景：理科作图 / 坐标系"));
-        row.Children.Add(MakeBgButton("☰", "横线", BoardBackground.Ruled, "横线背景：文科书写 / 英文"));
-        row.Children.Add(MakeBgButton("∴", "点阵", BoardBackground.Dots, "点阵背景：轻量对齐参考"));
-        row.Children.Add(MakeBgButton("", "黑板", BoardBackground.Blackboard, "黑板背景：深色底，投影对比强"));
-        row.Children.Add(MakeSeparator());
-
-        // 分页
-        row.Children.Add(MakeActionButton("◀", "上一页", "上一页 (PgUp)", () => SwitchPage(_pageIndex - 1)));
-        row.Children.Add(_pageLabel);
-        row.Children.Add(MakeActionButton("▶", "下一页", "下一页 (PgDn)", () => SwitchPage(_pageIndex + 1)));
-        row.Children.Add(MakeActionButton("＋", "新增页", "在当前页之后新增一页白板", AddPage));
-        row.Children.Add(MakeActionButton("－", "删除本页", "删除当前页（只剩一页时等于清空）", DeletePage));
-        row.Children.Add(MakeSeparator());
-
-        // 导出 / 退出
-        row.Children.Add(MakeActionButton("💾", "导出 PNG", "把当前页（含背景）导出为 PNG 图片，2 倍分辨率", Export_Click));
-        row.Children.Add(MakeActionButton("✕", "退出白板", "退出白板 (Esc)；有未导出内容会先询问", Close));
-
-        var scroll = new ScrollViewer
+        if (!string.IsNullOrEmpty(label))
         {
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            Content = row,
+            inner.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontSize = 12,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = new SolidColorBrush(Color.FromArgb(0x8C, 0xFF, 0xFF, 0xFF)),
+                Margin = new Thickness(0, 0, 4, 0),
+            });
+        }
+
+        foreach (var c in children) inner.Children.Add(c);
+
+        return new Border
+        {
+            Background = new SolidColorBrush(Color.FromArgb(0x0F, 0xFF, 0xFF, 0xFF)),
+            BorderBrush = new SolidColorBrush(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(0),      // 直角：项目统一视觉约定
+            Padding = new Thickness(10, 5),
+            Margin = new Thickness(4, 0),
+            Child = inner,
         };
-        toolbar.Child = scroll;
-        return toolbar;
     }
 
     private Button _undoBtn = null!, _redoBtn = null!;
-
-    /// <summary>工具条里的分组小标题（"颜色" / "粗细" / "背景"）</summary>
-    private static TextBlock MakeLabel(string text) => new()
-    {
-        Text = text,
-        FontSize = 13,
-        VerticalAlignment = VerticalAlignment.Center,
-        Foreground = new SolidColorBrush(Color.FromArgb(0x99, 0xFF, 0xFF, 0xFF)),
-        Margin = new Thickness(6, 0, 0, 0),
-    };
 
     private Button MakeToolButton(string glyph, string text, string tip, InkTool tool)
     {
@@ -292,13 +324,7 @@ public sealed class WhiteboardWindow : Window
         return b;
     }
 
-    private static Control MakeSeparator() => new Border
-    {
-        Width = 1,
-        Height = 26,
-        Margin = new Thickness(4, 0),
-        Background = new SolidColorBrush(Color.FromArgb(0x22, 0xFF, 0xFF, 0xFF)),
-    };
+    // 分隔线已由「分组框」取代（MakeGroup），不再需要 MakeSeparator
 
     private StackPanel BuildPalette()
     {
