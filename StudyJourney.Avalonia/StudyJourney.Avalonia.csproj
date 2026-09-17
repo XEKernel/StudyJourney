@@ -8,8 +8,8 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 2.12.0：AssemblyVersion=2.12.0.0，InformationalVersion=2.12.0（更新检查解析用） -->
-    <Version>2.12.0</Version>
+    <!-- 2.12.1：AssemblyVersion=2.12.1.0，InformationalVersion=2.12.1（更新检查解析用） -->
+    <Version>2.12.1</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
@@ -32,10 +32,13 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
-  <!-- 与 WPF 版共用 settings.json（数据文件：课表/上传等存 Documents\StudyJourney，不随 exe 分发） -->
-  <ItemGroup>
-    <None Include="..\settings.json" Link="settings.json" CopyToOutputDirectory="PreserveNewest" />
-  </ItemGroup>
+  <!-- ⚠ 这里**不能**把 settings.json 打进产物（2026-09-17 修复，数据丢失 BUG）
+       原来有 <None Include="..\settings.json" CopyToOutputDirectory="PreserveNewest" />，
+       后果是发布包里带着仓库里那份 settings.json，而更新流程是"把包里文件覆盖到程序目录"
+       → **每次更新都会把老师的设置冲掉**（账号/课表/上传目录/更新镜像地址全没），
+       而且包里的还是开发机的旧测试数据。实测 v2.12.0 的 fd 包 49 个文件里就有它。
+       settings.json 属于运行期数据（存在 exe 目录、随文件夹分发），首次启动会自动生成默认值，
+       本就不该随发布包分发（注释里也是这么写的）。与 WPF 版共用配置的历史原因已随 WPF 归档失效。 -->
 
   <!-- 应用资源（托盘图标等） -->
   <ItemGroup>

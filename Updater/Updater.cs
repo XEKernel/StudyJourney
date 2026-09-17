@@ -204,21 +204,53 @@ class Program
     }
 
     /// <summary>
+    /// 用户数据文件 —— 更新时**绝不覆盖**（2026-09-17 新增）。
+    ///
+    /// 更新流程是"把包内文件覆盖到程序目录"，如果包里恰好带了这些文件，就会把老师的
+    /// 设置/课表/自动化规则冲掉。实测 v2.12.0 之前的发布包确实误带了 settings.json
+    /// （csproj 里有一条 CopyToOutputDirectory 把它打进产物），靠这里做第二道防线：
+    /// 即使某个旧包/手工解压带上了它们，也不会覆盖用户数据。
+    ///
+    /// 同时也防"老师自己把 settings.json 放进 zip 手动升级"这种误操作。
+    /// 真要发默认配置，请用别的文件名（如 schedule_example.json），不要用这些名字。
+    /// </summary>
+    private static readonly string[] ProtectedUserDataFiles =
+    {
+        "settings.json",        // 应用设置（账号/课表参数/上传目录/更新镜像…）
+        "schedule.json",        // 课表
+        "automations.json",     // 自动化规则
+        "open-state.json",      // 打开类动作运行期状态
+        "pdf-state.json",       // PDF 阅读进度
+        "tokens.json",          // 远程登录 token
+    };
+
+    private static bool IsProtectedUserData(string fileName)
+        => ProtectedUserDataFiles.Any(p => string.Equals(p, fileName, StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>
     /// 把 source 下的文件覆盖到 dest。
     /// <paramref name="skipFileNamePrefix"/> 用来跳过正在运行、被系统锁定的更新器自身文件。
     /// </summary>
     private static void CopyDirectory(string source, string dest, string? skipFileNamePrefix = null)
     {
         Directory.CreateDirectory(dest);
-        int skipped = 0, copied = 0;
+        int skipped = 0, copied = 0, protectedSkipped = 0;
 
         foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
         {
             string fileName = Path.GetFileName(file);
+
             if (!string.IsNullOrEmpty(skipFileNamePrefix) &&
                 fileName.StartsWith(skipFileNamePrefix, StringComparison.OrdinalIgnoreCase))
             {
                 skipped++;
+                continue;
+            }
+
+            if (IsProtectedUserData(fileName))
+            {
+                protectedSkipped++;
+                Log($"跳过用户数据文件（不覆盖）：{Path.GetRelativePath(source, file)}");
                 continue;
             }
 
@@ -229,9 +261,7 @@ class Program
             copied++;
         }
 
-        if (skipped > 0)
-            Debug.WriteLine($"[Updater] 跳过 {skipped} 个更新器自身文件（正在运行，由主程序预先替换）");
-        Debug.WriteLine($"[Updater] 已复制 {copied} 个文件");
+        Log($"复制完成：{copied} 个；跳过更新器自身 {skipped} 个；跳过用户数据 {protectedSkipped} 个");
     }
 
     /// <summary>

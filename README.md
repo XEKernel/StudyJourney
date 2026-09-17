@@ -1,7 +1,7 @@
 ﻿# 学程
 
 > 🎓 高考倒计时桌面伴侣 — 倒计时 · 课表 · 考试 · 天气 · 提醒 · 远程管理 · 自动化任务 · 白板 · 屏幕批注 · PDF 阅读
-> 基于 Avalonia + FluentAvalonia 构建，WinUI 3 风格界面 ｜ 当前版本：**v2.12.0**
+> 基于 Avalonia + FluentAvalonia 构建，WinUI 3 风格界面 ｜ 当前版本：**v2.12.1**
 >
 > 📦 框架迁移已完成（WPF → Avalonia）；**旧 WPF 版已确认淘汰（2026-09-05），不再维护**，源码归档于 `LegacyWPF/`（本地保留、不入库）
 > 🔐 老师账号密码采用 **PBKDF2 哈希存储**（v2.7.0 起），settings.json 不再保存明文密码
