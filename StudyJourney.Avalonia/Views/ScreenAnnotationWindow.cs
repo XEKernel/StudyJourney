@@ -55,6 +55,9 @@ public sealed class ScreenAnnotationWindow : Window
     };
 
     private readonly StackPanel _toolbarRow;
+
+    /// <summary>是否有圈画内容（自动更新重启前用它判断"现在重启会不会丢批注"）</summary>
+    public bool HasStrokes => _ink.Document.HasStrokes;
     private readonly List<Button> _toolButtons = new();
     private Border _toolbar = null!;
     private Button _passThroughBtn = null!;

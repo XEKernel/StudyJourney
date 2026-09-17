@@ -268,12 +268,9 @@ public partial class App : Application
             var info = await UpdateService.CheckAsync("XEKernel", "StudyJourney");
             if (!info.HasUpdate) return;
 
-            var mode = info.IsSelfContained ? "自包含版" : "框架依赖版";
-            var sizeHint = info.IsSelfContained ? "约 84 MB" : "约 38 MB";
-            var msg = $"新版本 v{info.LatestVersion} 可用！（当前 v{UpdateService.CurrentVersion}）\n" +
-                      $"将自动下载 {mode}（{sizeHint}）\n\n是否立即更新？";
-
-            if (!await ConfirmAsync("学程 — 发现新版本", msg, "立即更新", "取消")) return;
+            // 2026-09-17 用户要求：检测到新版本**不再弹窗**，直接进入更新流程
+            // （进度显示在顶部课表胶囊栏里，见 RunUpdateAsync）。
+            Helpers.AppLogger.Info($"[UpdateService] 发现新版本 {info.LatestVersion}（当前 {UpdateService.CurrentVersion}），开始自动更新");
             await RunUpdateAsync(info);
         }
         catch (Exception ex)
@@ -283,11 +280,104 @@ public partial class App : Application
     }
 
     /// <summary>
-    /// 执行一次完整的自动更新：进度窗 → 下载 → 拉起更新程序 → 退出本体。
-    /// 每一步失败都给出**明确原因**（原实现下载失败时静默什么都不做，
-    /// 老师看到的是"点了立即更新然后没反应"）。
+    /// 自动更新：在胶囊栏显示进度 → 下载 → 解压 → 重启。
+    /// 全程无弹窗（用户明确要求）；失败则记日志 + 在胶囊栏短暂提示，不打断老师。
     /// </summary>
     public static async System.Threading.Tasks.Task RunUpdateAsync(UpdateInfo info)
+    {
+        var banner = (Current as App)?._mainWindow as MainWindow;
+
+        void SetBanner(string? text, double progress = -1)
+            => Dispatcher.UIThread.Post(() => banner?.ShowUpdateBanner(text, progress));
+
+        try
+        {
+            if (!UpdateService.UpdaterPresent)
+            {
+                Helpers.AppLogger.Warn("[Updater] 缺少 StudyJourney.Updater.exe，无法自动更新");
+                SetBanner("更新程序缺失，请到 GitHub 手动下载", -1);
+                await System.Threading.Tasks.Task.Delay(6000);
+                SetBanner(null);
+                return;
+            }
+
+            SetBanner("正在下载新版本", 0);
+            var progress = new Progress<UpdateProgress>(p => SetBanner("正在下载新版本", p.Fraction));
+
+            // 阶段回调来自 UI 线程（await 之后续体回到 UI 线程），但仍统一 Post 一次更稳
+            void OnPhase(UpdatePhase phase) => SetBanner(phase switch
+            {
+                UpdatePhase.Downloading => "正在下载新版本",
+                UpdatePhase.Extracting => "正在解压",
+                UpdatePhase.Restarting => "重启",
+                _ => "正在更新",
+            }, -1);
+
+            bool started = await UpdateService.StartUpdateAsync(
+                info.DownloadUrl, Environment.ProcessId, zipPath: null, progress: progress,
+                onPhase: OnPhase);
+
+            if (!started)
+            {
+                SetBanner("更新失败，稍后将重试", -1);
+                await System.Threading.Tasks.Task.Delay(6000);
+                SetBanner(null);
+                return;
+            }
+
+            // ⚠ 重启前必须确认"当前没有会被重启丢掉的东西"。
+            // 白板/屏幕批注/PDF 批注都可能有老师还没导出的板书 —— Environment.Exit 会绕过
+            // 它们各自的"未保存"确认，直接重启等于把整屏板书丢掉。宁可晚几秒重启。
+            int waited = 0;
+            while (!IsSafeToRestartForUpdate() && waited < 300)     // 最多等 5 分钟
+            {
+                SetBanner("新版本已就绪 · 关掉白板后自动重启", -1);
+                await System.Threading.Tasks.Task.Delay(2000);
+                waited += 2;
+            }
+
+            SetBanner("重启", -1);
+            await System.Threading.Tasks.Task.Delay(400);   // 让"重启"两个字有机会画出来
+
+            Helpers.AppLogger.Info("[Updater] 更新程序已启动，主程序即将退出");
+            try { Services.HttpServerService.Stop(); } catch { }
+            Environment.Exit(0);
+        }
+        catch (OperationCanceledException)
+        {
+            SetBanner(null);
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Error("[Updater] 自动更新失败", ex);
+            SetBanner("更新失败，稍后将重试", -1);
+            await System.Threading.Tasks.Task.Delay(6000);
+            SetBanner(null);
+        }
+    }
+
+    /// <summary>
+    /// 现在重启是否会丢东西？白板 / 屏幕批注 / PDF 阅读器只要开着且有笔画，
+    /// 重启都会绕过它们各自的"未保存"确认 —— 一律视为不安全，等老师自己关掉。
+    /// </summary>
+    private static bool IsSafeToRestartForUpdate()
+    {
+        try
+        {
+            if (_whiteboard is { IsVisible: true } wb && wb.HasUnsavedInk) return false;
+            if (_annotation is { IsVisible: true } an && an.HasStrokes) return false;
+            if (_pdfReader is { IsVisible: true } pdf && pdf.HasUnsavedInk) return false;
+        }
+        catch { /* 判不出来就当作安全，避免永远重启不了 */ }
+        return true;
+    }
+
+    /// <summary>
+    /// 手动更新（设置页「立即检查更新」用）：进度窗 + 可取消。
+    /// 与自动更新的 <see cref="RunUpdateAsync"/> 的区别：这里老师是**主动点的**，
+    /// 设置窗口通常盖着胶囊栏看不到进度，所以给一个带进度和取消的窗口更合适。
+    /// </summary>
+    public static async System.Threading.Tasks.Task RunUpdateWithWindowAsync(UpdateInfo info)
     {
         // 更新程序不在位就没必要白下几十 MB
         if (!UpdateService.UpdaterPresent)
@@ -307,11 +397,27 @@ public partial class App : Application
             var progress = new Progress<UpdateProgress>(p => win?.Report(p));
 
             bool started = await UpdateService.StartUpdateAsync(
-                info.DownloadUrl, Environment.ProcessId, zipPath: null, progress: progress, ct: win.Token);
+                info.DownloadUrl, Environment.ProcessId, zipPath: null, progress: progress,
+                onPhase: ph =>
+                {
+                    if (ph == UpdatePhase.Extracting) win?.Phase("正在解压…");
+                    else if (ph == UpdatePhase.Restarting) win?.SwitchToInstalling();
+                },
+                ct: win.Token);
 
             win.SwitchToInstalling();
             if (started)
             {
+                if (!IsSafeToRestartForUpdate())
+                {
+                    win.Close();
+                    await ConfirmAsync("学程 — 新版本已就绪",
+                        "更新已准备好，但你还有未导出的板书/批注。\n\n" +
+                        "请先关掉白板 / 屏幕批注 / PDF 阅读器，然后重新「检查更新」即可完成升级。",
+                        "知道了", "关闭");
+                    return;
+                }
+
                 Helpers.AppLogger.Info("[Updater] 更新程序已启动，主程序即将退出");
                 // 退出前把资源让出去（HTTP 服务/托盘），再用 Exit 保证进程真结束
                 try { Services.HttpServerService.Stop(); } catch { }

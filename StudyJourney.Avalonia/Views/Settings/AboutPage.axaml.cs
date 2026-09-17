@@ -92,7 +92,7 @@ public partial class AboutPage : UserControl, ISettingsPage
                     $"新版本 v{info.LatestVersion} 可用！（当前 v{UpdateService.CurrentVersion}）\n" +
                     $"将自动下载 {mode}\n\n是否立即更新？",
                     "立即更新", "稍后");
-                if (ok) await App.RunUpdateAsync(info);
+                if (ok) await App.RunUpdateWithWindowAsync(info);
                 return;
             }
 

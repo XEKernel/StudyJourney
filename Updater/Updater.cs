@@ -21,10 +21,18 @@ class Program
     {
         try
         {
+            Log($"=== 启动 pid={Environment.ProcessId} ===");
+            Log("收到参数: " + string.Join(" | ", args.Select(a => $"\"{a}\"")));
+
             var opts = ParseArgs(args);
             if (opts == null)
             {
-                ShowError("更新程序参数错误。");
+                // 把收到的参数一并显示 —— 2026-09-17 那次「更新参数错误」就是因为
+                // 只报一句笼统错误，看不出到底哪个参数没接住（实为 --target 尾部的
+                // 反斜杠把引号转义掉了，导致 --exe 丢失）。
+                Log("参数解析失败");
+                ShowError("更新程序参数错误。\n\n收到：" +
+                          (args.Length == 0 ? "(无)" : string.Join(" ", args)));
                 return 1;
             }
 
@@ -50,34 +58,66 @@ class Program
             // 等待文件句柄释放
             Thread.Sleep(1000);
 
-            // 2. 解压到临时目录
-            string tempDir = Path.Combine(Path.GetTempPath(), $"StudyJourneyUpdate_{DateTime.Now:yyyyMMddHHmmss}");
-            Directory.CreateDirectory(tempDir);
+            // 2. 准备新文件：优先用主程序已解压好的 staging 目录
+            //    （主程序在退出前已校验过解压结果，这里就只是拷文件，最不容易出错）；
+            //    没有才自己解压 zip（兼容旧版主程序或手工调用）。
+            string workDir;
+            bool ownWorkDir = false;
+            if (!string.IsNullOrEmpty(opts.StagedDir) && Directory.Exists(opts.StagedDir))
+            {
+                workDir = opts.StagedDir;
+                Log($"使用主程序解压好的 staging 目录：{workDir}");
+            }
+            else if (!string.IsNullOrEmpty(opts.ZipPath) && File.Exists(opts.ZipPath))
+            {
+                string tempDir = Path.Combine(Path.GetTempPath(), $"StudyJourneyUpdate_{DateTime.Now:yyyyMMddHHmmss}");
+                Directory.CreateDirectory(tempDir);
+                ZipFile.ExtractToDirectory(opts.ZipPath, tempDir, true);
+                workDir = tempDir;
+                ownWorkDir = true;
+                Log($"自行解压更新包：{opts.ZipPath} → {tempDir}");
+            }
+            else
+            {
+                Log("既没有 staging 目录也没有可用的更新包");
+                ShowError("没有可用的更新内容。\n\n请重新下载更新包。");
+                return 1;
+            }
 
             try
             {
-                ZipFile.ExtractToDirectory(opts.ZipPath, tempDir, true);
-
                 // 3. 复制文件（覆盖）
                 // ⚠ 必须跳过"更新程序自己那一组文件"（StudyJourney.Updater.exe/.dll/...）。
                 //    发布包根目录也含这些文件，而本进程正是从目标目录启动的 —— 运行时已把
                 //    更新的 exe 与 dll 锁住，覆盖会抛共享冲突，导致**整个更新失败**。
                 //    （新版更新程序由主程序在拉起本进程"之前"就整组替换好了，这里无需再换。）
-                CopyDirectory(tempDir, opts.TargetDir, "StudyJourney.Updater.");
+                CopyDirectory(workDir, opts.TargetDir, "StudyJourney.Updater.");
 
-                // 清理
-                Directory.Delete(tempDir, true);
-                try { File.Delete(opts.ZipPath); } catch { }
+                // 4. 清理临时内容
+                if (ownWorkDir)
+                {
+                    try { Directory.Delete(workDir, true); } catch { }
+                }
+                else
+                {
+                    try { Directory.Delete(workDir, true); } catch { }   // staging 也是临时的
+                }
+                if (!string.IsNullOrEmpty(opts.ZipPath))
+                {
+                    try { File.Delete(opts.ZipPath); } catch { }
+                }
             }
             catch (Exception ex)
             {
+                Log($"替换失败：{ex}");
                 ShowError($"更新文件替换失败：{ex.Message}");
                 return 1;
             }
 
-            // 4. 启动新版本
+            // 5. 启动新版本
             try
             {
+                Log($"启动新版本：{opts.ExePath}");
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = opts.ExePath,
@@ -87,14 +127,17 @@ class Program
             }
             catch (Exception ex)
             {
+                Log($"启动新版本失败：{ex.Message}");
                 ShowWarn($"启动新版本失败：{ex.Message}\n\n请手动打开：\n{opts.ExePath}");
             }
 
-            // 5. 自清理
+            // 6. 自清理
+            Log("完成，准备自清理");
             ScheduleSelfDelete();
         }
         catch (Exception ex)
         {
+            Log($"未预期的失败：{ex}");
             ShowError($"更新失败：{ex.Message}");
             return 1;
         }
@@ -102,27 +145,62 @@ class Program
         return 0;
     }
 
+    /// <summary>
+    /// 记一份日志到 %TEMP%\StudyJourneyUpdate\updater.log。
+    /// 更新程序是独立进程、出错时主程序已经退出，没有日志就完全查不到原因（有前车之鉴）。
+    /// </summary>
+    private static void Log(string message)
+    {
+        try
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "StudyJourneyUpdate");
+            Directory.CreateDirectory(dir);
+            File.AppendAllText(Path.Combine(dir, "updater.log"),
+                $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {message}{Environment.NewLine}");
+        }
+        catch { /* 日志失败不影响更新 */ }
+    }
+
     private static UpdaterOptions? ParseArgs(string[] args)
     {
         int pid = 0;
-        string? zip = null, target = null, exe = null;
+        string? staged = null, zip = null, target = null, exe = null;
 
         for (int i = 0; i < args.Length; i++)
         {
             switch (args[i])
             {
-                case "--pid"    when i + 1 < args.Length: pid    = int.Parse(args[++i]); break;
-                case "--zip"    when i + 1 < args.Length: zip    = args[++i]; break;
+                case "--pid" when i + 1 < args.Length: pid = int.Parse(args[++i]); break;
+                case "--staged" when i + 1 < args.Length: staged = args[++i]; break;
+                case "--zip" when i + 1 < args.Length: zip = args[++i]; break;
                 case "--target" when i + 1 < args.Length: target = args[++i]; break;
-                case "--exe"    when i + 1 < args.Length: exe    = args[++i]; break;
+                case "--exe" when i + 1 < args.Length: exe = args[++i]; break;
             }
         }
 
-        if (string.IsNullOrEmpty(zip) || string.IsNullOrEmpty(target) || string.IsNullOrEmpty(exe))
-            return null;
-        if (!File.Exists(zip)) return null;
+        // 去掉路径尾部的反斜杠/正斜杠（拼参数或再拼接时容易出问题）
+        static string? Trim(string? p) => string.IsNullOrEmpty(p) ? p : p.TrimEnd('\\', '/');
 
-        return new UpdaterOptions { Pid = pid, ZipPath = zip, TargetDir = target, ExePath = exe };
+        target = Trim(target);
+        exe = Trim(exe);
+        staged = Trim(staged);
+        zip = Trim(zip);
+
+        if (string.IsNullOrEmpty(target) || string.IsNullOrEmpty(exe)) return null;
+
+        // 更新内容二选一：给了 staging 目录，或者给了（存在的）zip
+        bool hasStaged = !string.IsNullOrEmpty(staged) && Directory.Exists(staged);
+        bool hasZip = !string.IsNullOrEmpty(zip) && File.Exists(zip);
+        if (!hasStaged && !hasZip) return null;
+
+        return new UpdaterOptions
+        {
+            Pid = pid,
+            StagedDir = hasStaged ? staged! : "",
+            ZipPath = hasZip ? zip! : "",
+            TargetDir = target,
+            ExePath = exe,
+        };
     }
 
     /// <summary>
@@ -200,6 +278,9 @@ class Program
     class UpdaterOptions
     {
         public int Pid { get; set; }
+        /// <summary>主程序已解压好的目录（首选）</summary>
+        public string StagedDir { get; set; } = "";
+        /// <summary>更新包（回退方案：本程序自行解压）</summary>
         public string ZipPath { get; set; } = "";
         public string TargetDir { get; set; } = "";
         public string ExePath { get; set; } = "";

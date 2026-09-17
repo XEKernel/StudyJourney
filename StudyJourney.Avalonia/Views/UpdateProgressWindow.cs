@@ -95,6 +95,12 @@ public sealed class UpdateProgressWindow : Window
         Closing += (_, _) => { if (!_cts.IsCancellationRequested) _cts.Cancel(); };
     }
 
+    /// <summary>切换阶段文字（正在下载 / 正在解压 / 重启）</summary>
+    public void Phase(string text)
+    {
+        try { _phaseTb.Text = text; } catch { /* 窗口已关闭 */ }
+    }
+
     /// <summary>进度回调（在 UI 线程调用）</summary>
     public void Report(UpdateProgress p)
     {

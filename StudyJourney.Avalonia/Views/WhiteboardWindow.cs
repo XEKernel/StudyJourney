@@ -449,6 +449,12 @@ public sealed class WhiteboardWindow : Window
 
     private InkDocument CurrentDoc => _pages[_pageIndex];
 
+    /// <summary>
+    /// 是否有未导出的板书。供自动更新判断"现在重启会不会把老师的板书丢掉"——
+    /// 自动更新走 Environment.Exit，会绕过 OnClosing 里的未保存确认，必须先问过这里。
+    /// </summary>
+    public bool HasUnsavedInk => _dirty && _pages.Any(p => p.HasStrokes);
+
     private void SwitchPage(int index)
     {
         if (index < 0 || index >= _pages.Count || index == _pageIndex) return;

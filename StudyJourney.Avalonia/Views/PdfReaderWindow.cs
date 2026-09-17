@@ -176,6 +176,9 @@ public sealed class PdfReaderWindow : Window
 
     private InkDocument InkDoc => _ink.Document;
 
+    /// <summary>是否有未导出的批注（自动更新重启前用它判断"现在重启会不会丢批注"）</summary>
+    public bool HasUnsavedInk => _dirtyInk && InkDoc.HasStrokes;
+
     // ── 工具栏（底部两行：上行阅读、下行批注）──────────────────
 
     private Control BuildToolbar()

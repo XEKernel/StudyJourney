@@ -550,9 +550,69 @@ public partial class MainWindow : Window
         UpdateCountdownRings(now);
     }
 
+    // ── 更新进度横幅（2026-09-17）──────────────────────────────
+    // 自动更新期间把胶囊栏压成"上课时那种单个胶囊"（复用已有的 CompactCapsule），
+    // 文字依次显示「正在下载新版本 xx%」「正在解压」「重启」——
+    // 老师不被打断，又能看到进度。
+    //
+    // ⚠ 刻意**不强制显示窗口**：如果老师正在全屏放 PPT（胶囊被 _hiddenByMaximize 收起），
+    //   就不要为了显示进度把它弹出来打断讲课 —— 更新是自动的，静默完成即可。
+
+    private string? _updateBannerText;
+    private double _updateBannerProgress = -1;
+
+    /// <summary>显示更新状态（App 调用）；text 传 null 表示结束接管、胶囊栏恢复显示课表</summary>
+    public void ShowUpdateBanner(string? text, double progress = -1)
+    {
+        _updateBannerText = text;
+        _updateBannerProgress = progress;
+
+        if (text == null)
+        {
+            // 释放接管：把进度条恢复成紧凑视图的正常状态，其余交给下一次 UpdateScheduleInfo 自然复原
+            CompactProgressBar.IsVisible = true;
+            CompactProgressBar.IsIndeterminate = false;
+            return;
+        }
+        ApplyUpdateBanner();
+    }
+
+    private void ApplyUpdateBanner()
+    {
+        OuterCapsule.IsVisible = false;
+        CompactCapsule.IsVisible = true;
+        CompactStatusTb.Text = _updateBannerText ?? "";
+
+        if (_updateBannerProgress >= 0)
+        {
+            CompactProgressBar.IsVisible = true;
+            CompactProgressBar.IsIndeterminate = false;
+            CompactProgressBar.Value = Math.Clamp(_updateBannerProgress, 0, 1) * 100.0;
+        }
+        else
+        {
+            // 总量未知（服务端没给 Content-Length）→ 走不确定态，别显示一个假的百分比
+            CompactProgressBar.IsVisible = true;
+            CompactProgressBar.IsIndeterminate = true;
+        }
+
+        if (_lastCompact != true)
+        {
+            _lastCompact = true;
+            _pendingReposition = true;    // 视图尺寸变了，等布局完成后重新定位
+        }
+    }
+
     /// <summary>模块二：课程栏（已上科目 | 当前状态 | 未来科目）；上课可收起为紧凑视图</summary>
     private void UpdateScheduleInfo(DateTime now)
     {
+        // 更新流程进行中：胶囊栏被更新状态接管，本方法每秒跑一次会把它改回课表内容 → 提前返回
+        if (_updateBannerText != null)
+        {
+            ApplyUpdateBanner();
+            return;
+        }
+
         var manager = App.Schedule;
         var today = manager.GetTodayEntries(now.Date);
         var cur = manager.GetCurrentEntry(now);

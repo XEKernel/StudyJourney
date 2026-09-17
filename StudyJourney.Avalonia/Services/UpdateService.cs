@@ -23,6 +23,14 @@ public class UpdateInfo
     public bool IsSelfContained { get; set; }
 }
 
+/// <summary>更新流程的阶段（用于给老师显示"正在下载 / 正在解压 / 重启"）</summary>
+public enum UpdatePhase
+{
+    Downloading,
+    Extracting,
+    Restarting,
+}
+
 /// <summary>下载进度（Total &lt; 0 表示服务端没给 Content-Length，只能显示已下载量）</summary>
 public sealed class UpdateProgress
 {
@@ -104,9 +112,9 @@ public static class UpdateService
                 if (!string.IsNullOrWhiteSpace(info)) return info.Trim();
             }
             var ver = asm.GetName().Version;
-            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.11.1";
+            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.12.0";
         }
-        catch { return "2.11.1"; }
+        catch { return "2.12.0"; }
     });
 
     public static string CurrentVersion => _currentVersion.Value;
@@ -340,12 +348,18 @@ public static class UpdateService
     // ── 拉起更新程序 ─────────────────────────────────────────
 
     /// <summary>
-    /// 下载（若 zipPath 为空）并拉起更新程序，由它等主进程退出 → 解压替换 → 重启。
+    /// 下载 → 解压到 staging → 拉起更新程序（由它等主进程退出 → 替换文件 → 重启）。
     /// 返回 false 表示未启动成功（原因已记日志）；true 表示调用方应当退出进程。
     /// </summary>
+    /// <param name="onPhase">
+    /// 阶段回调，供 UI 显示「正在下载新版本 / 正在解压 / 重启」。
+    /// ⚠ 只在 UI 线程之外调用一次，回调实现里若要碰控件请自行 Dispatcher 封送。
+    /// </param>
     public static async Task<bool> StartUpdateAsync(string downloadUrl, int currentPid,
-        string? zipPath = null, IProgress<UpdateProgress>? progress = null, CancellationToken ct = default)
+        string? zipPath = null, IProgress<UpdateProgress>? progress = null,
+        Action<UpdatePhase>? onPhase = null, CancellationToken ct = default)
     {
+        onPhase?.Invoke(UpdatePhase.Downloading);
         try
         {
             // 先确认更新程序在位 —— 免得白下几十 MB 才发现没法安装
@@ -357,25 +371,49 @@ public static class UpdateService
 
             zipPath ??= await DownloadUpdateAsync(downloadUrl, progress, ct);
 
-            // ⚠ 关键顺序：必须**在拉起更新程序之前**用包里的新版覆盖它。
-            // 更新程序是从本程序目录启动的，一旦它跑起来，任何对自身 exe 的写入都会
-            // 因共享冲突失败 —— 而发布包里恰好含 StudyJourney.Updater.exe，
-            // 更新程序复制文件时就会卡在"覆盖自己"这一步，导致整个更新失败。
-            // 此刻它还没启动，覆盖是安全的。
-            TryRefreshUpdater(zipPath);
+            // 解压放到主程序做（原来在更新程序里做）。三个好处：
+            //   ①「正在解压」这个状态是真的，可以显示给老师看；
+            //   ② 包损坏/解压失败能在**退出程序之前**发现并中止，不会出现"程序退了但没装上"；
+            //   ③ 更新程序只需拷文件，它自己也更简单、更不容易出错。
+            onPhase?.Invoke(UpdatePhase.Extracting);
+            // 放后台线程解压：包里有几百个文件，同步做会卡住 UI 线程 ——
+            // 那样"正在解压"这四个字根本来不及画出来，界面看着就是死的。
+            string stagingDir = await Task.Run(() => ExtractToStaging(zipPath), ct);
 
-            string targetDir = AppDomain.CurrentDomain.BaseDirectory;
+            // ⚠ 关键顺序：必须**在拉起更新程序之前**用新版覆盖它。
+            // 更新程序从本程序目录启动，一旦跑起来，任何对自身 exe 的写入都会因共享冲突失败
+            // （发布包根目录恰好含 StudyJourney.Updater.exe/.dll）→ 会导致整个更新失败。
+            // 此刻它还没启动，覆盖是安全的。现在文件已解压到 staging，直接从那里取更简单。
+            TryRefreshUpdater(stagingDir, zipPath);
+
+            // ⚠ 路径一律去掉尾部分隔符再拼参数。
+            // AppDomain.BaseDirectory **必然以反斜杠结尾**，直接拼进带引号的参数会变成
+            //   --target "E:\app\"
+            // 其中 `\"` 把结束引号**转义**掉 → 整段参数错位 → 更新程序拿不到 --exe
+            // → 报「更新程序参数错误」。这就是 2026-09-17 用户遇到的故障。
+            string targetDir = TrimTrailingSeparator(AppDomain.CurrentDomain.BaseDirectory);
             string exePath = Path.Combine(targetDir, "StudyJourneyAvalonia.exe");
 
-            Process.Start(new ProcessStartInfo
+            // 用 ArgumentList 而不是手拼 Arguments：.NET 会按 Windows 规则正确转义，
+            // 从根本上避免"路径带空格/以反斜杠结尾"这类引号事故。
+            // ArgumentList 要求 UseShellExecute = false（更新程序是普通 exe，不需要 shell）。
+            var psi = new ProcessStartInfo
             {
                 FileName = UpdaterPath,
-                Arguments = $"--pid {currentPid} --zip \"{zipPath}\" --target \"{targetDir}\" --exe \"{exePath}\"",
-                UseShellExecute = true,
-                WindowStyle = ProcessWindowStyle.Hidden
-            });
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = targetDir,
+            };
+            psi.ArgumentList.Add("--pid");    psi.ArgumentList.Add(currentPid.ToString());
+            psi.ArgumentList.Add("--staged"); psi.ArgumentList.Add(stagingDir);
+            psi.ArgumentList.Add("--zip");    psi.ArgumentList.Add(zipPath);   // 兼容旧版更新程序
+            psi.ArgumentList.Add("--target"); psi.ArgumentList.Add(targetDir);
+            psi.ArgumentList.Add("--exe");    psi.ArgumentList.Add(exePath);
 
-            AppLogger.Info($"[Updater] 已拉起更新程序，等待主程序退出（zip: {zipPath}）");
+            onPhase?.Invoke(UpdatePhase.Restarting);
+            Process.Start(psi);
+
+            AppLogger.Info($"[Updater] 已拉起更新程序，等待主程序退出（staged: {stagingDir}）");
             return true;
         }
         catch (OperationCanceledException)
@@ -390,32 +428,64 @@ public static class UpdateService
         }
     }
 
+    /// <summary>去掉路径尾部的目录分隔符（拼 Windows 命令行参数前必须做，否则 \" 会转义掉结束引号）</summary>
+    private static string TrimTrailingSeparator(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return path;
+        var t = path.TrimEnd('\\', '/');
+        return t.Length == 0 ? path : t;      // 别把 "C:\" 削成 "C:"
+    }
+
+    /// <summary>把更新包解压到临时 staging 目录，返回该目录</summary>
+    private static string ExtractToStaging(string zipPath)
+    {
+        string staging = Path.Combine(Path.GetTempPath(), "StudyJourneyUpdate", "staged");
+        try
+        {
+            if (Directory.Exists(staging)) Directory.Delete(staging, true);
+            Directory.CreateDirectory(staging);
+            ZipFile.ExtractToDirectory(zipPath, staging, overwriteFiles: true);
+            AppLogger.Info($"[Updater] 已解压到 staging：{staging}");
+            return staging;
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"解压更新包失败：{ex.Message}", ex);
+        }
+    }
+
     /// <summary>
-    /// 用更新包里的新版更新程序覆盖磁盘上的旧版（趁它还没运行）。
+    /// 用新版更新程序覆盖磁盘上的旧版（趁它还没运行）。
     /// 必须是**整组**替换（exe + dll + deps.json + runtimeconfig.json）——
     /// 只换 exe 会造成新版 exe 配旧版 dll 的错配。
+    /// 优先从已解压的 staging 目录取（简单可靠）；没有才回退去读 zip。
     /// 失败不影响主流程：现有更新程序仍能完成其余文件的替换，只是自身版本留在旧版。
     /// </summary>
-    private static void TryRefreshUpdater(string zipPath)
+    private static void TryRefreshUpdater(string stagingDir, string zipPath)
     {
         const string namePrefix = "StudyJourney.Updater.";
         try
         {
-            using var zip = ZipFile.OpenRead(zipPath);
-            int n = 0;
-            foreach (var entry in zip.Entries)
-            {
-                // 只取包根目录下的更新器文件；用 entry.Name（纯文件名）天然避免路径穿越
-                if (entry.Name.Length == 0) continue;
-                if (!entry.Name.StartsWith(namePrefix, StringComparison.OrdinalIgnoreCase)) continue;
-                if (entry.FullName.Contains('/') || entry.FullName.Contains('\\')) continue;
+            // 只取**根目录下**的更新器文件（子目录里的同名文件不是它）
+            var files = Directory.Exists(stagingDir)
+                ? Directory.GetFiles(stagingDir, namePrefix + "*", SearchOption.TopDirectoryOnly)
+                : Array.Empty<string>();
 
-                entry.ExtractToFile(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, entry.Name), overwrite: true);
+            if (files.Length == 0)
+            {
+                AppLogger.Warn($"[Updater] staging 里没有 {namePrefix}* 文件，沿用现有更新程序");
+                return;
+            }
+
+            int n = 0;
+            foreach (var f in files)
+            {
+                var dest = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, Path.GetFileName(f));
+                File.Copy(f, dest, overwrite: true);
                 n++;
             }
 
-            if (n == 0) AppLogger.Warn($"[Updater] 更新包里没有 {namePrefix}* 文件，沿用现有更新程序");
-            else AppLogger.Info($"[Updater] 已用更新包里的新版本替换更新程序（{n} 个文件）");
+            AppLogger.Info($"[Updater] 已用新版本替换更新程序（{n} 个文件）");
         }
         catch (Exception ex)
         {
