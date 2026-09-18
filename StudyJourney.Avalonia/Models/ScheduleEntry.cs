@@ -276,7 +276,7 @@ namespace StudyJourney.Avalonia.Models
                     if (File.Exists(_schedulePath))
                     {
                         var json = File.ReadAllText(_schedulePath);
-                        var loaded = JsonSerializer.Deserialize<ScheduleData>(json, _jsonOpts)
+                        var loaded = JsonSerializer.Deserialize(json, AppJsonContext.Default.ScheduleData)
                                      ?? new ScheduleData();
                         Normalize(loaded);   // 修复：外部写入 "Entries": null 等会导致启动即崩（主窗口/提醒 Tick 遍历 NRE）
                         return loaded;
@@ -339,7 +339,7 @@ namespace StudyJourney.Avalonia.Models
         {
             try
             {
-                var json = JsonSerializer.Serialize(this, _jsonOpts);
+                var json = JsonSerializer.Serialize(this, AppJsonContext.Default.ScheduleData);
                 Helpers.FileAtomic.WriteAllText(_schedulePath, json);   // #6：原子写，防半截 JSON
                 return true;
             }

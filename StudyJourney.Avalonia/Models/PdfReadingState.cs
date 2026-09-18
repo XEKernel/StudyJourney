@@ -52,7 +52,7 @@ public static class PdfReadingState
             if (File.Exists(StorePath))
             {
                 var json = File.ReadAllText(StorePath);
-                var d = JsonSerializer.Deserialize<PdfReadingStateData>(json, JsonOpts);
+                var d = JsonSerializer.Deserialize(json, AppJsonContext.Default.PdfReadingStateData);
                 if (d != null)
                 {
                     d.LastPage ??= new Dictionary<string, int>();
@@ -72,7 +72,7 @@ public static class PdfReadingState
     {
         try
         {
-            Helpers.FileAtomic.WriteAllText(StorePath, JsonSerializer.Serialize(_data, JsonOpts));
+            Helpers.FileAtomic.WriteAllText(StorePath, JsonSerializer.Serialize(_data, AppJsonContext.Default.PdfReadingStateData));
         }
         catch (Exception ex)
         {

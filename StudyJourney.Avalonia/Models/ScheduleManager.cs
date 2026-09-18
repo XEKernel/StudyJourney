@@ -176,7 +176,7 @@ namespace StudyJourney.Avalonia.Models
             try
             {
                 var opts = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-                var data = JsonSerializer.Deserialize<ScheduleData>(json, opts);
+                var data = JsonSerializer.Deserialize(json, AppJsonContext.Default.ScheduleData);
                 if (data == null) return (false, "JSON 格式无效");
                 // 防止 JSON 中 Entries/Exams 显式设为 null 导致后续崩溃
                 data.Entries ??= new List<ScheduleEntry>();

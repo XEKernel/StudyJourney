@@ -272,12 +272,33 @@ namespace StudyJourney.Avalonia.Models
 
         public static AppSettings Load()
         {
-            if (!File.Exists(SettingsPath)) return new AppSettings();
+            if (!File.Exists(SettingsPath))
+            {
+                // 首次运行：给一份带默认老师账号的设置。
+                // ⚠ 默认账号的 PBKDF2 计算只在这里发生（约 470ms / 7 个账号），
+                //   因为是"一次性初始化成本"，不影响后续每次启动。
+                Helpers.AppLogger.Info("[AppSettings] 未找到 settings.json，按首次运行创建默认设置（含默认老师账号）");
+                var fresh = new AppSettings { Teachers = CreateDefaultTeachers() };
+                return fresh;
+            }
 
             try
             {
+                // 分段计时（2026-09-18）：启动耗时里"设置加载"这一段一直占 ~470ms，
+                // 先入为主以为是 STJ 反射建元数据，但换成源生成器后**没变** → 判断错了。
+                // 真因是 AppSettings 属性初始化器里的 DefaultTeachers()（7×PBKDF2），已修。
+                // 保留这段埋点：以后再出现异常值能立刻定位。
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 string json = File.ReadAllText(SettingsPath);
-                return JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                long tRead = sw.ElapsedMilliseconds;
+
+                var result = JsonSerializer.Deserialize(json, AppJsonContext.Default.AppSettings)
+                             ?? new AppSettings();
+                long tParse = sw.ElapsedMilliseconds;
+
+                Helpers.AppLogger.Info(
+                    $"[启动耗时]   └ settings 明细：读文件 {tRead} ms / 反序列化 {tParse - tRead} ms / 共 {tParse} ms");
+                return result;
             }
             catch (JsonException jex)
             {
@@ -333,10 +354,28 @@ namespace StudyJourney.Avalonia.Models
         /// <summary>默认老师显示名（老师账号列表为空时的兜底）</summary>
         public string TeacherName { get; set; } = "老师";
         /// <summary>老师账号列表（语数英物化生 6 位 + 管理员），登录与显示名来源。
-        /// #4-阶段2：默认账号存 PBKDF2 哈希（SetPassword），settings.json 不再出现明文密码。</summary>
-        public List<TeacherAccount> Teachers { get; set; } = DefaultTeachers();
+        /// <summary>
+        /// 老师账号列表。⚠ 默认值刻意留**空表**，不是 `DefaultTeachers()`。
+        ///
+        /// 2026-09-18 修（启动性能）：原来这里是 `= DefaultTeachers()`，而每个默认账号都要算一次
+        /// PBKDF2（10 万次迭代）→ 7 个账号 ≈ **470ms**。更糟的是它不是"首次运行才付一次"：
+        /// `JsonSerializer.Deserialize` 也要先构造对象、跑一遍属性初始化器，所以**每次启动都白跑**，
+        /// 算出来的哈希马上又被文件里的值覆盖掉。实测这 470ms 正是启动里除运行时自举外最大的一块。
+        /// （我一开始误判成"STJ 反射建元数据"，换源生成器后数字纹丝不动，才定位到这里。）
+        ///
+        /// 现在默认账号只由 <see cref="Load"/> 在"首次运行（无 settings.json）"时赋一次。
+        /// </summary>
+        public List<TeacherAccount> Teachers { get; set; } = new();
 
-        private static List<TeacherAccount> DefaultTeachers() => new()
+        /// <summary>
+        /// 生成默认老师账号（语数英物化生 6 位 + 管理员 Teacher01）。
+        /// #4-阶段2：默认账号存 PBKDF2 哈希（SetPassword），settings.json 不再出现明文密码。
+        ///
+        /// ⚠ **只允许在"首次运行"时调用一次**（见 <see cref="Load"/>）。
+        /// 每个账号算一次 PBKDF2(100_000) ≈ 67ms，7 个 ≈ 470ms ——
+        /// 放回属性初始化器会让每次启动（含每次反序列化）都白跑一遍。
+        /// </summary>
+        public static List<TeacherAccount> CreateDefaultTeachers() => new()
         {
             MakeAccount("Teacher01", "Study@2026", "老师", "管理员"),
             MakeAccount("teacher01", "123456", "李老师", "语文"),
@@ -374,7 +413,7 @@ namespace StudyJourney.Avalonia.Models
         {
             try
             {
-                string json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+                string json = JsonSerializer.Serialize(this, AppJsonContext.Default.AppSettings);
                 Helpers.FileAtomic.WriteAllText(SettingsPath, json);   // #6：原子写，防半截 JSON
             }
             catch (Exception ex)

@@ -183,7 +183,7 @@ namespace StudyJourney.Avalonia.Models
                 if (File.Exists(StorePath))
                 {
                     var json = File.ReadAllText(StorePath);
-                    return JsonSerializer.Deserialize<AutomationSettings>(json, _jsonOpts)
+                    return JsonSerializer.Deserialize(json, AppJsonContext.Default.AutomationSettings)
                            ?? new AutomationSettings();
                 }
             }
@@ -206,7 +206,7 @@ namespace StudyJourney.Avalonia.Models
         {
             try
             {
-                var json = JsonSerializer.Serialize(data, _jsonOpts);
+                var json = JsonSerializer.Serialize(data, AppJsonContext.Default.AutomationSettings);
                 Helpers.FileAtomic.WriteAllText(StorePath, json);   // 原子写，防半截 JSON
             }
             catch (Exception ex)

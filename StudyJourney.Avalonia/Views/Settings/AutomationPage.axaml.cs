@@ -95,15 +95,31 @@ public partial class AutomationPage : UserControl, ISettingsPage
 
     // ── 工具 ────────────────────────────────────────────────
 
-    private static AutomationRule CloneRule(AutomationRule r)
+    /// <summary>
+    /// 深拷贝一条规则（设置页是"克隆→编辑→整表写回"，必须与内存里那份脱钩）。
+    /// 2026-09-18：原来是"序列化成 JSON 再反序列化回来"绕一圈 ——
+    /// 克隆这种纯内存操作不该依赖 JSON，而且那样会让规则模型也被迫进 JSON 源生成器。
+    /// 改成手写克隆：字段明确、无分配开销、源生成器也少一个负担。
+    /// ⚠ 以后给 AutomationRule 加字段时，这里要同步补一行（漏了会导致克隆丢字段）。
+    /// </summary>
+    private static AutomationRule CloneRule(AutomationRule r) => new()
     {
-        try
-        {
-            var json = JsonSerializer.Serialize(r);
-            return JsonSerializer.Deserialize<AutomationRule>(json) ?? new AutomationRule();
-        }
-        catch { return new AutomationRule(); }
-    }
+        Name = r.Name,
+        Enabled = r.Enabled,
+        TriggerKind = r.TriggerKind,
+        TriggerTime = r.TriggerTime,
+        TriggerDays = new List<int>(r.TriggerDays),
+        TriggerMinutes = r.TriggerMinutes,
+        TriggerSubject = r.TriggerSubject,
+        ActionKind = r.ActionKind,
+        ActionPath = r.ActionPath,
+        ActionDelaySeconds = r.ActionDelaySeconds,
+        ActionMessage = r.ActionMessage,
+        CloseTarget = r.CloseTarget,
+        RememberLast = r.RememberLast,
+        AutoAdvance = r.AutoAdvance,
+        ActivateIfOpen = r.ActivateIfOpen,
+    };
 
     private void MarkDirty() { if (_ready && !_loadingEditor && !_suppressDirty) _dirty = true; }
 

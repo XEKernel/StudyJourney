@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -212,6 +213,12 @@ public partial class App : Application
             case "update":
                 // 真异步（内部有网络等待），不能用 Post(sync) 包一层
                 _ = RunUpdateSelfTestAsync();
+                break;
+            case "reminder":
+                Dispatcher.UIThread.Post(RunReminderSelfTest, DispatcherPriority.Background);
+                break;
+            case "json":
+                Dispatcher.UIThread.Post(RunJsonSelfTest, DispatcherPriority.Background);
                 break;
             default:
                 Helpers.AppLogger.Warn($"未知自检模式：{mode}");
@@ -815,6 +822,240 @@ public partial class App : Application
     /// 下载通道错 → 更新永远失败），所以专门用断言把它们钉住。
     /// 其中更新通道会**真的走一次镜像下载**（用别家仓库的小 zip），端到端验证代理可用。
     /// </summary>
+    /// <summary>
+    /// 课间静音语义自检（SJ_SELFTEST=reminder）。
+    ///
+    /// 2026-09-18 用户反馈"连堂中间的通知太吵"（晚读↔晚自习、中午听力↔下午第一节）。
+    /// 这类课间语义属于"改错了也不会崩、只会默默变吵"的逻辑，必须用断言钉住：
+    ///   · 自习类（早自习/晚读/午休/晚自习）之后的边界 → SelfStudyBoundary（该边界全部静音）
+    ///   · 普通课之间的短/中/长间隔 → 仍按原语义分类（**不能**把正常课间也静音掉）
+    ///   · 长间隔（≥60 分钟）优先 → 保住「上午放学」那条语义
+    /// </summary>
+    /// <summary>
+    /// JSON 源生成器自检（SJ_SELFTEST=json）。
+    ///
+    /// 源生成器最大的风险不是"编不过"，而是**生成的 JSON 格式和原来不一样** ——
+    /// 那会让老师现有的 settings.json / 课表读不出来（退化成默认值）或写坏。
+    /// 所以这里用**仓库里真实的配置文件**做往返验证：
+    ///   读 → 反序列化（必须能读出真值）→ 再序列化 → 顶层字段集合必须与原文一致。
+    ///
+    /// 同时确认源生成器确实接管了：走的是 AppJsonContext（编译期元数据），不是反射。
+    /// </summary>
+    private static void RunJsonSelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            sb.AppendLine("[JSONTEST] 源生成器自检开始");
+
+            // 从 exe 目录上溯到仓库根（bin/<cfg>/net10.0 → 仓库根）
+            string root = AppDomain.CurrentDomain.BaseDirectory;
+            for (int i = 0; i < 4; i++) root = Path.GetFullPath(Path.Combine(root, ".."));
+            sb.AppendLine($"[JSONTEST] 仓库根推定：{root}");
+
+            // ── 1. 设置：往返 + 字段集合一致 ──
+            string settingsPath = Path.Combine(root, "settings.json");
+            if (!File.Exists(settingsPath))
+                throw new Exception($"找不到测试样本 {settingsPath}");
+
+            string src = File.ReadAllText(settingsPath);
+            var loaded = JsonSerializer.Deserialize(src, Models.AppJsonContext.Default.AppSettings);
+            if (loaded == null) throw new Exception("settings.json 反序列化返回 null");
+            sb.AppendLine($"[JSONTEST] settings 读入 OK：ClassName=\"{loaded.ClassName}\" 班级字段非空={!string.IsNullOrWhiteSpace(loaded.ClassName)}");
+
+            static HashSet<string> TopKeys(string json)
+            {
+                using var doc = JsonDocument.Parse(json);
+                return doc.RootElement.EnumerateObject().Select(p => p.Name).ToHashSet(StringComparer.Ordinal);
+            }
+            var kIn = TopKeys(src);
+
+            // ── 1a. 旧文件能读出来（值到了就说明映射对）──
+            sb.AppendLine("[JSONTEST] settings 旧文件读入 OK → 说明属性映射与旧格式一致");
+
+            // ── 1b. 关键检查：当前类的**每个可写属性**都必须出现在序列化结果里 ──
+            //     这才能抓到"源生成器漏了某个属性"——那会导致老师的设置项静默不落盘。
+            //     注意不能用旧的 settings.json 做字段集合对比：那份文件是 WPF 时代的旧 schema，
+            //     里面还留着 ChinesePrefix / ChineseDaysText 之类代码里已不存在的键，
+            //     拿它比会把"正常演进"误判成"丢字段"。
+            var probe = new Models.AppSettings { ClassName = "JSONTEST 探针" };
+            string probeJson = JsonSerializer.Serialize(probe, Models.AppJsonContext.Default.AppSettings);
+            var written = TopKeys(probeJson);
+
+            var expected = typeof(Models.AppSettings)
+                .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                .Where(p => p.CanRead && p.GetIndexParameters().Length == 0)
+                .Where(p => p.GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonIgnoreAttribute), true).Length == 0)
+                .Select(p => p.Name)
+                .ToList();
+
+            var notWritten = expected.Where(n => !written.Contains(n)).ToList();
+            sb.AppendLine($"[JSONTEST] AppSettings 可写属性 {expected.Count} 个，序列化写出 {written.Count} 个键");
+            if (notWritten.Count > 0)
+                throw new Exception($"源生成器漏写了 {notWritten.Count} 个属性：{string.Join(", ", notWritten)}");
+            sb.AppendLine("[JSONTEST] 每个可写属性都有对应 JSON 键 OK（设置项不会静默丢失）");
+
+            // ── 1c. 往返一致：序列化 → 反序列化 → 值不变 ──
+            var rt = JsonSerializer.Deserialize(probeJson, Models.AppJsonContext.Default.AppSettings);
+            if (rt == null) throw new Exception("往返反序列化返回 null");
+            if (rt.ClassName != "JSONTEST 探针")
+                throw new Exception($"往返后 ClassName 变了：{rt.ClassName}");
+            if (rt.Teachers.Count != probe.Teachers.Count)
+                throw new Exception($"往返后 Teachers 数量变了：{rt.Teachers.Count} ≠ {probe.Teachers.Count}");
+            sb.AppendLine($"[JSONTEST] 往返值一致 OK（ClassName 保留；Teachers {rt.Teachers.Count} 位保留）");
+
+            // 旧文件里"代码已不存在"的键，如实报出来（这是正常的 schema 演进，不是缺陷）
+            var obsolete = kIn.Except(written).ToList();
+            if (obsolete.Count > 0)
+                sb.AppendLine($"[JSONTEST]   （旧文件含 {obsolete.Count} 个代码里已不存在的遗留键，属正常演进：" +
+                              $"{string.Join(", ", obsolete.Take(6))}…）");
+
+            // ── 2. 课表：往返 + 字段集合一致 ──
+            string schedPath = Path.Combine(root, "schedule_example.json");
+            if (File.Exists(schedPath))
+            {
+                string sSrc = File.ReadAllText(schedPath);
+                var sd = JsonSerializer.Deserialize(sSrc, Models.AppJsonContext.Default.ScheduleData);
+                if (sd == null) throw new Exception("schedule_example.json 反序列化返回 null");
+
+                // 同 1b 的思路：用**当前类**做探针验证属性全覆盖，而不是和旧样本比字段集合
+                var sProbe = new Models.ScheduleData();
+                string sProbeJson = JsonSerializer.Serialize(sProbe, Models.AppJsonContext.Default.ScheduleData);
+                var sWritten = TopKeys(sProbeJson);
+                var sExpected = typeof(Models.ScheduleData)
+                    .GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)
+                    .Where(p => p.CanRead && p.GetIndexParameters().Length == 0)
+                    .Where(p => p.GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonIgnoreAttribute), true).Length == 0)
+                    .Select(p => p.Name)
+                    .ToList();
+                var sNotWritten = sExpected.Where(n => !sWritten.Contains(n)).ToList();
+                sb.AppendLine($"[JSONTEST] 课表读入 OK：{sd.Entries.Count} 条课节；" +
+                              $"ScheduleData 可写属性 {sExpected.Count} 个，写出 {sWritten.Count} 个键");
+                if (sNotWritten.Count > 0)
+                    throw new Exception($"课表源生成器漏写属性：{string.Join(", ", sNotWritten)}");
+                sb.AppendLine("[JSONTEST] 课表字段全覆盖 OK");
+            }
+            else
+            {
+                sb.AppendLine($"[JSONTEST]   （跳过课表样本，未找到 {schedPath}）");
+            }
+
+            // ── 3. 各上下文类型都能取到 JsonTypeInfo（= 源生成器已覆盖，不会落到反射）──
+            var probes = new (string Name, bool Ok)[]
+            {
+                ("AppSettings",  Models.AppJsonContext.Default.AppSettings != null),
+                ("ScheduleData", Models.AppJsonContext.Default.ScheduleData != null),
+                ("AutomationSettings", Models.AppJsonContext.Default.AutomationSettings != null),
+                ("OpenStateData", Models.AppJsonContext.Default.OpenStateData != null),
+                ("PdfReadingStateData", Models.AppJsonContext.Default.PdfReadingStateData != null),
+                ("DictionaryStringTokenInfo", Models.AppJsonContext.Default.DictionaryStringTokenInfo != null),
+            };
+            foreach (var (name, ok) in probes)
+            {
+                sb.AppendLine($"[JSONTEST]   {(ok ? "ok" : "✗")} 元数据已生成：{name}");
+                if (!ok) throw new Exception($"{name} 没有生成 JsonTypeInfo");
+            }
+
+            sb.AppendLine("[JSONTEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[JSONTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
+    private static void RunReminderSelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            sb.AppendLine("[RMTEST] 课间语义自检开始");
+            var date = new DateTime(2026, 9, 18);
+
+            static Models.ScheduleEntry E(int period, string subject, Models.PeriodType type,
+                string start, string end) => new()
+                {
+                    DayOfWeek = 5,
+                    Period = period,
+                    Subject = subject,
+                    Type = type,
+                    StartTimeStr = start,
+                    EndTimeStr = end,
+                };
+
+            // (上一节, 下一节, 期望类型, 说明)
+            var cases = new (Models.ScheduleEntry? Prev, Models.ScheduleEntry? Next,
+                             Services.ReminderService.GapKind Expect, string Desc)[]
+            {
+                // ── 用户报告的两个场景：必须静音 ──
+                (E(1, "晚读", Models.PeriodType.Reading, "18:00", "18:30"),
+                 E(2, "晚自习", Models.PeriodType.Evening, "18:40", "20:00"),
+                 Services.ReminderService.GapKind.SelfStudyBoundary, "晚读→晚自习（10 分钟）"),
+
+                (E(1, "中午听力", Models.PeriodType.Noon, "12:20", "12:50"),
+                 E(2, "数学", Models.PeriodType.Normal, "13:10", "13:55"),
+                 Services.ReminderService.GapKind.SelfStudyBoundary, "中午听力→下午第一节（20 分钟）"),
+
+                (E(1, "早自习", Models.PeriodType.Morning, "07:00", "07:40"),
+                 E(2, "语文", Models.PeriodType.Normal, "08:00", "08:45"),
+                 Services.ReminderService.GapKind.SelfStudyBoundary, "早自习→第一节（20 分钟）"),
+
+                // ── 正常课间不能被误静音 ──
+                (E(2, "语文", Models.PeriodType.Normal, "08:00", "08:45"),
+                 E(3, "数学", Models.PeriodType.Normal, "08:55", "09:40"),
+                 Services.ReminderService.GapKind.Normal, "普通课间 10 分钟（应保留提醒）"),
+
+                (E(2, "语文", Models.PeriodType.Normal, "08:00", "08:45"),
+                 E(3, "数学", Models.PeriodType.Normal, "08:45", "09:30"),
+                 Services.ReminderService.GapKind.Consecutive, "普通课连堂（≤1 分钟）"),
+
+                // ── 长间隔仍走 Dismissal：保住「上午放学」语义 ──
+                (E(4, "英语", Models.PeriodType.Normal, "11:20", "12:05"),
+                 E(5, "物理", Models.PeriodType.Normal, "14:00", "14:45"),
+                 Services.ReminderService.GapKind.Dismissal, "中午放学级长间隔（≥60 分钟）"),
+
+                (E(4, "午休", Models.PeriodType.Noon, "12:00", "12:30"),
+                 E(5, "物理", Models.PeriodType.Normal, "14:00", "14:45"),
+                 Services.ReminderService.GapKind.Dismissal, "午休→下午第一节但间隔 90 分钟（Dismissal 优先）"),
+
+                // ── 边界情形 ──
+                (null, E(1, "语文", Models.PeriodType.Normal, "08:00", "08:45"),
+                 Services.ReminderService.GapKind.Normal, "首节无上一节"),
+                (E(1, "语文", Models.PeriodType.Normal, "08:00", "08:45"), null,
+                 Services.ReminderService.GapKind.Normal, "末节无下一节"),
+            };
+
+            foreach (var (prev, next, expect, desc) in cases)
+            {
+                var got = Services.ReminderService.ClassifyGap(prev, next, date);
+                string mark = got == expect ? "ok" : "✗";
+                sb.AppendLine($"[RMTEST]   {mark} {desc,-34} 期望 {expect,-17} 实际 {got}");
+                if (got != expect)
+                    throw new Exception($"课间语义不符：{desc} 期望 {expect}，实际 {got}");
+            }
+
+            sb.AppendLine("[RMTEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[RMTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
     private static async System.Threading.Tasks.Task RunUpdateSelfTestAsync()
     {
         var sb = new System.Text.StringBuilder();

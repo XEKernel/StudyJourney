@@ -184,7 +184,9 @@ public static class HttpServerService
     }
 
     // ── 登录 Token（内存字典 + tokens.json 持久化）────────
-    private sealed class TokenInfo
+    /// <summary>登录 token 记录。internal 是为了能被 AppJsonContext（JSON 源生成器）引用 —— 
+    /// AOT 下反射序列化不可用，tokens.json 必须靠源生成器。字段名即 JSON 落盘字段名，勿改。</summary>
+    internal sealed class TokenInfo
     {
         public string Username { get; set; } = "";
         public string DisplayName { get; set; } = "";
@@ -1052,7 +1054,7 @@ public static class HttpServerService
             {
                 Tokens.Clear();
                 // 新格式：token → { Username, ExpireAt }
-                var loaded = JsonSerializer.Deserialize<Dictionary<string, TokenInfo>>(json);
+                var loaded = JsonSerializer.Deserialize(json, AppJsonContext.Default.DictionaryStringTokenInfo);
                 if (loaded != null)
                 {
                     foreach (var kv in loaded)
@@ -1070,7 +1072,7 @@ public static class HttpServerService
                     return;
                 }
                 // 兼容旧格式：token → DateTime（默认用户 Teacher01）
-                var legacy = JsonSerializer.Deserialize<Dictionary<string, DateTime>>(json);
+                var legacy = JsonSerializer.Deserialize(json, AppJsonContext.Default.DictionaryStringDateTime);
                 if (legacy != null)
                 {
                     foreach (var kv in legacy)
@@ -1094,7 +1096,7 @@ public static class HttpServerService
         {
             Dictionary<string, TokenInfo> snapshot;
             lock (TokenGate) { snapshot = new Dictionary<string, TokenInfo>(Tokens); }
-            var json = JsonSerializer.Serialize(snapshot, new JsonSerializerOptions { WriteIndented = true });
+            var json = JsonSerializer.Serialize(snapshot, AppJsonContext.Default.DictionaryStringTokenInfo);
             Helpers.FileAtomic.WriteAllText(TokensFilePath, json);
         }
         catch (Exception ex)

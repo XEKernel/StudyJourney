@@ -83,7 +83,7 @@ public partial class ScheduleEditorWindow : Window
     private void ClearTplDirty() { if (TplDirtyTb != null) TplDirtyTb.IsVisible = false; }
 
     private static string SerializeData()
-        => JsonSerializer.Serialize(App.Schedule.Data, new JsonSerializerOptions { WriteIndented = true });
+        => JsonSerializer.Serialize(App.Schedule.Data, AppJsonContext.Default.ScheduleData);
 
     /// <summary>打开/上次保存以来是否有内容变化（取消/关窗确认用）</summary>
     private bool HasChanges => SerializeData() != _baselineJson;

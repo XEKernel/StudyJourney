@@ -90,7 +90,7 @@ public static class OpenStateStore
             if (File.Exists(StorePath))
             {
                 var json = File.ReadAllText(StorePath);
-                var d = JsonSerializer.Deserialize<OpenStateData>(json, JsonOpts);
+                var d = JsonSerializer.Deserialize(json, AppJsonContext.Default.OpenStateData);
                 if (d != null)
                 {
                     d.Rules ??= new Dictionary<string, RuleOpenState>();
@@ -112,7 +112,7 @@ public static class OpenStateStore
     {
         try
         {
-            Helpers.FileAtomic.WriteAllText(StorePath, JsonSerializer.Serialize(_data, JsonOpts));
+            Helpers.FileAtomic.WriteAllText(StorePath, JsonSerializer.Serialize(_data, AppJsonContext.Default.OpenStateData));
         }
         catch (Exception ex)
         {

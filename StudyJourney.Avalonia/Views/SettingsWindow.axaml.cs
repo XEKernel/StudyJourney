@@ -26,7 +26,7 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
     private string _baselineJson = "";
 
     private static string SerializeSettings()
-        => JsonSerializer.Serialize(App.Settings, new JsonSerializerOptions { WriteIndented = true });
+        => JsonSerializer.Serialize(App.Settings, AppJsonContext.Default.AppSettings);
 
     private bool HasUnsavedSettings() => SerializeSettings() != _baselineJson;
 
