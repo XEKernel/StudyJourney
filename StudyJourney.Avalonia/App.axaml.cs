@@ -731,6 +731,7 @@ public partial class App : Application
     private static void RunPdfSelfTest()
     {
         var sb = new System.Text.StringBuilder();
+        bool deferred = false;      // 是否把收尾挪到了消息循环之后（见下方 Show()）
         try
         {
             sb.AppendLine("[PDFTEST] PDF 渲染链路自检开始");
@@ -766,12 +767,41 @@ public partial class App : Application
             if (Math.Abs(back.X - content.X) > 1e-6 || Math.Abs(back.Y - content.Y) > 1e-6)
                 throw new Exception("ZoomInkSurface 坐标往返有偏差");
 
-            // 窗口实例化（不 Show，避免干扰桌面）
+            // 窗口实例化 + 触屏输入模式验证。
+            // ⚠ 这里必须**真的 Show**："摘掉滚动手势识别器"发生在主题模板应用之后，不 Show
+            //    就验证不到（而"手指写不出字"正是模板里那个识别器在抢指针，见 PdfReaderWindow）。
+            //    断言放在消息循环之后（DispatcherPriority.Background 比 Render/Loaded 低，
+            //    模板那时已经应用完），所以收尾也要挪到那里。
             var w = new Views.PdfReaderWindow();
-            sb.AppendLine("[PDFTEST] PdfReaderWindow 实例化 OK（未 Show）");
-            w.Close();
-
-            sb.AppendLine("[PDFTEST] 结论：PASS");
+            w.Show();
+            deferred = true;
+            Dispatcher.UIThread.Post(() =>
+            {
+                try
+                {
+                    sb.AppendLine($"[PDFTEST] 触屏输入：{w.TouchInputDiagnostics}");
+                    // 诊断：把窗口里所有带手势识别器的元素列出来 —— 定位"到底谁在跟墨迹层抢触摸指针"
+                    foreach (var v in global::Avalonia.VisualTree.VisualExtensions.GetVisualDescendants(w).OfType<global::Avalonia.Input.InputElement>())
+                        if (v.GestureRecognizers.Count > 0)
+                            sb.AppendLine($"[PDFTEST]   识别器：{v.GetType().Name} × {v.GestureRecognizers.Count} → " +
+                                          string.Join(",", v.GestureRecognizers.Select(g => g.GetType().Name)));
+                    if (!w.TouchInkEnabled)
+                        throw new Exception("AllowTouchInk 未开启 —— 手指写不出字（用户反馈的正是这个）");
+                    if (!w.ScrollGestureDetached)
+                        throw new Exception("内容视图上的 ScrollGestureRecognizer 没被摘除 —— 单指拖动会被它抢走指针，写半笔就断");
+                    sb.AppendLine("[PDFTEST] 结论：PASS");
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"[PDFTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+                    sb.AppendLine(ex.StackTrace);
+                }
+                finally
+                {
+                    try { w.Close(); } catch { }
+                    WritePdfSelfTestResult(sb);
+                }
+            }, DispatcherPriority.Background);
         }
         catch (Exception ex)
         {
@@ -779,6 +809,12 @@ public partial class App : Application
             sb.AppendLine(ex.StackTrace);
         }
 
+        if (!deferred) WritePdfSelfTestResult(sb);
+    }
+
+    /// <summary>PDF 自检收尾：写日志 + 结果文件 + 退出进程（自检专用）</summary>
+    private static void WritePdfSelfTestResult(System.Text.StringBuilder sb)
+    {
         Helpers.AppLogger.Info(sb.ToString());
         System.IO.File.WriteAllText(
             System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
@@ -1146,7 +1182,28 @@ public partial class App : Application
             sb.AppendLine($"[UPDTEST] 非法资产名 → HasUpdate={bad.HasUpdate}（应为 False）");
             if (bad.HasUpdate) throw new Exception("非法资产名被错误匹配，可能下载到错误文件");
 
-            // ── 5. 真的走一次镜像下载（端到端验证代理可用）──
+            // ── 5. 更新程序必须取自**更新包**（2026-09-19 修的核心，钉死它防回归）──
+            //    故障链：从程序目录启动自包含的更新程序 → 它把程序目录里的运行时 DLL
+            //    （coreclr/System.Private.CoreLib/hostpolicy…）映射成自己的 → 复制新版本覆盖
+            //    这些 DLL 时抛共享冲突 → 主程序都退出了，更新还是失败。
+            string fakeStage = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sj_updtest_stage");
+            try
+            {
+                System.IO.Directory.CreateDirectory(fakeStage);
+                string fakeUpdater = System.IO.Path.Combine(fakeStage, "StudyJourney.Updater.exe");
+                System.IO.File.WriteAllText(fakeUpdater, "stub");
+                var picked = Services.UpdateService.ResolveUpdaterExe(fakeStage);
+                sb.AppendLine($"[UPDTEST] 更新包里有更新程序 → 选用：{picked}");
+                if (!string.Equals(picked, fakeUpdater, StringComparison.OrdinalIgnoreCase))
+                    throw new Exception("没有优先用更新包里那份更新程序 —— 会重新踩到「DLL 被自己占用」的坑");
+                var fallback = Services.UpdateService.ResolveUpdaterExe(System.IO.Path.Combine(fakeStage, "not-exist"));
+                sb.AppendLine($"[UPDTEST] 包里没有更新程序 → 回退：{fallback ?? "(无可用)"}");
+                if (fallback != null && fallback.StartsWith(fakeStage, StringComparison.OrdinalIgnoreCase))
+                    throw new Exception("回退路径不该指向 staging 目录");
+            }
+            finally { try { System.IO.Directory.Delete(fakeStage, true); } catch { } }
+
+            // ── 6. 真的走一次镜像下载（端到端验证代理可用）──
             //    用一个别家仓库的小 zip（约 90KB），验证：镜像拼接 + 流式下载 + zip 魔数校验
             const string probe = "https://github.com/WJQSERVER-STUDIO/ghproxy/archive/refs/heads/main.zip";
             var sw = System.Diagnostics.Stopwatch.StartNew();

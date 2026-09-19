@@ -58,11 +58,13 @@ class Program
             // 等待文件句柄释放
             Thread.Sleep(1000);
 
+            // 本进程自己住在哪个目录 —— 决定"要不要跳过自己那一组文件"和"能不能当场删临时目录"
+            string runDir = Path.GetDirectoryName(Environment.ProcessPath ?? "") ?? "";
+
             // 2. 准备新文件：优先用主程序已解压好的 staging 目录
             //    （主程序在退出前已校验过解压结果，这里就只是拷文件，最不容易出错）；
             //    没有才自己解压 zip（兼容旧版主程序或手工调用）。
             string workDir;
-            bool ownWorkDir = false;
             if (!string.IsNullOrEmpty(opts.StagedDir) && Directory.Exists(opts.StagedDir))
             {
                 workDir = opts.StagedDir;
@@ -74,7 +76,6 @@ class Program
                 Directory.CreateDirectory(tempDir);
                 ZipFile.ExtractToDirectory(opts.ZipPath, tempDir, true);
                 workDir = tempDir;
-                ownWorkDir = true;
                 Log($"自行解压更新包：{opts.ZipPath} → {tempDir}");
             }
             else
@@ -84,24 +85,42 @@ class Program
                 return 1;
             }
 
+            Log($"本进程目录：{runDir}；目标目录：{opts.TargetDir}；内容目录：{workDir}");
+
+            List<string> failedFiles;
             try
             {
                 // 3. 复制文件（覆盖）
-                // ⚠ 必须跳过"更新程序自己那一组文件"（StudyJourney.Updater.exe/.dll/...）。
-                //    发布包根目录也含这些文件，而本进程正是从目标目录启动的 —— 运行时已把
-                //    更新的 exe 与 dll 锁住，覆盖会抛共享冲突，导致**整个更新失败**。
-                //    （新版更新程序由主程序在拉起本进程"之前"就整组替换好了，这里无需再换。）
-                CopyDirectory(workDir, opts.TargetDir, "StudyJourney.Updater.");
+                //    ⚠ 只有"更新程序自己就跑在目标目录里"时才需要跳过 StudyJourney.Updater.*
+                //    —— 运行时它的 exe/dll 被系统锁住，覆盖必抛共享冲突。
+                //    新版主程序改从 staging（%TEMP%）启动更新程序，于是目标目录里没有任何文件
+                //    被本进程占用：这时**该**把更新程序自己也更新掉，而不是跳过。
+                //
+                //    背景（2026-09-19 用户实测的故障）：更新程序是自包含应用，从程序目录启动时
+                //    会把 coreclr.dll / System.Private.CoreLib.dll 等运行时 DLL 也映射成
+                //    "来自程序目录"，覆盖它们必然失败 → 报"某个 DLL 正由另一进程使用"。
+                //    根因在主程序（不该从程序目录启动它），这里再要求"本进程没有占用目标目录"
+                //    也只是兜底。
+                bool runningInsideTarget = SamePath(runDir, opts.TargetDir);
+                if (runningInsideTarget)
+                    Log("⚠ 本进程正跑在目标目录里（旧版主程序的行为）：将跳过更新程序自身那一组文件");
+                string? skipPrefix = runningInsideTarget ? "StudyJourney.Updater." : null;
+
+                failedFiles = CopyDirectory(workDir, opts.TargetDir, skipPrefix);
 
                 // 4. 清理临时内容
-                if (ownWorkDir)
+                //    ⚠ 本进程就跑在 workDir 里时当场删不掉自己（exe/dll 被占用）→ 交给
+                //      退出后的清理脚本删（放在 ScheduleSelfDelete 里）。
+                string? dirToClean = SamePath(runDir, workDir) ? workDir : null;
+                if (dirToClean == null)
                 {
                     try { Directory.Delete(workDir, true); } catch { }
                 }
                 else
                 {
-                    try { Directory.Delete(workDir, true); } catch { }   // staging 也是临时的
+                    Log($"本进程住在内容目录里，退出后由清理脚本删除：{dirToClean}");
                 }
+
                 if (!string.IsNullOrEmpty(opts.ZipPath))
                 {
                     try { File.Delete(opts.ZipPath); } catch { }
@@ -131,9 +150,21 @@ class Program
                 ShowWarn($"启动新版本失败：{ex.Message}\n\n请手动打开：\n{opts.ExePath}");
             }
 
-            // 6. 自清理
+            // 5.5 有个别文件没覆盖成功时告诉老师（但仍然照常重启：程序退不回去，
+            //     把情况说清楚比让程序停在旧版本半截状态更好）。
+            if (failedFiles.Count > 0)
+            {
+                var head = string.Join("\n", failedFiles.Take(5));
+                var more = failedFiles.Count > 5 ? $"\n…还有 {failedFiles.Count - 5} 个" : "";
+                Log("以下文件未能覆盖：\n" + string.Join("\n", failedFiles));
+                ShowWarn($"有 {failedFiles.Count} 个文件没能替换（多半是被杀毒软件、或另一个还在运行的" +
+                         $"学程进程占用）：\n\n{head}{more}\n\n" +
+                         "程序照常启动。若功能异常，请关闭全部学程进程后重新更新一次。");
+            }
+
+            // 6. 自清理（顺带删掉"本进程住的临时目录"）
             Log("完成，准备自清理");
-            ScheduleSelfDelete();
+            ScheduleSelfDelete(SamePath(runDir, workDir) ? workDir : null);
         }
         catch (Exception ex)
         {
@@ -228,13 +259,21 @@ class Program
         => ProtectedUserDataFiles.Any(p => string.Equals(p, fileName, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>
-    /// 把 source 下的文件覆盖到 dest。
-    /// <paramref name="skipFileNamePrefix"/> 用来跳过正在运行、被系统锁定的更新器自身文件。
+    /// 把 source 下的文件覆盖到 dest，返回**没能覆盖的文件**（相对路径 + 原因）。
+    ///
+    /// 两个要点（2026-09-19 故障复盘）：
+    ///   · 单个文件失败**不再让整包失败** —— 原来第一处共享冲突就抛出、整个更新中断，
+    ///     程序目录被留在"一半新一半旧"的状态里，还不会重启。现在失败的文件继续往后拷，
+    ///     最后统一报出来（并仍然重启程序）。
+    ///   · 每个文件带**重试**：杀毒软件扫描、资源管理器索引、另一个还在退出的学程进程
+    ///     都可能短暂锁住文件，等几百毫秒再试通常就过了。
     /// </summary>
-    private static void CopyDirectory(string source, string dest, string? skipFileNamePrefix = null)
+    /// <param name="skipFileNamePrefix">跳过该前缀的文件（仅当更新程序自己就跑在目标目录里时才需要）</param>
+    private static List<string> CopyDirectory(string source, string dest, string? skipFileNamePrefix = null)
     {
         Directory.CreateDirectory(dest);
         int skipped = 0, copied = 0, protectedSkipped = 0;
+        var failed = new List<string>();
 
         foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
         {
@@ -257,20 +296,77 @@ class Program
             string rel = Path.GetRelativePath(source, file);
             string destFile = Path.Combine(dest, rel);
             Directory.CreateDirectory(Path.GetDirectoryName(destFile)!);
-            File.Copy(file, destFile, true);
-            copied++;
+
+            if (TryCopyWithRetry(file, destFile, out string reason))
+            {
+                copied++;
+            }
+            else
+            {
+                failed.Add($"{rel}（{reason}）");
+                Log($"复制失败：{rel} — {reason}");
+            }
         }
 
-        Log($"复制完成：{copied} 个；跳过更新器自身 {skipped} 个；跳过用户数据 {protectedSkipped} 个");
+        Log($"复制完成：成功 {copied} 个；跳过更新器自身 {skipped} 个；" +
+            $"跳过用户数据 {protectedSkipped} 个；失败 {failed.Count} 个");
+        return failed;
+    }
+
+    /// <summary>带退避重试的覆盖复制（共享冲突/权限问题大多是短暂的）</summary>
+    private static bool TryCopyWithRetry(string source, string dest, out string reason)
+    {
+        for (int attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Copy(source, dest, true);
+                reason = "";
+                return true;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt >= MaxCopyRetries)
+                {
+                    reason = ex.Message;
+                    return false;
+                }
+                Thread.Sleep(250 * attempt);
+            }
+            catch (Exception ex)
+            {
+                reason = ex.Message;
+                return false;
+            }
+        }
+    }
+
+    /// <summary>单个文件覆盖的最大尝试次数（含首次）</summary>
+    private const int MaxCopyRetries = 5;
+
+    /// <summary>两个目录是否同一个（忽略大小写与尾部分隔符；解析失败按不同处理）</summary>
+    private static bool SamePath(string? a, string? b)
+    {
+        if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b)) return false;
+        try
+        {
+            static string Norm(string p) => Path.GetFullPath(p).TrimEnd('\\', '/');
+            return string.Equals(Norm(a), Norm(b), StringComparison.OrdinalIgnoreCase);
+        }
+        catch { return false; }
     }
 
     /// <summary>
-    /// 本进程退出后删除自身的 exe。
+    /// 本进程退出后删除自身的 exe（以及可选的一个临时目录）。
     ///
     /// ⚠ 原实现用 `:retry / del / if exist goto retry` **无延时忙等** —— 正在运行的 exe
     /// 删不掉，于是 bat 会以满 CPU 空转直到本进程真正退出。这里改成"带延时 + 次数上限"。
     /// </summary>
-    private static void ScheduleSelfDelete()
+    /// <param name="extraDirToDelete">
+    /// 本进程"住在里面"的临时目录（新版主程序从 staging 启动更新程序）。当场删不掉自己，
+    /// 只能等退出后由这里删。**绝不能传目标目录**（调用方已保证传进来的不是目标目录）。
+    /// </param>
+    private static void ScheduleSelfDelete(string? extraDirToDelete = null)
     {
         try
         {
@@ -279,11 +375,19 @@ class Program
 
             string bat = Path.Combine(Path.GetTempPath(), $"sj_updater_cleanup_{DateTime.Now.Ticks}.bat");
 
+            string workLine = string.IsNullOrEmpty(extraDirToDelete)
+                ? ""
+                : $"set \"WORK={extraDirToDelete}\"\r\n";
+            string workClean = string.IsNullOrEmpty(extraDirToDelete)
+                ? ""
+                : "if defined WORK rmdir /S /Q \"%WORK%\" >nul 2>&1\r\n";
+
             // ping 当延时用（timeout 命令需要控制台，隐藏窗口下会报错）
             File.WriteAllText(bat,
                 "@echo off\r\n" +
                 "setlocal\r\n" +
                 $"set \"SELF={self}\"\r\n" +
+                workLine +
                 "set /a n=0\r\n" +
                 ":retry\r\n" +
                 "del /F /Q \"%SELF%\" >nul 2>&1\r\n" +
@@ -293,6 +397,7 @@ class Program
                 "ping -n 1 -w 500 127.0.0.1 >nul\r\n" +
                 "goto retry\r\n" +
                 ":done\r\n" +
+                workClean +
                 "del /F /Q \"%~f0\" >nul 2>&1\r\n");
 
             Process.Start(new ProcessStartInfo

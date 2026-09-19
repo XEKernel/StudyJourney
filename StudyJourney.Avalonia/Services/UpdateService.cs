@@ -112,9 +112,9 @@ public static class UpdateService
                 if (!string.IsNullOrWhiteSpace(info)) return info.Trim();
             }
             var ver = asm.GetName().Version;
-            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.13.0";
+            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.13.1";
         }
-        catch { return "2.13.0"; }
+        catch { return "2.13.1"; }
     });
 
     public static string CurrentVersion => _currentVersion.Value;
@@ -142,8 +142,36 @@ public static class UpdateService
         }
     }
 
+    /// <summary>更新程序文件名（程序目录里一份、更新包里也有一份，见 StartUpdateAsync 的说明）</summary>
+    private const string UpdaterFileName = "StudyJourney.Updater.exe";
+
     private static string UpdaterPath =>
-        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "StudyJourney.Updater.exe");
+        Path.Combine(AppDomain.CurrentDomain.BaseDirectory, UpdaterFileName);
+
+    /// <summary>
+    /// 决定这次用哪个更新程序（2026-09-19 新增，internal 供自检断言）：
+    /// **优先用更新包里那一份**（在 staging 里，从 %TEMP% 运行不会锁住程序目录的 DLL），
+    /// 包里没有才回退到程序目录里那份（很旧的包/手工调用）。两个都没有 → null（无法更新）。
+    /// </summary>
+    internal static string? ResolveUpdaterExe(string? stagingDir)
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(stagingDir))
+            {
+                var staged = Path.Combine(stagingDir, UpdaterFileName);
+                if (File.Exists(staged)) return staged;
+            }
+        }
+        catch { /* 目录不可访问 → 走回退 */ }
+
+        try
+        {
+            if (File.Exists(UpdaterPath)) return UpdaterPath;
+        }
+        catch { }
+        return null;
+    }
 
     // ── 镜像 / 直连候选 ──────────────────────────────────────
 
@@ -362,13 +390,6 @@ public static class UpdateService
         onPhase?.Invoke(UpdatePhase.Downloading);
         try
         {
-            // 先确认更新程序在位 —— 免得白下几十 MB 才发现没法安装
-            if (!UpdaterPresent)
-            {
-                AppLogger.Warn($"[Updater] 更新程序未找到：{UpdaterPath}");
-                return false;
-            }
-
             zipPath ??= await DownloadUpdateAsync(downloadUrl, progress, ct);
 
             // 解压放到主程序做（原来在更新程序里做）。三个好处：
@@ -380,10 +401,31 @@ public static class UpdateService
             // 那样"正在解压"这四个字根本来不及画出来，界面看着就是死的。
             string stagingDir = await Task.Run(() => ExtractToStaging(zipPath), ct);
 
-            // ⚠ 关键顺序：必须**在拉起更新程序之前**用新版覆盖它。
-            // 更新程序从本程序目录启动，一旦跑起来，任何对自身 exe 的写入都会因共享冲突失败
-            // （发布包根目录恰好含 StudyJourney.Updater.exe/.dll）→ 会导致整个更新失败。
-            // 此刻它还没启动，覆盖是安全的。现在文件已解压到 staging，直接从那里取更简单。
+            // ⚠ 关键（2026-09-19 修）：更新程序要**从 staging 目录里那一份启动**，
+            //    不能再从程序目录启动。
+            //
+            //    原因：发布包根目录自带 StudyJourney.Updater.*（CI 会把更新程序发布产物
+            //    拷进产物根），而它是**自包含**应用 —— 从程序目录运行时，Windows 会把它的
+            //    .NET 运行时 DLL（coreclr.dll / System.Private.CoreLib.dll / hostpolicy.dll …）
+            //    也映射成"从程序目录加载"。这些文件随即变成"正被另一进程使用"，
+            //    更新程序随后要把新包覆盖上去时必然抛共享冲突 → **整个更新失败**。
+            //    用户看到的就是：主程序已经退出了，更新程序却报"某个 DLL 正由另一进程使用"。
+            //    从 %TEMP% 的 staging 里启动后，它锁的全是临时目录里的文件，程序目录一个都不锁。
+            string? updaterExe = ResolveUpdaterExe(stagingDir);
+            if (updaterExe == null)
+            {
+                AppLogger.Warn($"[Updater] 找不到可用的更新程序（更新包里没有，{UpdaterPath} 也没有）");
+                return false;
+            }
+
+            bool fromStaging = !string.Equals(updaterExe, UpdaterPath, StringComparison.OrdinalIgnoreCase);
+            if (fromStaging)
+                AppLogger.Info("[Updater] 用更新包自带的更新程序（从临时目录运行，不占用程序目录里的 DLL）");
+            else
+                AppLogger.Warn("[Updater] 更新包里没有更新程序，回退用程序目录里那份（只有很旧的包才会这样）");
+
+            // 顺手把**程序目录里那份**也换成新版：这样下次更新、以及上面那条回退路径
+            // 用到的都是新版本（此刻它还没运行，覆盖是安全的）。
             TryRefreshUpdater(stagingDir, zipPath);
 
             // ⚠ 路径一律去掉尾部分隔符再拼参数。
@@ -399,7 +441,7 @@ public static class UpdateService
             // ArgumentList 要求 UseShellExecute = false（更新程序是普通 exe，不需要 shell）。
             var psi = new ProcessStartInfo
             {
-                FileName = UpdaterPath,
+                FileName = updaterExe,
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 WorkingDirectory = targetDir,

@@ -236,6 +236,22 @@ public sealed class InkCanvas : Control
         InvalidateVisual();     // 活动笔画增量重绘（历史笔画走缓存，不重建）
     }
 
+    /// <summary>
+    /// 取消正在书写的那一笔：既不提交、也不残留（连"半截笔画"都不留）。
+    ///
+    /// 使用场景（PDF 阅读器 2026-09-19）：手指落下开始写字后**又落下第二根手指**表示
+    /// "我其实是想滚动" → 宿主要立刻把这一笔扔掉，否则会留下一条莫名其妙的短线，
+    /// 而且后续多指移动还会继续往这条笔画里塞点。
+    /// </summary>
+    public void CancelActiveStroke()
+    {
+        if (_active == null && !_sessionActive) return;
+        _active = null;
+        _sessionActive = false;
+        _sessionIsInk = false;
+        InvalidateVisual();
+    }
+
     protected override void OnPointerReleased(PointerReleasedEventArgs e)
     {
         base.OnPointerReleased(e);

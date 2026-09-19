@@ -7,13 +7,17 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Controls.Presenters;
 using Avalonia.Input;
+using Avalonia.Input.GestureRecognizers;
+using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using StudyJourney.Avalonia.Helpers;
 using StudyJourney.Avalonia.Models;
 
@@ -26,8 +30,14 @@ namespace StudyJourney.Avalonia.Views;
 ///   · **墨迹挂在文档内容坐标系**：画布（InkCanvas）按 zoom 放大后铺在**未缩放的文档空间**之上，
 ///     并且整体放在 ScrollViewer 的内容里 → 滚动时画布与页面一起滚，笔迹天然跟随内容；
 ///     缩放时改 `ZoomInkSurface.Zoom` + 重算几何 → 笔迹跟着内容一起放大，绝不留在屏幕原位。
-///   · **触屏滚动**：`AllowTouchInk = false`（手指留给滚动，交给 ScrollViewer 的触摸拖动），
-///     触控笔/鼠标左键才书写 —— 沿用 2.1 的"笔写=墨迹 / 指滑=滚动"约定。
+///   · **触屏输入（2026-09-19 重做）**：班级电脑是触屏，老师没有触控笔 → 手指必须能写字。
+///     原实现 `AllowTouchInk = false` 把手指全留给滚动，结果"白板/屏幕批注都能用手指写、
+///     只有 PDF 阅读器写不出"（用户反馈）。现在改成两种模式，工具栏一键切换：
+///       · **批注模式**（默认）：手指/笔/鼠标都书写；**双指拖动 = 滚动**（自己实现）；
+///         鼠标滚轮与滚动条照旧。做法是把主题模板里的 `ScrollGestureRecognizer` 摘下来 ——
+///         否则它会在单指拖动超过阈值时把指针从墨迹层抢走（既断笔迹又滚屏）。
+///       · **浏览模式**：恢复原生手势（单指拖动滚动），且不产生墨迹（避免"想翻页却画画"）。
+///     切换只改"识别器在不在 + AllowTouchInk + IsReadOnly"三项，不动视觉树（Avalonia 12 陷阱）。
 ///   · **大文件懒渲染**：只渲染可视页 ±1 缓冲页，位图带缓存并淘汰远离视口的页；
 ///     真正的 PDFium 渲染放后台线程（PDFium 非线程安全 → 由 PdfRenderer 内部串行化）。
 ///   · **续读**：打开时读 pdf-state.json 里的上次页码，翻页/滚动时回写。
@@ -47,6 +57,12 @@ public sealed class PdfReaderWindow : Window
 
     private enum ZoomMode { Custom, FitWidth, FitPage }
 
+    /// <summary>触屏输入模式（2026-09-19）：默认手指书写；浏览模式交给原生手势滚动且不产生墨迹。</summary>
+    private enum TouchMode { Ink, Browse }
+
+    // 同一个进程内记住老师上次的选择（重开阅读器不用再点一次）
+    private static TouchMode s_touchMode = TouchMode.Ink;
+
     // ── 状态 ─────────────────────────────────────────────────
     private PdfRenderer? _pdf;
     private string? _pdfPath;
@@ -56,6 +72,17 @@ public sealed class PdfReaderWindow : Window
     private bool _closing;
     private bool _typingInPageBox;
     private bool _dirtyInk;
+    private bool _fileOpen;              // 已打开文件（决定墨迹层能不能吃指针）
+
+    // ── 触屏输入状态（2026-09-19）────────────────────────────
+    private readonly Dictionary<int, Point> _touches = new();   // 手指 id → 窗口坐标
+    private bool _multiTouchPan;                                // 双指滚动进行中
+    private Point _panLast;                                     // 上一次的指心（窗口坐标）
+    private ScrollContentPresenter? _contentPresenter;          // 内容视图：滚动识别器挂在它身上
+    private ScrollGestureRecognizer? _detachedGesture;          // 被摘下来的滚动识别器
+    private bool _scrollGestureDetached;
+    private bool _templateApplied;
+    private int _syncRetries;
 
     // 内容空间（zoom = 1，单位 DIP）：每页矩形 + 整体尺寸
     private readonly List<Rect> _pageRects = new();
@@ -81,6 +108,7 @@ public sealed class PdfReaderWindow : Window
     private readonly Button _undoBtn;
     private readonly Button _redoBtn;
     private readonly Button _openBtn;
+    private readonly Button _touchModeBtn;
 
     public PdfReaderWindow()
     {
@@ -91,11 +119,12 @@ public sealed class PdfReaderWindow : Window
         WindowState = WindowState.Maximized;
         Background = new SolidColorBrush(Color.FromRgb(0x1A, 0x1A, 0x1A));
 
-        // 画布：手指滚动、笔/鼠标书写
+        // 画布：手指、笔、鼠标都书写（2026-09-19 修：原来手指被排除，导致触屏上写不出字）；
+        // 手指滚动改由"双指拖动"承担（见 OnTouchPressed/Moved），鼠标滚轮与滚动条不受影响。
         _ink = new InkCanvas
         {
             AllowMouseInk = true,
-            AllowTouchInk = false,        // ⚠ 手指必须留给 ScrollViewer，否则触屏没法滚动
+            AllowTouchInk = true,
             EraserRadius = 14,
             Thickness = 3,
             Color = Color.FromRgb(0xD1, 0x3A, 0x3A),   // 批注默认红笔（与板书区分）
@@ -118,10 +147,12 @@ public sealed class PdfReaderWindow : Window
             Content = _contentHost,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-            // 触屏拖动滚动（Avalonia 内置手势识别；InkCanvas 不吞 Touch 事件，能冒泡到这里）
         };
         _scroll.ScrollChanged += (_, _) => OnScrollChanged();
         _scroll.SizeChanged += (_, _) => ApplyFitIfNeeded();
+        // 触屏输入模式要在**模板应用之后**才能生效：滚动识别器是主题模板里声明的
+        // （不是 ScrollViewer 构造函数加的），模板没来之前 GestureRecognizers 是空的。
+        _scroll.TemplateApplied += (_, _) => { _templateApplied = true; SyncTouchInputMode(); };
 
         _pageLabel = new TextBlock
         {
@@ -160,6 +191,8 @@ public sealed class PdfReaderWindow : Window
         _undoBtn = MakeButton("↶", "撤销", "撤销上一笔批注 (Ctrl+Z)", () => InkDoc.Undo());
         _redoBtn = MakeButton("↷", "重做", "重做 (Ctrl+Y)", () => InkDoc.Redo());
         _openBtn = MakeButton("📂", "打开 PDF", "选择要打开的 PDF 文件", Open_Click);
+        _touchModeBtn = MakeButton("", "", "", ToggleTouchMode);   // 文字/提示由 UpdateTouchModeButton 填
+        UpdateTouchModeButton();
 
         var toolbar = BuildToolbar();
         var root = new Grid { RowDefinitions = new RowDefinitions("*,Auto") };
@@ -169,9 +202,198 @@ public sealed class PdfReaderWindow : Window
         root.Children.Add(toolbar);
         Content = root;
 
+        // 触屏手势走**隧道**（根 → 叶子）抢在墨迹层之前拿到事件：
+        //   · 第二根手指落下时，墨迹层可能已经开始写第一笔 → 必须在这一刻取消它
+        //   · 双指拖动时由我们直接改 ScrollViewer.Offset（此时原生手势已被摘除，没人会滚）
+        // handledEventsToo: true —— 墨迹层会把按下事件标记为 Handled，不带上这个就收不到。
+        AddHandler(PointerPressedEvent, OnTouchPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerMovedEvent, OnTouchMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerReleasedEvent, OnTouchReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
+        AddHandler(PointerCaptureLostEvent, OnTouchCaptureLost, RoutingStrategies.Tunnel, handledEventsToo: true);
+
         KeyDown += OnKeyDown;
         Closing += OnClosing;
-        Opened += (_, _) => { UpdateZoomLabel(); UpdatePageLabel(); UpdateUndoButtons(); SetInkEnabled(false); };
+        Opened += (_, _) =>
+        {
+            SyncTouchInputMode();
+            UpdateZoomLabel(); UpdatePageLabel(); UpdateUndoButtons();
+            _fileOpen = false; UpdateInkReadOnly();
+        };
+    }
+
+    // ── 触屏输入模式（2026-09-19）────────────────────────────
+
+    /// <summary>手指能不能写字（自检用）</summary>
+    public bool TouchInkEnabled => _ink.AllowTouchInk;
+
+    /// <summary>"抢指针的滚动识别器"是否已摘除（自检用）</summary>
+    public bool ScrollGestureDetached => _scrollGestureDetached;
+
+    /// <summary>诊断文本（写日志/自检输出用，便于现场排查触屏问题）</summary>
+    public string TouchInputDiagnostics =>
+        $"模式={s_touchMode} 允许手指书写={_ink.AllowTouchInk} 多指滚动中={_multiTouchPan} " +
+        $"滚动识别器已摘除={_scrollGestureDetached} 内容视图识别器数={_contentPresenter?.GestureRecognizers.Count} " +
+        $"模板已应用={_templateApplied}";
+
+    private void ToggleTouchMode()
+    {
+        s_touchMode = s_touchMode == TouchMode.Ink ? TouchMode.Browse : TouchMode.Ink;
+        SyncTouchInputMode();
+    }
+
+    /// <summary>
+    /// 把"当前触屏模式"落到三处开关上（幂等）。
+    ///
+    /// ① **摘掉内容视图上的滚动识别器** —— 这是"手指写不出字"的根因所在：
+    ///    Avalonia 12 里 `ScrollGestureRecognizer` 不是挂在 ScrollViewer 上（构造后
+    ///    `GestureRecognizers` 是空的），而是由主题挂在 **`ScrollContentPresenter`** 上
+    ///    （实测：内容视图 × 1 → ScrollGestureRecognizer；见 `SJ_SELFTEST=pdf` 的 dump）。
+    ///    它只认 Touch/Pen：单指或笔尖落下后**移动超过 ScrollStartDistance（约 5~10px）**
+    ///    就把指针从墨迹层抢走并开始滚屏 —— 表现为"写了半笔就断、还会乱滚"。
+    ///    它没有 IsEnabled（Avalonia 12 只有 SwipeGestureRecognizer 有），只能从
+    ///    `GestureRecognizers` 里增删：实例留着，切回浏览模式时放回去。
+    ///    ⚠ 必须在**主题/模板应用之后**才能拿到它，所以带重试（见 SyncTouchInputMode）。
+    /// ② `InkCanvas.AllowTouchInk`：手指是否产生墨迹
+    /// ③ `IsReadOnly`：浏览模式下整体不接收指针（"想翻页却画了一道"比不能画更烦人）
+    /// </summary>
+    private void SyncTouchInputMode()
+    {
+        if (ApplyTouchInputMode()) { _syncRetries = 0; return; }
+
+        // 主题还没应用完（拿不到内容视图/识别器）：等布局完成再试一次，最多几次就放弃并告警
+        if (_syncRetries++ < 5)
+            Dispatcher.UIThread.Post(SyncTouchInputMode, DispatcherPriority.Loaded);
+    }
+
+    /// <summary>真正落地设置；返回 false = 内容视图/识别器尚未就绪（需要重试）</summary>
+    private bool ApplyTouchInputMode()
+    {
+        try
+        {
+            _contentPresenter ??= _scroll.GetVisualDescendants()
+                .OfType<ScrollContentPresenter>().FirstOrDefault();
+
+            if (_contentPresenter == null)
+            {
+                if (_syncRetries > 5) AppLogger.Warn("[PDF] 找不到内容视图，触屏输入模式未能落地");
+                return false;
+            }
+
+            var current = _contentPresenter.GestureRecognizers.OfType<ScrollGestureRecognizer>().FirstOrDefault();
+
+            if (s_touchMode == TouchMode.Ink)
+            {
+                if (current != null)
+                {
+                    _contentPresenter.GestureRecognizers.Remove(current);
+                    _detachedGesture = current;
+                    _scrollGestureDetached = true;
+                }
+                else if (!_scrollGestureDetached)
+                {
+                    return false;    // 识别器还没出现（主题未应用完）→ 重试
+                }
+            }
+            else
+            {
+                // 切回浏览模式：把识别器放回去（GestureRecognizerCollection 没有 Contains，用 OfType 查）
+                if (_detachedGesture != null && current == null)
+                    _contentPresenter.GestureRecognizers.Add(_detachedGesture);
+                _detachedGesture = null;
+                _scrollGestureDetached = false;
+                _touches.Clear();          // 模式切换时别留着半截手势状态
+                _multiTouchPan = false;
+            }
+
+            _ink.AllowTouchInk = s_touchMode == TouchMode.Ink;
+            UpdateTouchModeButton();
+            UpdateInkReadOnly();
+            AppLogger.Info($"[PDF] 触屏输入模式已应用：{TouchInputDiagnostics}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"切换 PDF 触屏输入模式失败: {ex.Message}");
+            return true;    // 出错就不再重试（避免刷日志）
+        }
+    }
+
+    /// <summary>模式按钮：显示"点了会变成什么"，并高亮"当前不是默认的书写模式"</summary>
+    private void UpdateTouchModeButton()
+    {
+        if (_touchModeBtn == null) return;
+        bool writing = s_touchMode == TouchMode.Ink;
+        string tip = writing
+            ? "当前：手指书写（双指拖动滚动）。点一下切到「浏览模式」：单指拖动滚动、不产生墨迹"
+            : "当前：浏览模式（单指拖动滚动、不批注）。点一下切回「手指书写」";
+        _touchModeBtn.Content = BuildButtonContent(writing ? "✋" : "✏", writing ? "手指滚动" : "手指书写", tip);
+        _touchModeBtn.Background = writing ? IdleBrush : ActiveBrush;
+        ToolTip.SetTip(_touchModeBtn, tip);
+    }
+
+    /// <summary>只读开关由三件事共同决定：有没有打开文件 / 是不是浏览模式 / 是不是多指手势中</summary>
+    private void UpdateInkReadOnly()
+        => _ink.IsReadOnly = !_fileOpen || s_touchMode == TouchMode.Browse || _multiTouchPan;
+
+    // ── 双指滚动（自己实现：原生识别器在批注模式下已被摘除）──
+
+    private void OnTouchPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (e.Pointer.Type != PointerType.Touch) return;
+        if (s_touchMode != TouchMode.Ink) return;   // 浏览模式：滚动交给原生手势，别两边一起滚
+        _touches[e.Pointer.Id] = e.GetPosition(this);
+
+        if (_touches.Count >= 2)
+        {
+            // 第二根手指落下 = 老师其实想滚动：把已经画出来的那半笔扔掉，并在手指离开前不再接受书写
+            if (!_multiTouchPan)
+            {
+                _multiTouchPan = true;
+                _ink.CancelActiveStroke();
+                UpdateInkReadOnly();
+            }
+            _panLast = TouchCentroid();
+        }
+    }
+
+    private void OnTouchMoved(object? sender, PointerEventArgs e)
+    {
+        if (e.Pointer.Type != PointerType.Touch) return;
+        if (!_touches.ContainsKey(e.Pointer.Id)) return;
+        _touches[e.Pointer.Id] = e.GetPosition(this);
+
+        if (!_multiTouchPan || _touches.Count < 2) return;
+
+        var center = TouchCentroid();
+        var delta = center - _panLast;      // 手指移动量（窗口坐标 = 内容坐标 1:1）
+        _panLast = center;
+        // 手指往哪边拖，内容就往哪边走 → 滚动偏移反向；越界由 ScrollViewer 自己夹住
+        _scroll.Offset = new Vector(_scroll.Offset.X - delta.X, _scroll.Offset.Y - delta.Y);
+    }
+
+    private void OnTouchReleased(object? sender, PointerReleasedEventArgs e)
+        => EndTouch(e.Pointer.Id);
+
+    private void OnTouchCaptureLost(object? sender, PointerCaptureLostEventArgs e)
+        => EndTouch(e.Pointer.Id);
+
+    private void EndTouch(int pointerId)
+    {
+        if (!_touches.Remove(pointerId)) return;
+        if (_touches.Count >= 2) { _panLast = TouchCentroid(); return; }
+        if (_multiTouchPan && _touches.Count == 0)
+        {
+            _multiTouchPan = false;
+            UpdateInkReadOnly();
+        }
+    }
+
+    private Point TouchCentroid()
+    {
+        double x = 0, y = 0;
+        foreach (var (_, p) in _touches) { x += p.X; y += p.Y; }
+        int n = Math.Max(_touches.Count, 1);
+        return new Point(x / n, y / n);
     }
 
     private InkDocument InkDoc => _ink.Document;
@@ -220,6 +442,9 @@ public sealed class PdfReaderWindow : Window
         inkRow.Children.Add(MakeButton("🗑", "清空", "清除全部批注", ClearInk_Click));
         inkRow.Children.Add(MakeSeparator());
         inkRow.Children.Add(MakeButton("💾", "导出本页", "把当前页（含批注）导出为 PNG", Export_Click));
+        inkRow.Children.Add(MakeSeparator());
+        // 触屏输入模式（2026-09-19）：默认"手指书写"，需要单指滑屏时一键切"浏览模式"
+        inkRow.Children.Add(_touchModeBtn);
 
         wrap.Children.Add(Wrap(readRow));
         wrap.Children.Add(new Border
@@ -383,9 +608,11 @@ public sealed class PdfReaderWindow : Window
         _pageLabel.Text = total > 0 ? $"/ {total} 页" : "未打开文件";
     }
 
+    /// <summary>有没有打开文件（打开后才允许书写；浏览模式下即使打开了也不写）</summary>
     private void SetInkEnabled(bool enabled)
     {
-        _ink.IsReadOnly = !enabled;
+        _fileOpen = enabled;
+        UpdateInkReadOnly();
     }
 
     // ── 打开文件 ─────────────────────────────────────────────
