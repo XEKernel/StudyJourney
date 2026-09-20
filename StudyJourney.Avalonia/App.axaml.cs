@@ -220,6 +220,9 @@ public partial class App : Application
             case "json":
                 Dispatcher.UIThread.Post(RunJsonSelfTest, DispatcherPriority.Background);
                 break;
+            case "api":
+                Dispatcher.UIThread.Post(RunApiSelfTest, DispatcherPriority.Background);
+                break;
             default:
                 Helpers.AppLogger.Warn($"未知自检模式：{mode}");
                 Environment.Exit(2);
@@ -877,6 +880,62 @@ public partial class App : Application
     ///
     /// 同时确认源生成器确实接管了：走的是 AppJsonContext（编译期元数据），不是反射。
     /// </summary>
+    /// <summary>
+    /// 远程控制台 API 响应自检（SJ_SELFTEST=api）。
+    ///
+    /// 2026-09-20：把 `Results.Json(new { success, message })` 这类匿名类型换成 DTO 是为了
+    /// 让 NativeAOT 能用（匿名类型源生成器覆盖不了）。但**最大的风险是改错字段名** ——
+    /// 老师端控制台网页按这些名字取值，改了名就是"页面白屏/功能失灵"，而且编译器不会报错。
+    /// 所以这里把每个 DTO 的**实际序列化键**与期望值逐个断言。
+    /// </summary>
+    private static void RunApiSelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            sb.AppendLine("[APITEST] API 响应 DTO 自检开始");
+
+            static string KeysOf<T>(T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> ti)
+            {
+                using var doc = JsonDocument.Parse(JsonSerializer.Serialize(value, ti));
+                return string.Join(",", doc.RootElement.EnumerateObject().Select(p => p.Name).OrderBy(x => x));
+            }
+            static string Norm(string expected)
+                => string.Join(",", expected.Split(',').Select(s => s.Trim()).OrderBy(x => x));
+
+            // (描述, 实际键集合, 期望键集合 —— 期望值取自改造前匿名类型的成员名)
+            var cases = new (string Desc, string Got, string Want)[]
+            {
+                ("ApiMsg",        KeysOf(new Services.ApiMsg(),        Services.ApiJsonContext.Default.ApiMsg),        "success,message"),
+                ("ApiOkError",    KeysOf(new Services.ApiOkError(),    Services.ApiJsonContext.Default.ApiOkError),    "ok,error"),
+                ("ApiOkOnly",     KeysOf(new Services.ApiOkOnly(),     Services.ApiJsonContext.Default.ApiOkOnly),     "ok"),
+                ("ApiStatus",     KeysOf(new Services.ApiStatus(),     Services.ApiJsonContext.Default.ApiStatus),     "status"),
+                ("ApiMsgPath",    KeysOf(new Services.ApiMsgPath(),    Services.ApiJsonContext.Default.ApiMsgPath),    "success,message,path"),
+            };
+
+            foreach (var (desc, got, want) in cases)
+            {
+                bool ok = got == Norm(want);
+                sb.AppendLine($"[APITEST]   {(ok ? "ok" : "✗")} {desc,-14} 实际 [{got}]  期望 [{Norm(want)}]");
+                if (!ok)
+                    throw new Exception($"DTO 字段名不符：{desc} 实际 [{got}] 期望 [{Norm(want)}] —— 老师端网页会取值失败");
+            }
+
+            sb.AppendLine("[APITEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[APITEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
     private static void RunJsonSelfTest()
     {
         var sb = new System.Text.StringBuilder();
@@ -914,7 +973,13 @@ public partial class App : Application
             //     注意不能用旧的 settings.json 做字段集合对比：那份文件是 WPF 时代的旧 schema，
             //     里面还留着 ChinesePrefix / ChineseDaysText 之类代码里已不存在的键，
             //     拿它比会把"正常演进"误判成"丢字段"。
+            // ⚠ 探针里必须**真的放一个教师账号**：Teachers 默认已改成空表（见 AppSettings 注释），
+            //   不放的话 "0 == 0" 会让这条断言恒成立 —— 看着有覆盖，实际什么都没测。
             var probe = new Models.AppSettings { ClassName = "JSONTEST 探针" };
+            probe.Teachers = new List<Models.TeacherAccount>
+            {
+                new() { Username = "probe01", DisplayName = "探针老师", Subject = "数学" },
+            };
             string probeJson = JsonSerializer.Serialize(probe, Models.AppJsonContext.Default.AppSettings);
             var written = TopKeys(probeJson);
 
@@ -936,9 +1001,11 @@ public partial class App : Application
             if (rt == null) throw new Exception("往返反序列化返回 null");
             if (rt.ClassName != "JSONTEST 探针")
                 throw new Exception($"往返后 ClassName 变了：{rt.ClassName}");
-            if (rt.Teachers.Count != probe.Teachers.Count)
-                throw new Exception($"往返后 Teachers 数量变了：{rt.Teachers.Count} ≠ {probe.Teachers.Count}");
-            sb.AppendLine($"[JSONTEST] 往返值一致 OK（ClassName 保留；Teachers {rt.Teachers.Count} 位保留）");
+            if (rt.Teachers.Count != probe.Teachers.Count || rt.Teachers.Count == 0)
+                throw new Exception($"往返后 Teachers 数量不对：{rt.Teachers.Count}（探针放了 {probe.Teachers.Count}）");
+            if (rt.Teachers[0].DisplayName != "探针老师")
+                throw new Exception($"往返后教师字段丢了：DisplayName=\"{rt.Teachers[0].DisplayName}\"");
+            sb.AppendLine($"[JSONTEST] 往返值一致 OK（ClassName 保留；Teachers {rt.Teachers.Count} 位且字段完整保留）");
 
             // 旧文件里"代码已不存在"的键，如实报出来（这是正常的 schema 演进，不是缺陷）
             var obsolete = kIn.Except(written).ToList();
@@ -1075,6 +1142,65 @@ public partial class App : Application
                 sb.AppendLine($"[RMTEST]   {mark} {desc,-34} 期望 {expect,-17} 实际 {got}");
                 if (got != expect)
                     throw new Exception($"课间语义不符：{desc} 期望 {expect}，实际 {got}");
+            }
+
+            // ── 压制门控（2026-09-20 用户要求"下午第一节课还是该提醒一声"）──
+            // 这套语义按反馈调整过两次，必须断言「哪些压、哪些留」，否则改错了只会默默变吵/变哑。
+            // ⚠ 必须给出**真实的前后邻居**：只传 next=null 的话"下课/自习结束"两位永远测不到
+            //   （第一版就踩了这个坑，测试自己写错了而不是代码错）。
+            // 位序 = ReminderGates 字段序：快上课了 / 上课了 / 下课 / 自习开始 / 自习结束，Y=压 N=留
+            string GateOf(List<Models.ScheduleEntry> day, int i)
+            {
+                var g = Services.ReminderService.DecideGates(
+                    i > 0 ? day[i - 1] : null, day[i], i + 1 < day.Count ? day[i + 1] : null, date);
+                return string.Concat(
+                    g.SuppressNextClassSoon ? "Y" : "N",
+                    g.SuppressStart ? "Y" : "N",
+                    g.SuppressEnd ? "Y" : "N",
+                    g.SuppressSpecialStart ? "Y" : "N",
+                    g.SuppressSpecialEnd ? "Y" : "N");
+            }
+
+            // 场景 A：上午最后一节 → 中午听力(午休) → 下午第一节 → 下午第二节
+            // 用户诉求：下午第一节「上课了」要留，其余边界噪音压掉
+            var dayA = new List<Models.ScheduleEntry>
+            {
+                E(4, "英语", Models.PeriodType.Normal, "11:20", "12:05"),
+                E(5, "中午听力", Models.PeriodType.Noon, "12:20", "12:50"),
+                E(6, "数学", Models.PeriodType.Normal, "13:10", "13:55"),
+                E(7, "物理", Models.PeriodType.Normal, "14:05", "14:50"),
+            };
+            foreach (var (i, want, desc) in new[]
+            {
+                (1, "NNYNY", "中午听力(午休)：本节的「下课」「自习结束」压掉"),
+                (2, "YNNYN", "★下午第一节：留「上课了」，压「快上课了」（用户要求）"),
+                (3, "NNNNN", "下午第二节：普通课间，全都不压"),
+            })
+            {
+                string got = GateOf(dayA, i);
+                sb.AppendLine($"[RMTEST]   {(got == want ? "ok" : "✗")} {desc,-44} 期望 {want} 实际 {got}");
+                if (got != want)
+                    throw new Exception($"压制门控不符：{desc} 期望 {want}，实际 {got}");
+            }
+
+            // 场景 B：晚读 → 晚自习（两头都是自习 → 全静音，保持 9-18 的原始诉求）
+            var dayB = new List<Models.ScheduleEntry>
+            {
+                E(1, "晚读", Models.PeriodType.Reading, "18:00", "18:30"),
+                E(2, "晚自习", Models.PeriodType.Evening, "18:40", "20:00"),
+            };
+            foreach (var (i, want, desc) in new[]
+            {
+                (0, "NNYNY", "晚读：本节的「下课」「晚读结束」压掉"),
+                // 晚自习是当天最后一节（next=null）→ 它的「下课」「晚自习结束」本来就该响，
+                // 那天还要弹「放学」。所以只压前三位（快上课了/上课了/自习开始）。
+                (1, "YYNYN", "★晚自习：压「快上课了」「上课了」「晚自习开始」，保留收尾的「下课」"),
+            })
+            {
+                string got = GateOf(dayB, i);
+                sb.AppendLine($"[RMTEST]   {(got == want ? "ok" : "✗")} {desc,-44} 期望 {want} 实际 {got}");
+                if (got != want)
+                    throw new Exception($"压制门控不符：{desc} 期望 {want}，实际 {got}");
             }
 
             sb.AppendLine("[RMTEST] 结论：PASS");

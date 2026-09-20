@@ -345,7 +345,7 @@ public static class HttpServerService
             });
 
             // ── 健康检查：GET /api/health → {"status":"ok"} ──
-            app.MapGet("/api/health", () => Results.Json(new { status = "ok" }));
+            app.MapGet("/api/health", () => Results.Json(new ApiStatus { Status = "ok" }, ApiJsonContext.Default.ApiStatus));
 
             // ── 老师账号列表：GET /api/teachers（公开，无需 Token，供登录页下拉选择）──
             // #4-阶段1 收口：只返回 显示名/科目，不返回 username（防账号名公开枚举 + 批量爆破）
@@ -364,7 +364,7 @@ public static class HttpServerService
             {
                 string remoteIp = request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
                 if (IsLoginBlocked(remoteIp))
-                    return Results.Json(new { ok = false, error = "too many attempts, retry later" },
+                    return Results.Json(new ApiOkError { Ok = false, Error = "too many attempts, retry later" }, ApiJsonContext.Default.ApiOkError,
                         statusCode: StatusCodes.Status403Forbidden);
 
                 LoginRequest? req = null;
@@ -377,7 +377,7 @@ public static class HttpServerService
                 if (account == null || req == null || !account.VerifyPassword(req.Password ?? ""))
                 {
                     RecordLoginFailure(remoteIp);
-                    return Results.Json(new { ok = false, error = "invalid credentials" },
+                    return Results.Json(new ApiOkError { Ok = false, Error = "invalid credentials" }, ApiJsonContext.Default.ApiOkError,
                         statusCode: StatusCodes.Status401Unauthorized);
                 }
                 ClearLoginFailures(remoteIp);
@@ -424,7 +424,7 @@ public static class HttpServerService
                     lock (TokenGate) { removed = Tokens.Remove(token); }
                     if (removed) SaveTokens();
                 }
-                return Results.Json(new { ok = removed });
+                return Results.Json(new ApiOkOnly { Ok = removed }, ApiJsonContext.Default.ApiOkOnly);
             });
 
             // ── 课表：GET /api/schedule（需有效 Token）──
@@ -453,11 +453,11 @@ public static class HttpServerService
                 }
                 catch (JsonException)
                 {
-                    return Results.Json(new { success = false, message = "JSON 格式错误" },
+                    return Results.Json(new ApiMsg { Success = false, Message = "JSON 格式错误" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
                 }
                 if (schedule == null)
-                    return Results.Json(new { success = false, message = "JSON 格式错误" },
+                    return Results.Json(new ApiMsg { Success = false, Message = "JSON 格式错误" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
 
                 try
@@ -465,19 +465,19 @@ public static class HttpServerService
                     schedule.SortEntries();
                     // 修复：Save 现返回是否成功 —— 磁盘满/只读/占用时不再"假成功"（否则网页提示成功但课表未变）
                     if (!schedule.Save())
-                        return Results.Json(new { success = false, message = "课表写入失败（磁盘可能已满或无写入权限），请检查班级电脑" },
+                        return Results.Json(new ApiMsg { Success = false, Message = "课表写入失败（磁盘可能已满或无写入权限），请检查班级电脑" }, ApiJsonContext.Default.ApiMsg,
                             statusCode: StatusCodes.Status500InternalServerError);
                     // #1 修复：通知主程序从磁盘重载内存课表（Reload 触发 DataChanged →
                     // ReminderService 缓存失效、主窗口每秒查询立即用新课表；内部自动封送 UI 线程）
                     App.ReloadScheduleFromDisk();
                     Logger.Log($"[{GetCurrentDisplayName(request)}] 修改课表");
                     Helpers.AppLogger.Info("课表已通过远程接口更新");
-                    return Results.Json(new { success = true, message = "课表更新成功" });
+                    return Results.Json(new ApiMsg { Success = true, Message = "课表更新成功" }, ApiJsonContext.Default.ApiMsg);
                 }
                 catch (Exception ex)
                 {
                     Helpers.AppLogger.Error($"课表保存失败: {ex.Message}", ex);
-                    return Results.Json(new { success = false, message = $"服务器写入失败：{ex.Message}" },
+                    return Results.Json(new ApiMsg { Success = false, Message = $"服务器写入失败：{ex.Message}" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status500InternalServerError);
                 }
             });
@@ -570,12 +570,12 @@ public static class HttpServerService
                     EnsureUploads();   // 创建目录 + .placeholder
 
                     Logger.Log($"[{GetCurrentDisplayName(request)}] 修改课件保存位置为 {UploadRootPath}");
-                    return Results.Json(new { success = true, message = "已保存并立即生效", path = UploadRootPath });
+                    return Results.Json(new ApiMsgPath { Success = true, Message = "已保存并立即生效", Path = UploadRootPath }, ApiJsonContext.Default.ApiMsgPath);
                 }
                 catch (Exception ex)
                 {
                     Helpers.AppLogger.Error($"修改上传目录失败: {ex.Message}", ex);
-                    return Results.Json(new { success = false, message = $"保存失败：{ex.Message}" },
+                    return Results.Json(new ApiMsg { Success = false, Message = $"保存失败：{ex.Message}" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status500InternalServerError);
                 }
             });
@@ -660,28 +660,28 @@ public static class HttpServerService
                 var path = req?.Path?.Trim() ?? "";
                 var kind = string.Equals(req?.Kind, "app", StringComparison.OrdinalIgnoreCase) ? "app" : "file";
                 if (path.Length == 0)
-                    return Results.Json(new { success = false, message = "请先选择要打开的文件或软件" },
+                    return Results.Json(new ApiMsg { Success = false, Message = "请先选择要打开的文件或软件" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
 
                 if (kind == "app")
                 {
                     var resolved = ResolveAppPath(path);
                     if (resolved == null)
-                        return Results.Json(new { success = false, message = $"找不到这个软件：{path}\n请填完整路径（.exe）" },
+                        return Results.Json(new ApiMsg { Success = false, Message = $"找不到这个软件：{path}\n请填完整路径（.exe）" }, ApiJsonContext.Default.ApiMsg,
                             statusCode: StatusCodes.Status400BadRequest);
                     path = resolved;
                     OpenStateStore.AddKnownApp(path, Path.GetFileNameWithoutExtension(path));
                 }
                 else if (!File.Exists(path))
                 {
-                    return Results.Json(new { success = false, message = $"文件不存在：{path}" },
+                    return Results.Json(new ApiMsg { Success = false, Message = $"文件不存在：{path}" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
                 }
                 else if (IsExecutablePath(path))
                 {
                     // L5 加固：kind=file 不允许指向可执行文件 —— 否则教师端可把任意 .exe/.bat/.ps1
                     // 当作"课件"打开（Process.Start(UseShellExecute) 会直接执行）。要启动软件请显式用 kind=app。
-                    return Results.Json(new { success = false, message = "这个文件是可执行程序，请改用「启动软件」指定。" },
+                    return Results.Json(new ApiMsg { Success = false, Message = "这个文件是可执行程序，请改用「启动软件」指定。" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
                 }
 
@@ -698,7 +698,7 @@ public static class HttpServerService
 
                 Logger.Log($"[{pending.SetBy}] 指定下节课打开{(kind == "app" ? "软件" : "文件")} {Path.GetFileName(path)}");
                 Helpers.AppLogger.Info($"教师端指定下节课打开：{path}");
-                return Results.Json(new { success = true, message = $"已指定，下次自动打开时优先用它（只用一次）" });
+                return Results.Json(new ApiMsg { Success = true, Message = $"已指定，下次自动打开时优先用它（只用一次）" }, ApiJsonContext.Default.ApiMsg);
             });
 
             // ── 撤回指定：DELETE /api/pending-open（2.5.9B）──
@@ -706,7 +706,7 @@ public static class HttpServerService
             {
                 OpenStateStore.ClearPending();
                 Logger.Log($"[{GetCurrentDisplayName(request)}] 撤回了下节课打开指定");
-                return Results.Json(new { success = true, message = "已撤回指定" });
+                return Results.Json(new ApiMsg { Success = true, Message = "已撤回指定" }, ApiJsonContext.Default.ApiMsg);
             });
 
             // ── 班级信息：GET /api/config（需有效 Token）──
@@ -776,7 +776,7 @@ public static class HttpServerService
                 catch (Exception ex)
                 {
                     Helpers.AppLogger.Error($"修改班级信息失败: {ex.Message}", ex);
-                    return Results.Json(new { success = false, message = $"保存失败：{ex.Message}" },
+                    return Results.Json(new ApiMsg { Success = false, Message = $"保存失败：{ex.Message}" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status500InternalServerError);
                 }
             });
@@ -793,35 +793,35 @@ public static class HttpServerService
                 }
                 catch (InvalidDataException)
                 {
-                    return Results.Json(new { success = false, message = "文件过大（最大 500 MB）" },
+                    return Results.Json(new ApiMsg { Success = false, Message = "文件过大（最大 500 MB）" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status413PayloadTooLarge);
                 }
                 catch (Exception)
                 {
-                    return Results.Json(new { success = false, message = "读取上传数据失败" },
+                    return Results.Json(new ApiMsg { Success = false, Message = "读取上传数据失败" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
                 }
 
                 var file = form.Files["file"];
                 if (file == null || file.Length == 0)
-                    return Results.Json(new { success = false, message = "未接收到文件（multipart 字段名应为 file）" },
+                    return Results.Json(new ApiMsg { Success = false, Message = "未接收到文件（multipart 字段名应为 file）" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
 
                 // 2) 大小限制（双保险：ReadFormAsync 已按 FormOptions 拦截，这里再显式检查）
                 if (file.Length > MaxUploadBytes)
-                    return Results.Json(new { success = false, message = "文件过大（最大 500 MB）" },
+                    return Results.Json(new ApiMsg { Success = false, Message = "文件过大（最大 500 MB）" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status413PayloadTooLarge);
 
                 // 3) 后缀白名单（不区分大小写）
                 var ext = Path.GetExtension(file.FileName);
                 if (string.IsNullOrEmpty(ext) || !AllowedUploadExtensions.Contains(ext))
-                    return Results.Json(new { success = false, message = $"不支持的文件类型：{ext}（允许 课件/文档/PDF/视频/压缩包）" },
+                    return Results.Json(new ApiMsg { Success = false, Message = $"不支持的文件类型：{ext}（允许 课件/文档/PDF/视频/压缩包）" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
 
                 // 4) 路径遍历防护：Path.GetFileName 丢弃任何目录成分；加时间戳前缀防重名
                 var safeName = Path.GetFileName(file.FileName);
                 if (string.IsNullOrWhiteSpace(safeName))
-                    return Results.Json(new { success = false, message = "文件名无效" },
+                    return Results.Json(new ApiMsg { Success = false, Message = "文件名无效" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
 
                 try
@@ -856,7 +856,7 @@ public static class HttpServerService
                 catch (Exception ex)
                 {
                     Helpers.AppLogger.Error($"课件保存失败: {ex.Message}", ex);
-                    return Results.Json(new { success = false, message = $"保存失败：{ex.Message}" },
+                    return Results.Json(new ApiMsg { Success = false, Message = $"保存失败：{ex.Message}" }, ApiJsonContext.Default.ApiMsg,
                         statusCode: StatusCodes.Status400BadRequest);
                 }
             });

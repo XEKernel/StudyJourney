@@ -156,6 +156,51 @@ public class ReminderService : IDisposable
         return GapKind.Normal;
     }
 
+    /// <summary>
+    /// 课节边界上的提醒压制决策（internal 供自检断言）。
+    /// 独立成"纯函数"是因为这套语义已经按用户反馈调整过两次
+    /// （9-18 加自习类连堂静音、9-20 又要求保留后面那节的「上课了」），
+    /// 散在触发代码里改错了不会报错、只会默默变吵/变哑。
+    /// </summary>
+    internal readonly record struct ReminderGates(
+        bool SuppressNextClassSoon,   // 本节的「快上课了」
+        bool SuppressStart,           // 本节的「上课了」
+        bool SuppressEnd,             // 本节的「下课」/「即将下课」
+        bool SuppressSpecialStart,    // 本节的自习类专属「XX开始」
+        bool SuppressSpecialEnd)      // 本节的自习类专属「XX结束」
+    {
+        public static readonly ReminderGates None = new(false, false, false, false, false);
+    }
+
+    /// <summary>
+    /// 根据"上一节 / 本节 / 下一节"算出本节要压掉哪些提醒。
+    /// 规则（按用户两次反馈定稿）：
+    ///   · 连堂（≤1 分钟）或放学级长间隔（≥60 分钟）→ 压掉本节的「快上课了」（2.8 原有）
+    ///   · **自习类连堂**（上一节是自习类且间隔 &lt;60 分钟）→ 边界整段静音：
+    ///     上一节的下课类 + 本节的自习专属/快上课了；
+    ///     **但本节的「上课了」要保留 —— 仅当本节是普通课**（2026-09-20 用户要求
+    ///     "下午第一节课还是该提醒一声"）。晚读→晚自习 这种两头都是自习的边界仍然全静音。
+    /// </summary>
+    internal static ReminderGates DecideGates(ScheduleEntry? prev, ScheduleEntry entry,
+        ScheduleEntry? next, DateTime date)
+    {
+        var gapFromPrev = ClassifyGap(prev, entry, date);
+        var gapKindToNext = ClassifyGap(entry, next, date);
+
+        bool quietStart = gapFromPrev == GapKind.SelfStudyBoundary;   // 本节紧跟在自习类之后
+        bool quietEnd = gapKindToNext == GapKind.SelfStudyBoundary;   // 本节是自习类且后面还接一节
+
+        return new ReminderGates(
+            // 「快上课了」：连堂 / 放学级 / 自习类连堂 都压
+            SuppressNextClassSoon: gapFromPrev is GapKind.Consecutive or GapKind.Dismissal
+                                                  or GapKind.SelfStudyBoundary,
+            // 「上课了」：只在"本节也是自习类"时跟着静音
+            SuppressStart: quietStart && IsSelfStudy(entry.Type),
+            SuppressEnd: quietEnd,
+            SuppressSpecialStart: quietStart,
+            SuppressSpecialEnd: quietEnd);
+    }
+
     private void CheckClassReminders(ScheduleEntry entry, DateTime now, List<ScheduleEntry> allEntries)
     {
         var startDt = entry.GetStartDateTime(now.Date);
@@ -163,27 +208,13 @@ public class ReminderService : IDisposable
         var endDt = entry.GetEndDateTimeActual(now.Date);
         string prefix = $"{now:yyyyMMdd}_{entry.DayOfWeek}_{entry.Period}";
 
-        // 2.8：课间语义 —— 找出前后相邻课，判定连堂与"放学级"长间隔
+        // 边界提醒的压制决策统一由 DecideGates 给出（见其注释：规则经用户两次反馈定稿）
         int idx = allEntries.IndexOf(entry);
         var prev = idx > 0 ? allEntries[idx - 1] : null;
         var next = idx >= 0 && idx + 1 < allEntries.Count ? allEntries[idx + 1] : null;
-        // 本节的「快上课了」是否压掉：与上一节几乎无课间（连堂）或隔了一个放学级长间隔（中午/傍晚）
-        // —— 这两种情况下提示"5 分钟后 XX 开始"都是噪音
-        var gapFromPrev = ClassifyGap(prev, entry, now.Date);
-        bool suppressNextClassSoon = gapFromPrev is GapKind.Consecutive or GapKind.Dismissal
-                                                   or GapKind.SelfStudyBoundary;
-        var gapKindToNext = ClassifyGap(entry, next, now.Date);
+        var gates = DecideGates(prev, entry, next, now.Date);
 
-        // 2026-09-18（用户反馈"连堂中间太吵"）：自习类连堂边界上**整段不出提醒**。
-        //   quietStart —— 本节紧跟在自习类之后（午休→下午第一节、晚读→晚自习、早自习→第一节）
-        //                 → 本节的"开始类"提醒全压（上课了 / 快上课了 / XX开始）
-        //   quietEnd   —— 本节是自习类且后面还接着下一节（晚读→晚自习、午休→下午第一节）
-        //                 → 本节的"结束类"提醒全压（即将下课 / 下课 / XX结束）
-        // 目的：这两节本来是一段连着的时间，中间不该喧哗。真正的放学/放学级长间隔不受影响。
-        bool quietStart = gapFromPrev == GapKind.SelfStudyBoundary;
-        bool quietEnd = gapKindToNext == GapKind.SelfStudyBoundary;
-
-        if (App.Settings.RemindClassStart && !quietStart)
+        if (App.Settings.RemindClassStart && !gates.SuppressStart)
             TryFire($"{prefix}_start", now, startDt, TimeSpan.Zero,
                 ReminderType.ClassStart, "上课了", $"{entry.Subject} 开始上课");
 
@@ -191,23 +222,23 @@ public class ReminderService : IDisposable
             TryFire($"{prefix}_mid", now, startDt, TimeSpan.FromMinutes(20),
                 ReminderType.ClassMid, "上课提醒", $"{entry.Subject} 已上课 20 分钟");
 
-        if (App.Settings.RemindClassEndSoon10 && !quietEnd)
+        if (App.Settings.RemindClassEndSoon10 && !gates.SuppressEnd)
         {
             TryFire($"{prefix}_endsoon10", now, endDt, TimeSpan.FromMinutes(-10),
                 ReminderType.ClassEndSoon, "即将下课", $"{entry.Subject} 还有 10 分钟下课");
         }
 
-        if (App.Settings.RemindClassEndSoon && !quietEnd)
+        if (App.Settings.RemindClassEndSoon && !gates.SuppressEnd)
         {
             TryFire($"{prefix}_endsoon", now, endDt, TimeSpan.FromMinutes(-1),
                 ReminderType.ClassEndSoon, "即将下课", $"{entry.Subject} 还有 1 分钟下课");
         }
 
-        if (App.Settings.RemindClassEnd && !quietEnd)
+        if (App.Settings.RemindClassEnd && !gates.SuppressEnd)
             TryFire($"{prefix}_end", now, endDt, TimeSpan.Zero,
                 ReminderType.ClassEnd, "下课", $"{entry.Subject} 下课了");
 
-        if (App.Settings.RemindNextClassSoon && !suppressNextClassSoon)
+        if (App.Settings.RemindNextClassSoon && !gates.SuppressNextClassSoon)
             TryFire($"{prefix}_nextclass", now, startDt, TimeSpan.FromMinutes(-5),
                 ReminderType.NextClassSoon, "快上课了", $"5 分钟后 {entry.Subject} 开始");
 
@@ -219,11 +250,11 @@ public class ReminderService : IDisposable
                 TryFire($"{prefix}_dayend", now, endDt, TimeSpan.Zero,
                     ReminderType.DayEnd, "放学", "今天的课程全部结束");
             }
-            else if (gapKindToNext == GapKind.Dismissal && endDt.TimeOfDay < NoonCutoff)
+            else if (ClassifyGap(entry, next, now.Date) == GapKind.Dismissal && endDt.TimeOfDay < NoonCutoff)
             {
                 // 2.8：上午最后一节下课也是一次放学（中午回家）。只认"结束时间在 13:00 之前"的长间隔，
                 // 避免傍晚的长间隔（如 17:05 下课 → 19:00 晚自习）被误报成"放学" ——
-                // 傍晚那一段只压掉「快上课了」（见上方 suppressNextClassSoon），不额外插放学提醒。
+                // 傍晚那一段只压掉「快上课了」（见 DecideGates），不额外插放学提醒。
                 TryFire($"{prefix}_noonend", now, endDt, TimeSpan.Zero,
                     ReminderType.MorningDayEnd, "上午放学", "上午课程结束，午间休息");
             }
@@ -233,20 +264,20 @@ public class ReminderService : IDisposable
         // 原来晚读→晚自习会连出「晚读结束」+「晚自习开始」，正是用户嫌吵的那种。
         if (entry.Type == PeriodType.Morning && App.Settings.RemindSpecialPeriod)
         {
-            if (!quietStart) TryFire($"{prefix}_mstart", now, startDt, TimeSpan.Zero, ReminderType.MorningStart, "早自习", "早自习开始");
-            if (!quietEnd) TryFire($"{prefix}_mend", now, endDt, TimeSpan.Zero, ReminderType.MorningEnd, "早自习", "早自习结束");
+            if (!gates.SuppressSpecialStart) TryFire($"{prefix}_mstart", now, startDt, TimeSpan.Zero, ReminderType.MorningStart, "早自习", "早自习开始");
+            if (!gates.SuppressSpecialEnd) TryFire($"{prefix}_mend", now, endDt, TimeSpan.Zero, ReminderType.MorningEnd, "早自习", "早自习结束");
         }
 
         if (entry.Type == PeriodType.Evening && App.Settings.RemindSpecialPeriod)
         {
-            if (!quietStart) TryFire($"{prefix}_estart", now, startDt, TimeSpan.Zero, ReminderType.EveningStart, "晚自习", "晚自习开始");
-            if (!quietEnd) TryFire($"{prefix}_eend", now, endDt, TimeSpan.Zero, ReminderType.EveningEnd, "晚自习", "晚自习结束");
+            if (!gates.SuppressSpecialStart) TryFire($"{prefix}_estart", now, startDt, TimeSpan.Zero, ReminderType.EveningStart, "晚自习", "晚自习开始");
+            if (!gates.SuppressSpecialEnd) TryFire($"{prefix}_eend", now, endDt, TimeSpan.Zero, ReminderType.EveningEnd, "晚自习", "晚自习结束");
         }
 
         if (entry.Type == PeriodType.Reading && App.Settings.RemindSpecialPeriod)
         {
-            if (!quietStart) TryFire($"{prefix}_rstart", now, startDt, TimeSpan.Zero, ReminderType.ReadingStart, "晚读", "晚读开始");
-            if (!quietEnd) TryFire($"{prefix}_rend", now, endDt, TimeSpan.Zero, ReminderType.ReadingEnd, "晚读", "晚读结束");
+            if (!gates.SuppressSpecialStart) TryFire($"{prefix}_rstart", now, startDt, TimeSpan.Zero, ReminderType.ReadingStart, "晚读", "晚读开始");
+            if (!gates.SuppressSpecialEnd) TryFire($"{prefix}_rend", now, endDt, TimeSpan.Zero, ReminderType.ReadingEnd, "晚读", "晚读结束");
         }
     }
 
