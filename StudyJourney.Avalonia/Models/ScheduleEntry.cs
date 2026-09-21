@@ -18,6 +18,36 @@ namespace StudyJourney.Avalonia.Models
         Noon,       // 午休/午自习
     }
 
+    // ── 调休（补课日）───────────────────────────────────────
+    /// <summary>某一天按"补哪一天的课"执行。</summary>
+    public class MakeupDay
+    {
+        /// <summary>调休日期，格式 yyyy-MM-dd（按具体日期，不按星期几）</summary>
+        public string DateStr { get; set; } = "";
+
+        /// <summary>按星期几执行：1=周一 … 7=周日</summary>
+        public int DayOfWeek { get; set; }
+
+        /// <summary>显示用：2026-09-20（周日）补周五</summary>
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string Display
+        {
+            get
+            {
+                string d = DateStr;
+                if (DateTime.TryParse(DateStr, out var dt))
+                    d = $"{dt:yyyy-MM-dd}（{WeekName((int)dt.DayOfWeek == 0 ? 7 : (int)dt.DayOfWeek)}）";
+                return $"{d}  补 {WeekName(DayOfWeek)}";
+            }
+        }
+
+        public static string WeekName(int dow) => dow switch
+        {
+            1 => "周一", 2 => "周二", 3 => "周三", 4 => "周四",
+            5 => "周五", 6 => "周六", 7 => "周日", _ => $"周{dow}",
+        };
+    }
+
     // ── 单条课节 ───────────────────────────────────────────
     public class ScheduleEntry
     {
@@ -190,12 +220,40 @@ namespace StudyJourney.Avalonia.Models
             /// 缺省的星期几用 <see cref="TimeTemplates"/>。周六上午无大课间/下午无眼保健操等差异化作息在此表达。</summary>
             public Dictionary<int, List<TimeTemplate>> DayTimeTemplates { get; set; } = new();
 
+            /// <summary>
+            /// 调休（补课日）：某个**具体日期**按指定的星期几执行课表 + 自动化规则。
+            /// 场景：周日补周五的课 → 周日那天要走周五的课表，周五中午的听力自动化也要照常触发
+            /// （自动化规则是按星期几配的，不映射的话调休日就"什么都没发生"）。
+            /// 由 <see cref="ScheduleManager.GetEffectiveDayOfWeek"/> 统一解析。
+            /// </summary>
+            public List<MakeupDay> MakeupDays { get; set; } = new();
+
             /// <summary>取某星期几应使用的时段模板（1=周一..7=周日；独立定制优先，缺省回退全周默认）</summary>
             public List<TimeTemplate> GetTemplatesFor(int day)
             {
                 if (DayTimeTemplates != null && DayTimeTemplates.TryGetValue(day, out var t) && t != null)
                     return t;
                 return TimeTemplates;
+            }
+
+            /// <summary>
+            /// 把日期映射为"那天实际按星期几执行"（1=周一 … 7=周日）。
+            /// 调休日返回**被补的那一天**，否则返回真实星期几（周日归一化为 7）。
+            ///
+            /// 写成 static 纯函数是为了能被自检直接断言（不必读真实 schedule.json），
+            /// 且避免"改了映射逻辑却没测到"——这正是调休最容易出错的点：
+            /// 自动化规则按星期几配（周五听力 = TriggerDays[5]），映射错了调休日就静默什么都不发生。
+            /// </summary>
+            public static int ResolveEffectiveDayOfWeek(DateTime date, List<MakeupDay>? makeupDays)
+            {
+                if (makeupDays != null && makeupDays.Count > 0)
+                {
+                    string key = date.ToString("yyyy-MM-dd");
+                    var m = makeupDays.FirstOrDefault(x => x.DateStr == key);
+                    if (m != null && m.DayOfWeek is >= 1 and <= 7) return m.DayOfWeek;
+                }
+                int dow = (int)date.DayOfWeek;
+                return dow == 0 ? 7 : dow;   // .NET 周日给 0，本项目统一用 7
             }
 
             /// <summary>把某天恢复为跟随全周默认模板（删除独立定制）</summary>

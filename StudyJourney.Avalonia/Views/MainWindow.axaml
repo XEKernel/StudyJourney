@@ -98,6 +98,22 @@
 
                     <!-- 自定义倒计时（动态，来自设置页「自定义倒计时」） -->
                     <StackPanel x:Name="RingHost" Orientation="Horizontal" Spacing="8"/>
+
+                    <!-- ══ 更新进度胶囊（v2.13.3）══
+                         不再把整条胶囊栏压成单个紧凑胶囊（那会让老师看不到课表信息），
+                         而是在栏尾内联一个小胶囊；上课时则显示在紧凑胶囊里（见下方 UpdateMiniCapsule）。
+                         进度用环形（Arc 两段：淡色轨道 + 亮色进度），与高考倒计时的环形风格一致。 -->
+                    <Border x:Name="UpdateCapsule" CornerRadius="12" Padding="10,6" IsVisible="False">
+                        <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                            <Grid Width="18" Height="18" VerticalAlignment="Center">
+                                <Arc StartAngle="0" SweepAngle="360" Stroke="#24FFFFFF" StrokeThickness="2.5"/>
+                                <Arc x:Name="UpdateRingArc" StartAngle="-90" SweepAngle="0"
+                                     Stroke="#FF4DD0E1" StrokeThickness="2.5" StrokeLineCap="Round"/>
+                            </Grid>
+                            <TextBlock x:Name="UpdateTextTb" Text="正在下载新版本" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- ══ 每日一言 ══ -->
@@ -126,6 +142,20 @@
                            Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
                 <ProgressBar x:Name="CompactProgressBar" Width="80" Height="3" Minimum="0" Maximum="100"
                              Foreground="#4DD0E1" Background="#22FFFFFF"/>
+
+                <!-- 上课中遇到自动更新：在进度条胶囊里再挂一个更小的胶囊显示更新进度（v2.13.3） -->
+                <Border x:Name="UpdateMiniCapsule" CornerRadius="10" Background="#26FFFFFF"
+                        Padding="7,3" IsVisible="False" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                        <Grid Width="14" Height="14" VerticalAlignment="Center">
+                            <Arc StartAngle="0" SweepAngle="360" Stroke="#33FFFFFF" StrokeThickness="2"/>
+                            <Arc x:Name="UpdateMiniRingArc" StartAngle="-90" SweepAngle="0"
+                                 Stroke="#FF4DD0E1" StrokeThickness="2" StrokeLineCap="Round"/>
+                        </Grid>
+                        <TextBlock x:Name="UpdateMiniTextTb" Text="正在更新" FontSize="11" FontWeight="SemiBold"
+                                   Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </Border>
     </Grid>

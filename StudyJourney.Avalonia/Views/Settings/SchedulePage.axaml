@@ -42,6 +42,26 @@
                             Click="EditScheduleBtn_Click"/>
                 </StackPanel>
             </Border>
+
+            <!-- 调休（补课日） -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="🗓  调休（补课日）" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="调休日按所选星期执行课表与自动化规则。例：周日补周五的课 → 周日会走周五的课表，周五中午的听力自动化也会照常触发。"
+                               FontSize="12" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,6,0,0">
+                        <DatePicker x:Name="MakeupDatePicker" Width="150"/>
+                        <TextBlock Text="补" VerticalAlignment="Center"/>
+                        <ComboBox x:Name="MakeupDayCombo" Width="100"/>
+                        <Button x:Name="MakeupAddBtn" Content="添加 / 修改"
+                                Click="MakeupAdd_Click"/>
+                    </StackPanel>
+                    <StackPanel x:Name="MakeupListPanel" Spacing="4" Margin="0,6,0,0"/>
+                    <TextBlock x:Name="MakeupEmptyTb" Text="（暂无调休日）" FontSize="12"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                </StackPanel>
+            </Border>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

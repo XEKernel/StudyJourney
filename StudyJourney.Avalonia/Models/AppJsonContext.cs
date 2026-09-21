@@ -43,6 +43,7 @@ namespace StudyJourney.Avalonia.Models;
 [JsonSerializable(typeof(List<TeacherAccount>))]
 // ── 课表 ──
 [JsonSerializable(typeof(ScheduleData))]
+[JsonSerializable(typeof(MakeupDay))]
 [JsonSerializable(typeof(ScheduleEntry))]
 [JsonSerializable(typeof(ExamSubject))]
 [JsonSerializable(typeof(ExamEntry))]

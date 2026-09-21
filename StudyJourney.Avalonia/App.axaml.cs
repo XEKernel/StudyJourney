@@ -223,6 +223,9 @@ public partial class App : Application
             case "api":
                 Dispatcher.UIThread.Post(RunApiSelfTest, DispatcherPriority.Background);
                 break;
+            case "makeup":
+                Dispatcher.UIThread.Post(RunMakeupSelfTest, DispatcherPriority.Background);
+                break;
             default:
                 Helpers.AppLogger.Warn($"未知自检模式：{mode}");
                 Environment.Exit(2);
@@ -298,7 +301,7 @@ public partial class App : Application
         var banner = (Current as App)?._mainWindow as MainWindow;
 
         void SetBanner(string? text, double progress = -1)
-            => Dispatcher.UIThread.Post(() => banner?.ShowUpdateBanner(text, progress));
+            => Dispatcher.UIThread.Post(() => banner?.ShowUpdateStatus(text, progress));
 
         try
         {
@@ -880,6 +883,74 @@ public partial class App : Application
     ///
     /// 同时确认源生成器确实接管了：走的是 AppJsonContext（编译期元数据），不是反射。
     /// </summary>
+    /// <summary>
+    /// 调休（补课日）映射自检（SJ_SELFTEST=makeup）。
+    ///
+    /// 2026-09-21 用户反馈：周日调休补周五的课，但周五中午的听力自动化没触发 ——
+    /// 因为自动化规则按星期几配（TriggerDays[5]），而那天真实是周日(7)。
+    /// 这个映射错了**不会报错、只会静默什么都不发生**，所以必须断言。
+    /// </summary>
+    private static void RunMakeupSelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            sb.AppendLine("[MKTEST] 调休映射自检开始");
+
+            // 2026-09-20 是周日（用户实际遇到的那天）
+            var sunday = new DateTime(2026, 9, 20);
+            var friday = new DateTime(2026, 9, 18);
+            var saturday = new DateTime(2026, 9, 19);
+
+            var makeup = new List<Models.MakeupDay>
+            {
+                new() { DateStr = "2026-09-20", DayOfWeek = 5 },   // 周日补周五
+            };
+
+            var cases = new (DateTime Date, List<Models.MakeupDay>? Days, int Expect, string Desc)[]
+            {
+                (sunday,   makeup, 5, "2026-09-20（周日）配了补周五 → 应映射为 5"),
+                (sunday,   null,   7, "同一天没有调休配置 → 周日应为 7"),
+                (sunday,   new(),  7, "调休表为空 → 周日应为 7"),
+                (friday,   makeup, 5, "周五本身不受影响 → 5"),
+                (saturday, makeup, 6, "周六不受影响 → 6"),
+                (new DateTime(2026, 9, 21), makeup, 1, "周一不受影响 → 1"),
+                // 非法配置要能安全回退（不能因为一条脏数据就整天不显示课表）
+                (sunday, new List<Models.MakeupDay> { new() { DateStr = "2026-09-20", DayOfWeek = 0 } },
+                 7, "调休目标写 0（非法）→ 回退真实周日 7"),
+                (sunday, new List<Models.MakeupDay> { new() { DateStr = "2026-09-20", DayOfWeek = 9 } },
+                 7, "调休目标写 9（非法）→ 回退真实周日 7"),
+            };
+
+            foreach (var (date, days, expect, desc) in cases)
+            {
+                var got = Models.ScheduleData.ResolveEffectiveDayOfWeek(date, days);
+                bool ok = got == expect;
+                sb.AppendLine($"[MKTEST]   {(ok ? "ok" : "✗")} {desc,-42} 期望 {expect} 实际 {got}");
+                if (!ok) throw new Exception($"调休映射不符：{desc} 期望 {expect}，实际 {got}");
+            }
+
+            // 显示串（列表里给人看的）也要对
+            var d0 = makeup[0];
+            bool dispOk = d0.Display.Contains("2026-09-20") && d0.Display.Contains("周五");
+            sb.AppendLine($"[MKTEST]   {(dispOk ? "ok" : "✗")} 列表显示串：\"{d0.Display}\"");
+            if (!dispOk) throw new Exception($"调休显示串不对：{d0.Display}");
+
+            sb.AppendLine("[MKTEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[MKTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
     /// <summary>
     /// 远程控制台 API 响应自检（SJ_SELFTEST=api）。
     ///

@@ -286,12 +286,18 @@ public class AutomationService : IDisposable
 
     private bool RuleFired(AutomationRule rule, string key) => _firedKeys.Contains($"{rule.Id}:{key}");
 
-    private static bool DayMatches(AutomationRule rule, DateTime now)
+    /// <summary>
+    /// 规则配的星期几是否命中"今天"。
+    ///
+    /// ⚠ 2026-09-21：改成走 <see cref="ScheduleManager.GetEffectiveDayOfWeek"/> 而不是
+    /// 直接的 `now.DayOfWeek` —— 调休补课时（如周日补周五的课），周五中午的听力规则
+    /// （TriggerDays=[5]）必须照常触发，否则调休日就"什么都没发生"（用户实际反馈）。
+    /// 该映射同时负责周日 0→7 的归一化。
+    /// </summary>
+    private bool DayMatches(AutomationRule rule, DateTime now)
     {
         if (rule.TriggerDays == null || rule.TriggerDays.Count == 0) return true;
-        int dow = (int)now.DayOfWeek;
-        if (dow == 0) dow = 7;
-        return rule.TriggerDays.Contains(dow);
+        return rule.TriggerDays.Contains(_manager.GetEffectiveDayOfWeek(now));
     }
 
     // ── 动作执行 ──────────────────────────────────────────────

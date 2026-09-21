@@ -35,12 +35,29 @@ namespace StudyJourney.Avalonia.Models
 
         // ── 课表查询 ──────────────────────────────────────────
 
-        /// <summary>获取今天的课程列表（按上课时间排序）</summary>
+        /// <summary>
+        /// 把日期映射为"那天实际上哪一天的课 / 哪一天的自动化规则"（1=周一 … 7=周日）。
+        ///
+        /// 2026-09-21 新增（用户反馈）：调休补课时，周日补周五的课 ——
+        /// 自动化规则是按星期几配的（周五中午的听力写在 TriggerDays=[5]），
+        /// 不映射的话调休日就"什么都没发生"。
+        /// 有这个映射后，所有下游（取课表 / 提醒 / 自动化）自动跟着走。
+        /// </summary>
+        public int GetEffectiveDayOfWeek(DateTime date)
+            => ScheduleData.ResolveEffectiveDayOfWeek(date, _data.MakeupDays);
+
+        /// <summary>今天是调休日吗（供 UI 提示用）</summary>
+        public MakeupDay? GetMakeupDay(DateTime date)
+        {
+            string key = date.ToString("yyyy-MM-dd");
+            return _data.MakeupDays?.FirstOrDefault(x => x.DateStr == key);
+        }
+
+        /// <summary>获取今天的课程列表（按上课时间排序）。调休日取"被补的那一天"的课表。</summary>
         public List<ScheduleEntry> GetTodayEntries(DateTime? date = null)
         {
             var d = date ?? DateTime.Today;
-            int dow = (int)d.DayOfWeek;
-            if (dow == 0) dow = 7;  // 周日转为 7
+            int dow = GetEffectiveDayOfWeek(d);
 
             return _data.Entries
                 .Where(e => e.DayOfWeek == dow)
