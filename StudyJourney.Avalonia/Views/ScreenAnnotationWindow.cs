@@ -31,7 +31,7 @@ namespace StudyJourney.Avalonia.Views;
 /// 触屏约定：**手指 = 墨迹**（覆盖层没有可滚动内容，不存在 2.1 那种"手指留给滚动"的冲突）；
 /// 触控笔同样书写；鼠标左键书写。橡皮用工具栏切换。
 /// </summary>
-public sealed class ScreenAnnotationWindow : Window
+public sealed class ScreenAnnotationWindow : Window, IUnsavedWork
 {
     private const double ToolbarButtonSize = 44;   // 触屏热区下限（PLANNING 2.0 UI 约定）
 
@@ -58,6 +58,9 @@ public sealed class ScreenAnnotationWindow : Window
 
     /// <summary>是否有圈画内容（自动更新重启前用它判断"现在重启会不会丢批注"）</summary>
     public bool HasStrokes => _ink.Document.HasStrokes;
+
+    public bool HasUnsavedWork => HasStrokes;
+    public string UnsavedWorkHint => "屏幕批注上有未导出的圈画";
     private readonly List<Button> _toolButtons = new();
     private Border _toolbar = null!;
     private Button _passThroughBtn = null!;

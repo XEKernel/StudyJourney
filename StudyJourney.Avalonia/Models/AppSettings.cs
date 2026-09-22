@@ -275,10 +275,15 @@ namespace StudyJourney.Avalonia.Models
             if (!File.Exists(SettingsPath))
             {
                 // 首次运行：给一份带默认老师账号的设置。
-                // ⚠ 默认账号的 PBKDF2 计算只在这里发生（约 470ms / 7 个账号），
-                //   因为是"一次性初始化成本"，不影响后续每次启动。
+                // ⚠ 默认账号的 PBKDF2 计算只在这里发生（约 470ms / 7 个账号）。
+                //
+                // ⚠⚠ **必须落盘**（2026-09-22 修）：原来只造对象不保存，于是文件永远不会被创建 →
+                //   **每次启动都重新走这个分支**，那 470ms 变成每次启动都白付（与我上一版
+                //   "只付一次"的说法相反），日志里还会每次都出现"未找到 settings.json"。
+                //   落盘后 Updater 的用户数据保护名单也从第一次启动起就有效。
                 Helpers.AppLogger.Info("[AppSettings] 未找到 settings.json，按首次运行创建默认设置（含默认老师账号）");
                 var fresh = new AppSettings { Teachers = CreateDefaultTeachers() };
+                fresh.Save();
                 return fresh;
             }
 

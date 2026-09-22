@@ -112,9 +112,9 @@ public static class UpdateService
                 if (!string.IsNullOrWhiteSpace(info)) return info.Trim();
             }
             var ver = asm.GetName().Version;
-            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.14.0";
+            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.14.1";
         }
-        catch { return "2.14.0"; }
+        catch { return "2.14.1"; }
     });
 
     public static string CurrentVersion => _currentVersion.Value;
@@ -142,7 +142,7 @@ public static class UpdateService
         }
     }
 
-    /// <summary>更新程序文件名（程序目录里一份、更新包里也有一份，见 StartUpdateAsync 的说明）</summary>
+    /// <summary>更新程序文件名（程序目录里一份、更新包里也有一份，见 PrepareUpdateAsync / LaunchUpdater 的说明）</summary>
     private const string UpdaterFileName = "StudyJourney.Updater.exe";
 
     private static string UpdaterPath =>
@@ -383,7 +383,38 @@ public static class UpdateService
     /// 阶段回调，供 UI 显示「正在下载新版本 / 正在解压 / 重启」。
     /// ⚠ 只在 UI 线程之外调用一次，回调实现里若要碰控件请自行 Dispatcher 封送。
     /// </param>
-    public static async Task<bool> StartUpdateAsync(string downloadUrl, int currentPid,
+    /// <summary>
+    /// 下载 → 解压到 staging → 刷新更新程序。**不启动更新程序**（见 <see cref="LaunchUpdater"/>）。
+    ///
+    /// 拆成"准备 / 启动"两步是为了修一个严重缺陷（2026-09-22 代码审查发现）：
+    /// 原来下载解压完就立刻拉起更新程序，而更新程序只等主进程 **15 秒**就 `Kill()` ——
+    /// 于是主程序里那段"最多等 5 分钟、等老师关掉白板再重启"的保护**完全是假的**，
+    /// 15 秒后照样被强杀，白板上未导出的板书就丢了（正是那段保护想避免的事）。
+    ///
+    /// 返回 null 表示准备失败（原因已记日志），调用方**不应**退出进程。
+    /// </summary>
+    /// <param name="onPhase">
+    /// 阶段回调，供 UI 显示「正在下载新版本 / 正在解压」。
+    /// ⚠ 回调里若要碰控件请自行 Dispatcher 封送。
+    /// </param>
+    /// <summary>
+    /// 已下载并解压好、只等"程序退出"就位的更新。
+    ///
+    /// **拆出这一步是为了修一个严重缺陷**（2026-09-22 代码审查发现）：
+    /// 原来「下载+解压+拉起更新程序」是一件事，而更新程序只等主进程 **15 秒**就 `Kill()`。
+    /// 于是主程序里那段"最多等 5 分钟，等老师关掉白板再重启"的保护**完全是假的** ——
+    /// 15 秒后照样被强杀，白板上未导出的板书就丢了（正是那段保护想避免的事）。
+    /// 现在：先把准备工作做完（**不启动更新程序**），确认可以安全退出后，才由
+    /// <see cref="LaunchUpdater"/> 启动它。
+    /// </summary>
+    public sealed record PreparedUpdate(
+        string StagingDir, string ZipPath, string UpdaterExe, string TargetDir, string ExePath);
+
+    /// <summary>
+    /// 下载 → 解压到 staging → 刷新更新程序。**不启动更新程序**（见 <see cref="LaunchUpdater"/>）。
+    /// 返回 null 表示准备失败（原因已记日志），调用方不应退出进程。
+    /// </summary>
+    public static async Task<PreparedUpdate?> PrepareUpdateAsync(string downloadUrl,
         string? zipPath = null, IProgress<UpdateProgress>? progress = null,
         Action<UpdatePhase>? onPhase = null, CancellationToken ct = default)
     {
@@ -415,7 +446,7 @@ public static class UpdateService
             if (updaterExe == null)
             {
                 AppLogger.Warn($"[Updater] 找不到可用的更新程序（更新包里没有，{UpdaterPath} 也没有）");
-                return false;
+                return null;
             }
 
             bool fromStaging = !string.Equals(updaterExe, UpdaterPath, StringComparison.OrdinalIgnoreCase);
@@ -436,36 +467,55 @@ public static class UpdateService
             string targetDir = TrimTrailingSeparator(AppDomain.CurrentDomain.BaseDirectory);
             string exePath = Path.Combine(targetDir, "StudyJourneyAvalonia.exe");
 
-            // 用 ArgumentList 而不是手拼 Arguments：.NET 会按 Windows 规则正确转义，
-            // 从根本上避免"路径带空格/以反斜杠结尾"这类引号事故。
-            // ArgumentList 要求 UseShellExecute = false（更新程序是普通 exe，不需要 shell）。
-            var psi = new ProcessStartInfo
-            {
-                FileName = updaterExe,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                WorkingDirectory = targetDir,
-            };
-            psi.ArgumentList.Add("--pid");    psi.ArgumentList.Add(currentPid.ToString());
-            psi.ArgumentList.Add("--staged"); psi.ArgumentList.Add(stagingDir);
-            psi.ArgumentList.Add("--zip");    psi.ArgumentList.Add(zipPath);   // 兼容旧版更新程序
-            psi.ArgumentList.Add("--target"); psi.ArgumentList.Add(targetDir);
-            psi.ArgumentList.Add("--exe");    psi.ArgumentList.Add(exePath);
-
-            onPhase?.Invoke(UpdatePhase.Restarting);
-            Process.Start(psi);
-
-            AppLogger.Info($"[Updater] 已拉起更新程序，等待主程序退出（staged: {stagingDir}）");
-            return true;
+            AppLogger.Info($"[Updater] 更新已就绪（staged: {stagingDir}），等待安全退出时机");
+            return new PreparedUpdate(stagingDir, zipPath, updaterExe, targetDir, exePath);
         }
         catch (OperationCanceledException)
         {
             AppLogger.Info("[Updater] 用户取消了更新");
-            return false;
+            return null;
         }
         catch (Exception ex)
         {
-            AppLogger.Error("[Updater] 启动失败", ex);
+            AppLogger.Error("[Updater] 更新准备失败", ex);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 拉起更新程序。**调用方必须随即退出进程** —— 更新程序最多等 15 秒就会强杀主进程
+    /// （见 <see cref="PreparedUpdate"/> 的说明）。返回 false 表示没拉起来，此时**不应**退出，
+    /// 否则程序就没了。
+    /// </summary>
+    public static bool LaunchUpdater(PreparedUpdate p, int currentPid,
+        Action<UpdatePhase>? onPhase = null)
+    {
+        try
+        {
+            // 用 ArgumentList 而不是手拼 Arguments：.NET 会按 Windows 规则正确转义，
+            // 从根本上避免"路径带空格 / 以反斜杠结尾"这类引号事故。
+            // ArgumentList 要求 UseShellExecute = false（更新程序是普通 exe，不需要 shell）。
+            var psi = new ProcessStartInfo
+            {
+                FileName = p.UpdaterExe,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                WorkingDirectory = p.TargetDir,
+            };
+            psi.ArgumentList.Add("--pid");    psi.ArgumentList.Add(currentPid.ToString());
+            psi.ArgumentList.Add("--staged"); psi.ArgumentList.Add(p.StagingDir);
+            psi.ArgumentList.Add("--zip");    psi.ArgumentList.Add(p.ZipPath);   // 兼容旧版更新程序
+            psi.ArgumentList.Add("--target"); psi.ArgumentList.Add(p.TargetDir);
+            psi.ArgumentList.Add("--exe");    psi.ArgumentList.Add(p.ExePath);
+
+            onPhase?.Invoke(UpdatePhase.Restarting);
+            Process.Start(psi);
+            AppLogger.Info("[Updater] 已拉起更新程序，主程序即将退出");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("[Updater] 拉起更新程序失败", ex);
             return false;
         }
     }

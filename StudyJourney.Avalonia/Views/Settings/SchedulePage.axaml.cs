@@ -46,7 +46,18 @@ public partial class SchedulePage : UserControl, ISettingsPage
             var captured = m;
             del.Click += (_, _) =>
             {
-                App.Schedule.Data.MakeupDays.Remove(captured);
+                // ⚠ 按 DateStr 在**当前**列表实例里重新查找，不要直接 Remove(captured)：
+                // 课表可能被外部重载（远程 PUT /api/schedule → Schedule.Reload() 会换掉 _data 实例），
+                // 那时 captured 已不在新列表里，Remove 返回 false → 用户看到"点删除没反应"且无任何报错。
+                var list = App.Schedule.Data.MakeupDays ??= new();
+                var hit = list.FirstOrDefault(x => x.DateStr == captured.DateStr);
+                if (hit == null)
+                {
+                    Helpers.AppLogger.Warn($"[调休] 要删除的 {captured.DateStr} 已不在列表中（可能被外部重载），仅刷新界面");
+                    ReloadMakeupList();
+                    return;
+                }
+                list.Remove(hit);
                 App.Schedule.Save();
                 ReloadMakeupList();
                 Helpers.AppLogger.Info($"[调休] 已删除：{captured.Display}");

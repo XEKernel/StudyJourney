@@ -17,7 +17,7 @@ using StudyJourney.Avalonia.Views.Settings;
 namespace StudyJourney.Avalonia.Views;
 
 /// <summary>WinUI 3 风格设置窗口：Mica + NavigationView 导航 + 6 Tab（对齐学程原版）+ 保存到 settings.json</summary>
-public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
+public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow, IUnsavedWork
 {
     private Control? _currentPage;
 
@@ -46,6 +46,13 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow
     private bool _closeConfirmed;
 
     /// <summary>#8 修复：关窗前若当前页有未保存修改 → 三选一（保存并关闭 / 放弃修改 / 取消）</summary>
+    /// <summary>设置窗口有未保存的修改（自动更新重启前要问，见 IUnsavedWork）</summary>
+    public bool HasUnsavedWork =>
+        !_closeConfirmed &&
+        ((_currentPage is ISettingsPage sp && sp.IsDirty) || HasUnsavedSettings());
+
+    public string UnsavedWorkHint => "设置页有未保存的修改";
+
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_closeConfirmed) return;

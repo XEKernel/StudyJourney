@@ -18,7 +18,7 @@ using StudyJourney.Avalonia.Models;
 namespace StudyJourney.Avalonia.Views;
 
 /// <summary>课表/考试编辑窗口：DataGrid 编辑 schedule.json，保存写回</summary>
-public partial class ScheduleEditorWindow : Window
+public partial class ScheduleEditorWindow : Window, IUnsavedWork
 {
     public ScheduleEditorWindow()
     {
@@ -87,6 +87,10 @@ public partial class ScheduleEditorWindow : Window
 
     /// <summary>打开/上次保存以来是否有内容变化（取消/关窗确认用）</summary>
     private bool HasChanges => SerializeData() != _baselineJson;
+
+    /// <summary>课表编辑器有未保存的修改（自动更新重启前要问，见 IUnsavedWork）</summary>
+    public bool HasUnsavedWork => HasChanges && !_closeConfirmed;
+    public string UnsavedWorkHint => "课表编辑器里有未保存的修改";
 
     /// <summary>标记当前内容为已保存基线（保存/取消/数据被替换后调用）</summary>
     private void MarkClean() => _baselineJson = SerializeData();

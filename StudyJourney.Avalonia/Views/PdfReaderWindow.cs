@@ -45,7 +45,7 @@ namespace StudyJourney.Avalonia.Views;
 /// UI 约定：工具栏放**屏幕底部**（老师在大屏前够不到顶部）；按钮"图标 + 中文"；
 /// 触屏热区 ≥44px；直角 + 校园蓝（跨项目统一视觉）。
 /// </summary>
-public sealed class PdfReaderWindow : Window
+public sealed class PdfReaderWindow : Window, IUnsavedWork
 {
     // ── 布局常量 ─────────────────────────────────────────────
     private const double BtnHeight = 44;      // 触屏热区下限
@@ -400,6 +400,9 @@ public sealed class PdfReaderWindow : Window
 
     /// <summary>是否有未导出的批注（自动更新重启前用它判断"现在重启会不会丢批注"）</summary>
     public bool HasUnsavedInk => _dirtyInk && InkDoc.HasStrokes;
+
+    public bool HasUnsavedWork => HasUnsavedInk;
+    public string UnsavedWorkHint => "PDF 上有未导出的批注";
 
     // ── 工具栏（底部两行：上行阅读、下行批注）──────────────────
 

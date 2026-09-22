@@ -286,7 +286,11 @@ class Program
                 continue;
             }
 
-            if (IsProtectedUserData(fileName))
+            // 2026-09-22：保护只对**包根目录**下的同名文件生效。
+            // 原来按纯文件名匹配且递归所有子目录 —— 一旦包里某个子目录恰有同名文件
+            // （如以后放个样例 settings.json 到 samples/）就会被静默跳过、造成新旧混装。
+            bool isRootFile = !Path.GetRelativePath(source, file).Contains(Path.DirectorySeparatorChar);
+            if (isRootFile && IsProtectedUserData(fileName))
             {
                 protectedSkipped++;
                 Log($"跳过用户数据文件（不覆盖）：{Path.GetRelativePath(source, file)}");

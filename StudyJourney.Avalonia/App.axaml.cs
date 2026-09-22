@@ -284,6 +284,11 @@ public partial class App : Application
             // 2026-09-17 用户要求：检测到新版本**不再弹窗**，直接进入更新流程
             // （进度显示在顶部课表胶囊栏里，见 RunUpdateAsync）。
             Helpers.AppLogger.Info($"[UpdateService] 发现新版本 {info.LatestVersion}（当前 {UpdateService.CurrentVersion}），开始自动更新");
+            if (!TryBeginUpdate())
+            {
+                Helpers.AppLogger.Info("[UpdateService] 已有更新在进行中，本次自动检查跳过");
+                return;
+            }
             await RunUpdateAsync(info);
         }
         catch (Exception ex)
@@ -314,10 +319,12 @@ public partial class App : Application
                 return;
             }
 
+            // ── 准备阶段：下载 + 解压，但**不启动更新程序** ──
+            // ⚠ 必须与"启动"分开：更新程序只等主进程 **15 秒**就强杀，
+            //   先拉起它再去等老师关白板 = 保证被强杀、板书照样丢（2026-09-22 修复的缺陷）。
             SetBanner("正在下载新版本", 0);
             var progress = new Progress<UpdateProgress>(p => SetBanner("正在下载新版本", p.Fraction));
 
-            // 阶段回调来自 UI 线程（await 之后续体回到 UI 线程），但仍统一 Post 一次更稳
             void OnPhase(UpdatePhase phase) => SetBanner(phase switch
             {
                 UpdatePhase.Downloading => "正在下载新版本",
@@ -326,11 +333,10 @@ public partial class App : Application
                 _ => "正在更新",
             }, -1);
 
-            bool started = await UpdateService.StartUpdateAsync(
-                info.DownloadUrl, Environment.ProcessId, zipPath: null, progress: progress,
-                onPhase: OnPhase);
+            var prepared = await UpdateService.PrepareUpdateAsync(
+                info.DownloadUrl, zipPath: null, progress: progress, onPhase: OnPhase);
 
-            if (!started)
+            if (prepared == null)
             {
                 SetBanner("更新失败，稍后将重试", -1);
                 await System.Threading.Tasks.Task.Delay(6000);
@@ -338,23 +344,29 @@ public partial class App : Application
                 return;
             }
 
-            // ⚠ 重启前必须确认"当前没有会被重启丢掉的东西"。
-            // 白板/屏幕批注/PDF 批注都可能有老师还没导出的板书 —— Environment.Exit 会绕过
-            // 它们各自的"未保存"确认，直接重启等于把整屏板书丢掉。宁可晚几秒重启。
+            // ── 等一个"能安全退出"的时机（最多 5 分钟）──
             int waited = 0;
-            while (!IsSafeToRestartForUpdate() && waited < 300)     // 最多等 5 分钟
+            while (!IsSafeToRestartForUpdate(out string reason) && waited < 300)
             {
-                SetBanner("新版本已就绪 · 关掉白板后自动重启", -1);
+                SetBanner($"已就绪 · {reason}，稍后自动重启", -1);
                 await System.Threading.Tasks.Task.Delay(2000);
                 waited += 2;
             }
 
-            SetBanner("重启", -1);
-            await System.Threading.Tasks.Task.Delay(400);   // 让"重启"两个字有机会画出来
+            if (!IsSafeToRestartForUpdate(out string still))
+            {
+                // 等了 5 分钟仍不安全 → **坚决不启动更新程序**（启动它 = 我们一定会被强杀）。
+                // 留待下次安全时由定时器接手安装。
+                Helpers.AppLogger.Info($"[Updater] 更新已就绪，但因「{still}」暂不重启");
+                SetBanner("新版本已就绪，稍后自动安装", -1);
+                _pendingUpdate = prepared;
+                ArmPendingUpdateTimer();
+                await System.Threading.Tasks.Task.Delay(6000);
+                SetBanner(null);
+                return;
+            }
 
-            Helpers.AppLogger.Info("[Updater] 更新程序已启动，主程序即将退出");
-            try { Services.HttpServerService.Stop(); } catch { }
-            Environment.Exit(0);
+            await RestartIntoUpdateAsync(prepared, SetBanner);
         }
         catch (OperationCanceledException)
         {
@@ -367,21 +379,112 @@ public partial class App : Application
             await System.Threading.Tasks.Task.Delay(6000);
             SetBanner(null);
         }
+        finally
+        {
+            _updateRunning = false;
+        }
+    }
+
+    // ── 更新安装：拉开更新程序并退出 ────────────────────────────
+
+    /// <summary>已准备就绪、但因"有未保存内容"而暂缓的更新；一旦变安全就自动安装</summary>
+    private static UpdateService.PreparedUpdate? _pendingUpdate;
+    private static global::Avalonia.Threading.DispatcherTimer? _pendingUpdateTimer;
+
+    /// <summary>同一次会话里自动更新与手动更新不可并发（否则会互踩共用的临时 zip/staging）</summary>
+    private static bool _updateRunning;
+
+    /// <summary>尝试开始一次更新；已有更新在跑则返回 false（调用方据此提示/忽略）</summary>
+    public static bool TryBeginUpdate() => !_updateRunning && (_updateRunning = true);
+
+    /// <summary>暂缓的更新就绪后，每 10 秒看一次是否可以安全重启</summary>
+    private static void ArmPendingUpdateTimer()
+    {
+        if (_pendingUpdateTimer != null) return;
+        _pendingUpdateTimer = new global::Avalonia.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(10),
+        };
+        _pendingUpdateTimer.Tick += async (_, _) =>
+        {
+            if (_pendingUpdate == null) { _pendingUpdateTimer?.Stop(); _pendingUpdateTimer = null; return; }
+            if (!IsSafeToRestartForUpdate(out _)) return;
+
+            var p = _pendingUpdate;
+            _pendingUpdate = null;
+            _pendingUpdateTimer?.Stop();
+            _pendingUpdateTimer = null;
+            Helpers.AppLogger.Info("[Updater] 已无未保存内容，开始安装此前就绪的更新");
+
+            var banner = (Current as App)?._mainWindow as MainWindow;
+            void SetBanner(string? t, double pr = -1) => Dispatcher.UIThread.Post(() => banner?.ShowUpdateStatus(t, pr));
+            try { await RestartIntoUpdateAsync(p, SetBanner); }
+            catch (Exception ex) { Helpers.AppLogger.Error("[Updater] 暂缓更新安装失败", ex); }
+        };
+        _pendingUpdateTimer.Start();
     }
 
     /// <summary>
-    /// 现在重启是否会丢东西？白板 / 屏幕批注 / PDF 阅读器只要开着且有笔画，
-    /// 重启都会绕过它们各自的"未保存"确认 —— 一律视为不安全，等老师自己关掉。
+    /// 确认可以安全退出 → 拉起更新程序并退出进程。
+    /// ⚠ 调用后要么进程消失，要么**什么都没发生**（拉起失败时不退出，否则程序就没了）。
     /// </summary>
-    private static bool IsSafeToRestartForUpdate()
+    private static async System.Threading.Tasks.Task RestartIntoUpdateAsync(
+        UpdateService.PreparedUpdate prepared, Action<string?, double> setBanner)
     {
+        setBanner("重启", -1);
+        await System.Threading.Tasks.Task.Delay(400);   // 让"重启"两个字有机会画出来
+
+        // 退出前把内存里的设置落盘：窗口位置拖动等只写在内存里，靠 SaveSettings 落盘，
+        // 而 Environment.Exit 会跳过所有正常关闭流程 → 不落盘就白拖了。
+        try { Settings?.Save(); }
+        catch (Exception ex) { Helpers.AppLogger.Warn($"[Updater] 退出前保存设置失败: {ex.Message}"); }
+
+        try { Services.HttpServerService.Stop(); } catch { }
+
+        if (!UpdateService.LaunchUpdater(prepared, Environment.ProcessId))
+        {
+            Helpers.AppLogger.Error("[Updater] 更新程序未能启动，放弃本次重启（程序保持运行）");
+            setBanner("更新程序启动失败，稍后将重试", -1);
+            await System.Threading.Tasks.Task.Delay(6000);
+            setBanner(null, -1);
+            return;
+        }
+
+        Helpers.AppLogger.Info("[Updater] 更新程序已启动，主程序即将退出");
+        Environment.Exit(0);
+    }
+
+    /// <summary>
+    /// 现在重启是否会丢东西？
+    ///
+    /// ⚠ 2026-09-22 从"硬编码白板/批注/PDF 三个窗口"改成**遍历所有窗口**问
+    /// <see cref="Views.IUnsavedWork"/>：`Environment.Exit` 不触发任何 Closing 事件，
+    /// 所以课表编辑器的"未保存修改"、设置窗口的三选一同样会被静默跳过（原来漏了它们）。
+    /// </summary>
+    private static bool IsSafeToRestartForUpdate(out string reason)
+    {
+        reason = "";
         try
         {
-            if (_whiteboard is { IsVisible: true } wb && wb.HasUnsavedInk) return false;
-            if (_annotation is { IsVisible: true } an && an.HasStrokes) return false;
-            if (_pdfReader is { IsVisible: true } pdf && pdf.HasUnsavedInk) return false;
+            var lifetime = Application.Current?.ApplicationLifetime
+                           as global::Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime;
+            if (lifetime != null)
+            {
+                foreach (var w in lifetime.Windows)
+                {
+                    if (w is Views.IUnsavedWork uw && uw.HasUnsavedWork)
+                    {
+                        reason = uw.UnsavedWorkHint;
+                        return false;
+                    }
+                }
+            }
         }
-        catch { /* 判不出来就当作安全，避免永远重启不了 */ }
+        catch (Exception ex)
+        {
+            // 判不出来就当作安全 —— 否则一个异常会让更新永远完不成
+            Helpers.AppLogger.Warn($"[Updater] 未保存内容检查异常，按安全处理: {ex.Message}");
+        }
         return true;
     }
 
@@ -409,39 +512,40 @@ public partial class App : Application
 
             var progress = new Progress<UpdateProgress>(p => win?.Report(p));
 
-            bool started = await UpdateService.StartUpdateAsync(
-                info.DownloadUrl, Environment.ProcessId, zipPath: null, progress: progress,
+            // 与自动更新同样的两段式（2026-09-22）：先准备（下载+解压，不启动更新程序），
+            // 确认安全后才启动 —— 否则更新程序 15 秒后会强杀主进程，未保存的板书照样丢。
+            var prepared = await UpdateService.PrepareUpdateAsync(
+                info.DownloadUrl, zipPath: null, progress: progress,
                 onPhase: ph =>
                 {
                     if (ph == UpdatePhase.Extracting) win?.Phase("正在解压…");
-                    else if (ph == UpdatePhase.Restarting) win?.SwitchToInstalling();
                 },
                 ct: win.Token);
 
-            win.SwitchToInstalling();
-            if (started)
-            {
-                if (!IsSafeToRestartForUpdate())
-                {
-                    win.Close();
-                    await ConfirmAsync("学程 — 新版本已就绪",
-                        "更新已准备好，但你还有未导出的板书/批注。\n\n" +
-                        "请先关掉白板 / 屏幕批注 / PDF 阅读器，然后重新「检查更新」即可完成升级。",
-                        "知道了", "关闭");
-                    return;
-                }
-
-                Helpers.AppLogger.Info("[Updater] 更新程序已启动，主程序即将退出");
-                // 退出前把资源让出去（HTTP 服务/托盘），再用 Exit 保证进程真结束
-                try { Services.HttpServerService.Stop(); } catch { }
-                Environment.Exit(0);
-            }
-            else
+            if (prepared == null)
             {
                 win.Close();
                 await ConfirmAsync("学程 — 更新未完成",
-                    "没能启动更新程序。\n\n可以稍后重试，或到 GitHub Releases 手动下载。", "知道了", "关闭");
+                    "下载或解压失败。\n\n可以稍后重试，或到 GitHub Releases 手动下载。", "知道了", "关闭");
+                return;
             }
+
+            if (!IsSafeToRestartForUpdate(out string reason))
+            {
+                win.Close();
+                await ConfirmAsync("学程 — 新版本已就绪",
+                    $"更新已经下载好了，但现在有未保存的内容：{reason}。\n\n" +
+                    "请先把它保存或关掉，然后重新「检查更新」即可完成升级。\n" +
+                    "（也可以不管它 —— 程序下次启动时会自动装好。）",
+                    "知道了", "关闭");
+                // 留着这份已就绪的更新：一旦安全由定时器接手，不用重下几十 MB
+                _pendingUpdate = prepared;
+                ArmPendingUpdateTimer();
+                return;
+            }
+
+            win.SwitchToInstalling();
+            await RestartIntoUpdateAsync(prepared, (t, pr) => win?.Phase(t ?? ""));
         }
         catch (OperationCanceledException)
         {

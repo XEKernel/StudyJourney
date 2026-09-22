@@ -32,7 +32,7 @@ namespace StudyJourney.Avalonia.Views;
 ///
 /// UI 约定（跨项目统一）：直角（CornerRadius 0）+ 校园蓝 #2B6CB0 + 深色主题 + 工具栏热区 ≥44px。
 /// </summary>
-public sealed class WhiteboardWindow : Window
+public sealed class WhiteboardWindow : Window, IUnsavedWork
 {
     // ── 布局常量 ─────────────────────────────────────────────
     private const double ToolButtonSize = 44;      // 触屏热区下限（PLANNING 2.0 UI 统一约定）
@@ -454,6 +454,9 @@ public sealed class WhiteboardWindow : Window
     /// 自动更新走 Environment.Exit，会绕过 OnClosing 里的未保存确认，必须先问过这里。
     /// </summary>
     public bool HasUnsavedInk => _dirty && _pages.Any(p => p.HasStrokes);
+
+    public bool HasUnsavedWork => HasUnsavedInk;
+    public string UnsavedWorkHint => "白板上有未导出的板书";
 
     private void SwitchPage(int index)
     {

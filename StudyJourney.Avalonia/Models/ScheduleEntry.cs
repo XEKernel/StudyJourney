@@ -372,6 +372,10 @@ namespace StudyJourney.Avalonia.Models
                 d.Exams ??= new System.Collections.ObjectModel.ObservableCollection<ExamEntry>();
                 d.TimeTemplates ??= new List<TimeTemplate>();
                 d.DayTimeTemplates ??= new Dictionary<int, List<TimeTemplate>>();
+                // 2026-09-22 补：外部写入 "MakeupDays": null 时，若只在读取点 ??= new()，
+                // 那次赋值不会落盘 → 每次 Reload 又变回 null（Save 会写出 "MakeupDays": null）。
+                // 归一化到非 null 才能真正稳定。
+                d.MakeupDays ??= new List<MakeupDay>();
             }
 
         /// <summary>清理过期的 .corrupted 备份，只保留最近 maxCount 份</summary>
