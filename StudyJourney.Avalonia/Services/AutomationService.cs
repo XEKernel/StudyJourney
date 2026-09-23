@@ -400,6 +400,47 @@ public class AutomationService : IDisposable
     ///   连堂幂等   = 目标已开着 → 跳过（或激活到前台，看规则开关 ActivateIfOpen）
     /// 打开成功后记入跟踪表（进程 Id，供幂等判断）并更新记忆指针。
     /// </summary>
+    /// <summary>
+    /// 课件顺序状态（2026-09-23 用户要求）：**今天已打开哪份 / 下一份该打开哪份**，
+    /// 供主窗口胶囊栏常驻显示，老师低头就能看到进度。
+    ///
+    /// 取第一条已启用的「打开课件 / 打开文件」规则（这两类才有顺序记忆语义）。
+    /// ⚠ 会枚举目录（ListCandidates），**调用方不要每秒调**（主窗口按 ~15 秒节流）。
+    /// 没有任何打开类规则、或总开关关闭时返回 null（胶囊隐藏）。
+    /// </summary>
+    public (string RuleName, string Opened, string Next)? GetCoursewareStatus()
+    {
+        try
+        {
+            if (_data?.Enabled != true || _data.Rules == null) return null;
+
+            foreach (var rule in _data.Rules)
+            {
+                if (!rule.Enabled) continue;
+                if (rule.ActionKind is not (AutomationActionKind.OpenCourseware or AutomationActionKind.OpenFile))
+                    continue;
+
+                var ptr = OpenStateStore.GetPointer(rule.Id);
+                string opened = string.IsNullOrWhiteSpace(ptr) ? "" : Path.GetFileName(ptr);
+
+                var candidates = Helpers.FileSequence.ListCandidates(ResolveDirectory(rule, null));
+                string next = "";
+                if (candidates.Count > 0)
+                {
+                    var nx = Helpers.FileSequence.Next(string.IsNullOrWhiteSpace(ptr) ? null : ptr, candidates);
+                    if (!string.IsNullOrWhiteSpace(nx)) next = Path.GetFileName(nx);
+                }
+
+                return (rule.Name, opened, next);
+            }
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn($"[课件顺序] 取状态失败: {ex.Message}");
+        }
+        return null;
+    }
+
     private void OpenResolved(AutomationRule rule, string? subject)
     {
         // ① 教师端网页指定优先（一次性消费）：软件 → 直接启动；文件 → 作为本次目标
@@ -463,6 +504,16 @@ public class AutomationService : IDisposable
         // ⑤ 真正打开
         try
         {
+            // 2026-09-22（规划 2.0 课件打开方式二选一）：.pdf 可交给内置阅读器
+            // （带批注与续读，比外部程序更适合上课）。交给内置阅读器时不产生新进程，
+            // 故跳过 TrackOpen（"已打开"检测走窗口标题，阅读器标题已带文件名）。
+            if (App.TryOpenCoursewareWithBuiltInReader(target))
+            {
+                OpenStateStore.SetPointer(rule.Id, target);
+                Helpers.AppLogger.Info($"自动化「{rule.Name}」：用内置阅读器打开 {target}");
+                return;
+            }
+
             var proc = Process.Start(new ProcessStartInfo { FileName = target, UseShellExecute = true });
             if (proc != null)
             {

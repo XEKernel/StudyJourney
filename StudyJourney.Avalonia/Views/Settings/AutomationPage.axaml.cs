@@ -70,6 +70,12 @@ public partial class AutomationPage : UserControl, ISettingsPage
             foreach (var r in src.Rules) _rules.Add(CloneRule(r));
 
             AutomationMasterToggle.IsChecked = _masterEnabled;
+
+            // 课件打开方式（属 AppSettings，不是自动化规则）：按当前设置回显
+            bool builtIn = s.OpenPdfWithBuiltInReader;
+            PdfOpenBuiltInRadio.IsChecked = builtIn;
+            PdfOpenSystemRadio.IsChecked = !builtIn;
+
             RulesList.ItemsSource = _rules;
             _current = null;
             EditorCard.IsVisible = false;
@@ -82,6 +88,10 @@ public partial class AutomationPage : UserControl, ISettingsPage
     public void Apply(AppSettings s)
     {
         if (!_dirty) return;
+
+        // 课件打开方式：写回 AppSettings（调用方随后会 SaveSettings）
+        s.OpenPdfWithBuiltInReader = PdfOpenBuiltInRadio.IsChecked == true;
+
         CommitEditorToCurrent();
         AutomationStore.Save(new AutomationSettings
         {
@@ -122,6 +132,13 @@ public partial class AutomationPage : UserControl, ISettingsPage
     };
 
     private void MarkDirty() { if (_ready && !_loadingEditor && !_suppressDirty) _dirty = true; }
+
+    /// <summary>课件打开方式单选改变 → 标脏（否则只改这一项时 Apply 会因 !_dirty 提前返回）</summary>
+    private void PdfOpenMode_Changed(object? sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        MarkDirty();
+    }
 
     private static int ParseInt(string? text, int fallback)
         => int.TryParse(text, out var v) ? Math.Max(v, 0) : fallback;

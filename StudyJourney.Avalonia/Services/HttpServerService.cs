@@ -841,7 +841,9 @@ public static class HttpServerService
                     string? openWarning = null;
                     try
                     {
-                        Process.Start(new ProcessStartInfo { FileName = fullPath, UseShellExecute = true });
+                        // 2026-09-22：与自动化一致 —— .pdf 可交给内置阅读器（课件打开方式二选一）
+                        if (!App.TryOpenCoursewareWithBuiltInReader(fullPath))
+                            Process.Start(new ProcessStartInfo { FileName = fullPath, UseShellExecute = true });
                     }
                     catch (Exception ex)
                     {

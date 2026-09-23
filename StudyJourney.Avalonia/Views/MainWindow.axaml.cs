@@ -559,8 +559,12 @@ public partial class MainWindow : Window
     // ⚠ 刻意**不切换视图、不强制显示窗口**：老师全屏放 PPT 时胶囊本就被收起，
     //   不该为了显示进度把它弹出来打断讲课。
 
-    /// <summary>显示/更新更新进度（App 调用）；text 传 null 表示隐藏</summary>
-    public void ShowUpdateStatus(string? text, double progress = -1)
+    /// <summary>
+    /// 显示/更新更新进度（App 调用）；text 传 null 表示隐藏。
+    /// <paramref name="detail"/> 是给完整胶囊的第二行（下载速度 / 已下载量 / 新旧版本号），
+    /// 上课中的小胶囊空间有限，只显示 <paramref name="text"/> 短串。
+    /// </summary>
+    public void ShowUpdateStatus(string? text, double progress = -1, string? detail = null)
     {
         bool on = text != null;
         UpdateCapsule.IsVisible = on;
@@ -570,16 +574,62 @@ public partial class MainWindow : Window
         UpdateTextTb.Text = text!;
         UpdateMiniTextTb.Text = text!;
 
+        bool hasDetail = !string.IsNullOrWhiteSpace(detail);
+        UpdateDetailTb.Text = hasDetail ? detail! : "";
+        UpdateDetailTb.IsVisible = hasDetail;
+
         // 进度未知（服务端没给 Content-Length）→ 画 1/4 圈当"进行中"标记，
         // 而不是 0 圈（0 圈看起来像没在动）
         double sweep = progress >= 0 ? Math.Clamp(progress, 0, 1) * 360.0 : 90.0;
         UpdateRingArc.SweepAngle = sweep;
         UpdateMiniRingArc.SweepAngle = sweep;
+
+        // 环颜色跟"其它进度条配置的颜色"一致（2026-09-23 用户要求）——
+        // 主窗口的进度条就是用 App.Settings.AccentColor 画的（见 ApplySettings 里的 progressBrush）。
+        try
+        {
+            var brush = new SolidColorBrush(App.Settings.AccentColor);
+            UpdateRingArc.Stroke = brush;
+            UpdateMiniRingArc.Stroke = brush;
+        }
+        catch { /* 取不到就用 XAML 里的默认色 */ }
+    }
+
+    // ── 课件顺序胶囊（2026-09-23 用户要求）────────────────────
+    // 显示"今天打开哪个文件 / 下一次该打开哪个"。数据来自 AutomationService.GetCoursewareStatus()。
+    // ⚠ 它会枚举课件目录（IO），不能跟着每秒的 UpdateScheduleInfo 跑 → 这里按 ~15 秒节流。
+    private int _coursewareTick;
+
+    private void UpdateCoursewareCapsule()
+    {
+        try
+        {
+            var st = App.Automation?.GetCoursewareStatus();
+            if (st == null) { CoursewareCapsule.IsVisible = false; return; }
+
+            var (_, opened, next) = st.Value;
+            CoursewareCapsule.IsVisible = true;
+            CoursewareOpenedTb.Text = opened.Length > 0 ? $"已开：{opened}" : "尚未打开课件";
+            if (next.Length > 0)
+            {
+                CoursewareNextTb.Text = $"下一份：{next}";
+                CoursewareNextTb.IsVisible = true;
+            }
+            else
+            {
+                CoursewareNextTb.IsVisible = false;
+            }
+        }
+        catch { CoursewareCapsule.IsVisible = false; }
     }
 
     /// <summary>模块二：课程栏（已上科目 | 当前状态 | 未来科目）；上课可收起为紧凑视图</summary>
     private void UpdateScheduleInfo(DateTime now)
     {
+        // 课件顺序胶囊：本方法每秒跑一次，而取状态要枚举课件目录（IO）→ 每 5 秒才真的刷新一次。
+        // 5 秒足够——文件打开是"分钟级"的事，晚几秒显示无所谓；每秒枚举目录则纯属浪费。
+        if (++_coursewareTick >= 5) { _coursewareTick = 0; UpdateCoursewareCapsule(); }
+
         var manager = App.Schedule;
         var today = manager.GetTodayEntries(now.Date);
         var cur = manager.GetCurrentEntry(now);

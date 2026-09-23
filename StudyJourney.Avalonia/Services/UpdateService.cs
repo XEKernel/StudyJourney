@@ -34,17 +34,49 @@ public enum UpdatePhase
 /// <summary>下载进度（Total &lt; 0 表示服务端没给 Content-Length，只能显示已下载量）</summary>
 public sealed class UpdateProgress
 {
-    public UpdateProgress(long received, long total) { Received = received; Total = total; }
+    public UpdateProgress(long received, long total, double bytesPerSecond = 0)
+    {
+        Received = received; Total = total; BytesPerSecond = bytesPerSecond;
+    }
     public long Received { get; }
     public long Total { get; }
+
+    /// <summary>下载速度（字节/秒）。带指数平滑，避免数字乱跳；未知为 0。</summary>
+    public double BytesPerSecond { get; }
 
     /// <summary>0..1；总量未知时返回 -1</summary>
     public double Fraction => Total > 0 ? Math.Min(1.0, (double)Received / Total) : -1;
 
+    /// <summary>2026-09-23：给老师看的速度串，如 "3.2 MB/s"；未知返回空串</summary>
+    public string SpeedText => BytesPerSecond > 0 ? FormatSpeed(BytesPerSecond) : "";
+
+    /// <summary>2026-09-23：已下载/总量，如 "12.4 / 40.9 MB"；总量未知时只显示已下载</summary>
+    public string SizeText => Total > 0
+        ? $"{FormatSize(Received)} / {FormatSize(Total)}"
+        : FormatSize(Received);
+
+    public static string FormatSpeed(double bytesPerSec)
+    {
+        if (bytesPerSec >= 1024 * 1024) return $"{bytesPerSec / 1024 / 1024:0.0} MB/s";
+        if (bytesPerSec >= 1024) return $"{bytesPerSec / 1024:0} KB/s";
+        return $"{bytesPerSec:0} B/s";
+    }
+
+    public static string FormatSize(long bytes)
+    {
+        if (bytes >= 1024L * 1024 * 1024) return $"{bytes / 1024.0 / 1024 / 1024:0.00} GB";
+        if (bytes >= 1024 * 1024) return $"{bytes / 1024.0 / 1024:0.0} MB";
+        if (bytes >= 1024) return $"{bytes / 1024.0:0} KB";
+        return $"{bytes} B";
+    }
+
     public string Describe()
     {
-        static string Mb(long b) => $"{b / 1024.0 / 1024.0:0.0} MB";
-        return Total > 0 ? $"{Mb(Received)} / {Mb(Total)}" : $"已下载 {Mb(Received)}";
+        // 2026-09-23：带上速度（手动更新的进度窗直接显示这个串）
+        string baseText = SizeText.Length > 0
+            ? (Total > 0 ? SizeText : $"已下载 {SizeText}")
+            : "";
+        return SpeedText.Length > 0 ? $"{baseText}  ·  {SpeedText}" : baseText;
     }
 }
 
@@ -112,9 +144,9 @@ public static class UpdateService
                 if (!string.IsNullOrWhiteSpace(info)) return info.Trim();
             }
             var ver = asm.GetName().Version;
-            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.14.1";
+            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "2.16.0";
         }
-        catch { return "2.14.1"; }
+        catch { return "2.16.0"; }
     });
 
     public static string CurrentVersion => _currentVersion.Value;
@@ -344,11 +376,33 @@ public static class UpdateService
             var buffer = new byte[81920];
             long received = 0;
             int n;
+
+            // 速度采样（2026-09-23 新增）：每 500ms 取一次瞬时速度并做指数平滑 ——
+            // 直接用"总字节/总耗时"在开头会剧烈抖动，用瞬时值又跳得厉害；
+            // 进度本身仍每次读取都上报（保证环形进度流畅）。
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+            long lastSampleBytes = 0, lastSampleMs = 0;
+            double speed = 0;
+
             while ((n = await src.ReadAsync(buffer, ct)) > 0)
             {
                 await dst.WriteAsync(buffer.AsMemory(0, n), ct);
                 received += n;
-                progress?.Report(new UpdateProgress(received, total));
+
+                long ms = sw.ElapsedMilliseconds;
+                if (ms - lastSampleMs >= 500)
+                {
+                    double dt = (ms - lastSampleMs) / 1000.0;
+                    if (dt > 0)
+                    {
+                        double instant = (received - lastSampleBytes) / dt;
+                        speed = speed <= 0 ? instant : speed * 0.6 + instant * 0.4;
+                    }
+                    lastSampleBytes = received;
+                    lastSampleMs = ms;
+                }
+
+                progress?.Report(new UpdateProgress(received, total, speed));
             }
             if (received == 0) throw new InvalidOperationException("下载内容为空");
         }

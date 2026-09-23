@@ -373,6 +373,16 @@ namespace StudyJourney.Avalonia.Models
         public List<TeacherAccount> Teachers { get; set; } = new();
 
         /// <summary>
+        /// 课件里的 .pdf 是否用**内置阅读器**打开（而不是系统默认 PDF 程序）。
+        ///
+        /// 2026-09-22 用户要求（规划 2.0「课件打开方式二选一」）：自动化「打开课件」与
+        /// 远程控制台「投递课件」两条路径都受此开关影响。
+        /// 默认开 —— 内置阅读器支持批注（内容坐标系）、续读进度，比外部程序更贴合上课场景；
+        /// 关掉则完全走系统默认关联程序，与旧行为一致。
+        /// </summary>
+        public bool OpenPdfWithBuiltInReader { get; set; } = true;
+
+        /// <summary>
         /// 生成默认老师账号（语数英物化生 6 位 + 管理员 Teacher01）。
         /// #4-阶段2：默认账号存 PBKDF2 哈希（SetPassword），settings.json 不再出现明文密码。
         ///

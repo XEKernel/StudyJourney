@@ -104,14 +104,35 @@
                          而是在栏尾内联一个小胶囊；上课时则显示在紧凑胶囊里（见下方 UpdateMiniCapsule）。
                          进度用环形（Arc 两段：淡色轨道 + 亮色进度），与高考倒计时的环形风格一致。 -->
                     <Border x:Name="UpdateCapsule" CornerRadius="12" Padding="10,6" IsVisible="False">
-                        <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-                            <Grid Width="18" Height="18" VerticalAlignment="Center">
-                                <Arc StartAngle="0" SweepAngle="360" Stroke="#24FFFFFF" StrokeThickness="2.5"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <!-- 环 26px（原 18，用户要求大一点）；颜色由代码按 AccentColor 设置 -->
+                            <Grid Width="26" Height="26" VerticalAlignment="Center">
+                                <Arc StartAngle="0" SweepAngle="360" Stroke="#24FFFFFF" StrokeThickness="3"/>
                                 <Arc x:Name="UpdateRingArc" StartAngle="-90" SweepAngle="0"
-                                     Stroke="#FF4DD0E1" StrokeThickness="2.5" StrokeLineCap="Round"/>
+                                     Stroke="#FF2B6CB0" StrokeThickness="3" StrokeLineCap="Round"/>
                             </Grid>
-                            <TextBlock x:Name="UpdateTextTb" Text="正在下载新版本" FontSize="12" FontWeight="SemiBold"
-                                       Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center" Spacing="1">
+                                <TextBlock x:Name="UpdateTextTb" Text="正在下载新版本" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#FFFFFFFF"/>
+                                <!-- 详情行：下载速度 / 已下载量 / 新旧版本号 -->
+                                <TextBlock x:Name="UpdateDetailTb" Text="" FontSize="10"
+                                           Foreground="#AAFFFFFF" IsVisible="False"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- ══ 课件顺序胶囊（2026-09-23 用户要求）══
+                         显示"今天打开哪个文件 / 下一次该打开哪个"，随自动化推进实时更新。
+                         只在存在"打开课件/文件"类规则且启用时才出现。 -->
+                    <Border x:Name="CoursewareCapsule" CornerRadius="12" Padding="10,6" IsVisible="False">
+                        <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                            <TextBlock Text="📄" FontSize="13" VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center" Spacing="1">
+                                <TextBlock x:Name="CoursewareOpenedTb" Text="" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#FFFFFFFF"/>
+                                <TextBlock x:Name="CoursewareNextTb" Text="" FontSize="10"
+                                           Foreground="#AAFFFFFF" IsVisible="False"/>
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>
@@ -147,10 +168,10 @@
                 <Border x:Name="UpdateMiniCapsule" CornerRadius="10" Background="#26FFFFFF"
                         Padding="7,3" IsVisible="False" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                        <Grid Width="14" Height="14" VerticalAlignment="Center">
-                            <Arc StartAngle="0" SweepAngle="360" Stroke="#33FFFFFF" StrokeThickness="2"/>
+                        <Grid Width="20" Height="20" VerticalAlignment="Center">
+                            <Arc StartAngle="0" SweepAngle="360" Stroke="#33FFFFFF" StrokeThickness="2.5"/>
                             <Arc x:Name="UpdateMiniRingArc" StartAngle="-90" SweepAngle="0"
-                                 Stroke="#FF4DD0E1" StrokeThickness="2" StrokeLineCap="Round"/>
+                                 Stroke="#FF2B6CB0" StrokeThickness="2.5" StrokeLineCap="Round"/>
                         </Grid>
                         <TextBlock x:Name="UpdateMiniTextTb" Text="正在更新" FontSize="11" FontWeight="SemiBold"
                                    Foreground="#FFFFFFFF" VerticalAlignment="Center"/>

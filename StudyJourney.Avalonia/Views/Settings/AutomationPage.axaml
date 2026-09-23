@@ -18,6 +18,18 @@
                     <TextBlock Text="例如：每天 18:00 → 关机；放学时 → 打开课件目录最新文件；闲置 10 分钟 → 关闭屏幕。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap"/>
+
+                    <!-- 课件打开方式二选一（2026-09-22，规划 2.0） -->
+                    <TextBlock Text="课件打开方式" FontSize="13" Margin="0,14,0,2"/>
+                    <RadioButton x:Name="PdfOpenBuiltInRadio" GroupName="PdfOpenMode"
+                                 IsCheckedChanged="PdfOpenMode_Changed"
+                                 Content="用内置 PDF 阅读器打开（可批注、记阅读进度）"/>
+                    <RadioButton x:Name="PdfOpenSystemRadio" GroupName="PdfOpenMode" Margin="0,4,0,0"
+                                 IsCheckedChanged="PdfOpenMode_Changed"
+                                 Content="用系统默认程序打开"/>
+                    <TextBlock Text="影响两条路径：自动化「打开课件」与远程控制台「投递课件」。只对 .pdf 生效，其它格式始终用系统默认程序。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Margin="0,4,0,0" TextWrapping="Wrap"/>
                     <TextBlock Text="规则保存在 automations.json（随软件文件夹分发；「恢复默认设置」不会动它）。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap"/>

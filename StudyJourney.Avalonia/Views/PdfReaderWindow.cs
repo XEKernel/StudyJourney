@@ -33,7 +33,7 @@ namespace StudyJourney.Avalonia.Views;
 ///   · **触屏输入（2026-09-19 重做）**：班级电脑是触屏，老师没有触控笔 → 手指必须能写字。
 ///     原实现 `AllowTouchInk = false` 把手指全留给滚动，结果"白板/屏幕批注都能用手指写、
 ///     只有 PDF 阅读器写不出"（用户反馈）。现在改成两种模式，工具栏一键切换：
-///       · **批注模式**（默认）：手指/笔/鼠标都书写；**双指拖动 = 滚动**（自己实现）；
+///       · **批注模式**（默认）：手指/笔/鼠标都书写；**双指拖动 = 滚动、双指捏合 = 缩放**（自己实现）；
 ///         鼠标滚轮与滚动条照旧。做法是把主题模板里的 `ScrollGestureRecognizer` 摘下来 ——
 ///         否则它会在单指拖动超过阈值时把指针从墨迹层抢走（既断笔迹又滚屏）。
 ///       · **浏览模式**：恢复原生手势（单指拖动滚动），且不产生墨迹（避免"想翻页却画画"）。
@@ -76,7 +76,9 @@ public sealed class PdfReaderWindow : Window, IUnsavedWork
 
     // ── 触屏输入状态（2026-09-19）────────────────────────────
     private readonly Dictionary<int, Point> _touches = new();   // 手指 id → 窗口坐标
-    private bool _multiTouchPan;                                // 双指滚动进行中
+    private bool _multiTouchPan;                                // 双指滚动/缩放进行中
+    private double _pinchStartSpan;                             // 手势开始时的双指间距（缩放基准）
+    private double _pinchStartZoom = 1.0;                       // 手势开始时的缩放值
     private Point _panLast;                                     // 上一次的指心（窗口坐标）
     private ScrollContentPresenter? _contentPresenter;          // 内容视图：滚动识别器挂在它身上
     private ScrollGestureRecognizer? _detachedGesture;          // 被摘下来的滚动识别器
@@ -324,7 +326,7 @@ public sealed class PdfReaderWindow : Window, IUnsavedWork
         if (_touchModeBtn == null) return;
         bool writing = s_touchMode == TouchMode.Ink;
         string tip = writing
-            ? "当前：手指书写（双指拖动滚动）。点一下切到「浏览模式」：单指拖动滚动、不产生墨迹"
+            ? "当前：手指书写（双指拖动滚动 · 双指捏合缩放）。点一下切到「浏览模式」：单指拖动滚动、不产生墨迹"
             : "当前：浏览模式（单指拖动滚动、不批注）。点一下切回「手指书写」";
         _touchModeBtn.Content = BuildButtonContent(writing ? "✋" : "✏", writing ? "手指滚动" : "手指书写", tip);
         _touchModeBtn.Background = writing ? IdleBrush : ActiveBrush;
@@ -353,7 +355,18 @@ public sealed class PdfReaderWindow : Window, IUnsavedWork
                 UpdateInkReadOnly();
             }
             _panLast = TouchCentroid();
+            _pinchStartSpan = TouchSpan();
+            _pinchStartZoom = _zoom;
         }
+    }
+
+    /// <summary>双指间距（缩放用）；不足两指返回 0</summary>
+    private double TouchSpan()
+    {
+        if (_touches.Count < 2) return 0;
+        var pts = _touches.Values.ToList();
+        double dx = pts[0].X - pts[1].X, dy = pts[0].Y - pts[1].Y;
+        return Math.Sqrt(dx * dx + dy * dy);
     }
 
     private void OnTouchMoved(object? sender, PointerEventArgs e)
@@ -367,6 +380,39 @@ public sealed class PdfReaderWindow : Window, IUnsavedWork
         var center = TouchCentroid();
         var delta = center - _panLast;      // 手指移动量（窗口坐标 = 内容坐标 1:1）
         _panLast = center;
+
+        // ── 双指捏合缩放（2026-09-22 新增；原来只有按钮缩放，触屏上不方便）──
+        // 判定阈值放在 6px 且基准间距要够大，避免"两指平行拖动"被误判成缩放。
+        double span = TouchSpan();
+        if (_pinchStartSpan > 30 && span > 0 && Math.Abs(span - _pinchStartSpan) > 6)
+        {
+            double target = Math.Clamp(_pinchStartZoom * (span / _pinchStartSpan), MinZoom, MaxZoom);
+            if (Math.Abs(target - _zoom) > 0.001)
+            {
+                // 以"指心"为锚点：让手指底下那一块内容缩放前后留在原处（否则会飘），
+                // 否则缩放体验很差。算法：把指心换算成内容坐标 p，缩放后再反推 offset。
+                double z1 = _zoom;
+                var pContent = new Vector(
+                    (center.X + _scroll.Offset.X) / z1,
+                    (center.Y + _scroll.Offset.Y) / z1);
+
+                SetZoomMode(ZoomMode.Custom, target);
+
+                // 内容尺寸刚变，ScrollViewer 的 extent 要等一次布局才更新 ——
+                // 立刻设 Offset 会被按旧 extent 夹掉，所以推到布局之后再设。
+                var c = center; var pc = pContent; double z2 = target;
+                global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    try
+                    {
+                        _scroll.Offset = new Vector(pc.X * z2 - c.X, pc.Y * z2 - c.Y);
+                    }
+                    catch { }
+                }, global::Avalonia.Threading.DispatcherPriority.Background);
+                return;   // 本帧只做缩放，不做平移（否则两者互相干扰）
+            }
+        }
+
         // 手指往哪边拖，内容就往哪边走 → 滚动偏移反向；越界由 ScrollViewer 自己夹住
         _scroll.Offset = new Vector(_scroll.Offset.X - delta.X, _scroll.Offset.Y - delta.Y);
     }
@@ -380,7 +426,13 @@ public sealed class PdfReaderWindow : Window, IUnsavedWork
     private void EndTouch(int pointerId)
     {
         if (!_touches.Remove(pointerId)) return;
-        if (_touches.Count >= 2) { _panLast = TouchCentroid(); return; }
+        if (_touches.Count >= 2)
+        {
+            _panLast = TouchCentroid();
+            _pinchStartSpan = TouchSpan();       // 手指数变了要重取基准，否则会"跳"一下
+            _pinchStartZoom = _zoom;
+            return;
+        }
         if (_multiTouchPan && _touches.Count == 0)
         {
             _multiTouchPan = false;
@@ -653,6 +705,11 @@ public sealed class PdfReaderWindow : Window, IUnsavedWork
             _pdf?.Dispose();
             _pdf = renderer;
             _pdfPath = path;
+
+            // 标题带上文件名：① 老师知道当前在看哪份课件；
+            // ② 自动化的"该文件是否已打开"是按窗口标题匹配的（WindowEnumerator），
+            //    原来固定标题 "PDF 阅读 · 学程" 导致内置阅读器打开过的课件检测不到、会重复打开。
+            try { Title = $"{Path.GetFileName(path)} · PDF 阅读 · 学程"; } catch { }
 
             _dirtyInk = false;
             InkDoc.Clear();

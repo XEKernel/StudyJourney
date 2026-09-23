@@ -305,8 +305,8 @@ public partial class App : Application
     {
         var banner = (Current as App)?._mainWindow as MainWindow;
 
-        void SetBanner(string? text, double progress = -1)
-            => Dispatcher.UIThread.Post(() => banner?.ShowUpdateStatus(text, progress));
+        void SetBanner(string? text, double progress = -1, string? detail = null)
+            => Dispatcher.UIThread.Post(() => banner?.ShowUpdateStatus(text, progress, detail));
 
         try
         {
@@ -322,8 +322,19 @@ public partial class App : Application
             // ── 准备阶段：下载 + 解压，但**不启动更新程序** ──
             // ⚠ 必须与"启动"分开：更新程序只等主进程 **15 秒**就强杀，
             //   先拉起它再去等老师关白板 = 保证被强杀、板书照样丢（2026-09-22 修复的缺陷）。
-            SetBanner("正在下载新版本", 0);
-            var progress = new Progress<UpdateProgress>(p => SetBanner("正在下载新版本", p.Fraction));
+            // 详细进度（2026-09-23 用户要求）：短串给"上课中"的小胶囊，长串给完整胶囊，
+            // 长串含 下载进度 / 下载速度 / 已下载量 / 新旧版本号。
+            string verPair = $"{UpdateService.CurrentVersion} → {info.LatestVersion}";
+            SetBanner("正在下载新版本", 0, verPair);
+
+            var progress = new Progress<UpdateProgress>(p =>
+            {
+                string pct = p.Fraction >= 0 ? $" {p.Fraction * 100:0}%" : "";
+                string detail = verPair;
+                if (p.SpeedText.Length > 0) detail += $"  ·  {p.SpeedText}";
+                if (p.SizeText.Length > 0) detail += $"  ·  {p.SizeText}";
+                SetBanner($"正在下载新版本{pct}", p.Fraction, detail);
+            });
 
             void OnPhase(UpdatePhase phase) => SetBanner(phase switch
             {
@@ -331,7 +342,7 @@ public partial class App : Application
                 UpdatePhase.Extracting => "正在解压",
                 UpdatePhase.Restarting => "重启",
                 _ => "正在更新",
-            }, -1);
+            }, -1, verPair);
 
             var prepared = await UpdateService.PrepareUpdateAsync(
                 info.DownloadUrl, zipPath: null, progress: progress, onPhase: OnPhase);
@@ -417,7 +428,7 @@ public partial class App : Application
             Helpers.AppLogger.Info("[Updater] 已无未保存内容，开始安装此前就绪的更新");
 
             var banner = (Current as App)?._mainWindow as MainWindow;
-            void SetBanner(string? t, double pr = -1) => Dispatcher.UIThread.Post(() => banner?.ShowUpdateStatus(t, pr));
+            void SetBanner(string? t, double pr = -1, string? d = null) => Dispatcher.UIThread.Post(() => banner?.ShowUpdateStatus(t, pr, d));
             try { await RestartIntoUpdateAsync(p, SetBanner); }
             catch (Exception ex) { Helpers.AppLogger.Error("[Updater] 暂缓更新安装失败", ex); }
         };
@@ -429,9 +440,9 @@ public partial class App : Application
     /// ⚠ 调用后要么进程消失，要么**什么都没发生**（拉起失败时不退出，否则程序就没了）。
     /// </summary>
     private static async System.Threading.Tasks.Task RestartIntoUpdateAsync(
-        UpdateService.PreparedUpdate prepared, Action<string?, double> setBanner)
+        UpdateService.PreparedUpdate prepared, Action<string?, double, string?> setBanner)
     {
-        setBanner("重启", -1);
+        setBanner("重启", -1, null);
         await System.Threading.Tasks.Task.Delay(400);   // 让"重启"两个字有机会画出来
 
         // 退出前把内存里的设置落盘：窗口位置拖动等只写在内存里，靠 SaveSettings 落盘，
@@ -444,9 +455,9 @@ public partial class App : Application
         if (!UpdateService.LaunchUpdater(prepared, Environment.ProcessId))
         {
             Helpers.AppLogger.Error("[Updater] 更新程序未能启动，放弃本次重启（程序保持运行）");
-            setBanner("更新程序启动失败，稍后将重试", -1);
+            setBanner("更新程序启动失败，稍后将重试", -1, null);
             await System.Threading.Tasks.Task.Delay(6000);
-            setBanner(null, -1);
+            setBanner(null, -1, null);
             return;
         }
 
@@ -545,7 +556,7 @@ public partial class App : Application
             }
 
             win.SwitchToInstalling();
-            await RestartIntoUpdateAsync(prepared, (t, pr) => win?.Phase(t ?? ""));
+            await RestartIntoUpdateAsync(prepared, (t, _, _) => win?.Phase(t ?? ""));
         }
         catch (OperationCanceledException)
         {
@@ -670,6 +681,34 @@ public partial class App : Application
     private static PdfReaderWindow? _pdfReader;
 
     /// <summary>统一入口：打开 PDF 阅读器（托盘 / 全局快捷键 / 主窗口菜单共用）</summary>
+    /// <summary>
+    /// 按"课件打开方式"打开一个课件路径：若开启「用内置阅读器打开 PDF」且确实是 .pdf，
+    /// 就交给内置阅读器并返回 true —— 调用方**不要**再 Process.Start（否则会同时开两个）。
+    /// 否则返回 false，由调用方走系统默认关联程序。
+    ///
+    /// 2026-09-22（规划 2.0 课件打开方式二选一）：自动化「打开课件」与远程「投递课件」共用此入口。
+    /// </summary>
+    public static bool TryOpenCoursewareWithBuiltInReader(string path)
+    {
+        try
+        {
+            if (Settings == null || !Settings.OpenPdfWithBuiltInReader) return false;
+            if (string.IsNullOrWhiteSpace(path)) return false;
+            if (!path.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase)) return false;
+            if (!System.IO.File.Exists(path)) return false;
+
+            OpenPdfReaderGlobal(path);
+            Helpers.AppLogger.Info($"[课件] 用内置阅读器打开：{path}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            // 失败就退回系统默认程序，不能让"开不了课件"这种事发生
+            Helpers.AppLogger.Warn($"[课件] 内置阅读器打开失败，回退系统默认程序: {ex.Message}");
+            return false;
+        }
+    }
+
     public static void OpenPdfReaderGlobal(string? path = null)
     {
         if (_pdfReader is { IsVisible: true })
