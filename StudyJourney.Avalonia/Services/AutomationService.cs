@@ -401,37 +401,61 @@ public class AutomationService : IDisposable
     /// 打开成功后记入跟踪表（进程 Id，供幂等判断）并更新记忆指针。
     /// </summary>
     /// <summary>
-    /// 课件顺序状态（2026-09-23 用户要求）：**今天已打开哪份 / 下一份该打开哪份**，
-    /// 供主窗口胶囊栏常驻显示，老师低头就能看到进度。
+    /// 课件顺序状态（2026-09-23），供主窗口胶囊栏显示 **今天已打开哪份 / 下一份该打开哪份**。
     ///
-    /// 取第一条已启用的「打开课件 / 打开文件」规则（这两类才有顺序记忆语义）。
-    /// ⚠ 会枚举目录（ListCandidates），**调用方不要每秒调**（主窗口按 ~15 秒节流）。
-    /// 没有任何打开类规则、或总开关关闭时返回 null（胶囊隐藏）。
+    /// 2026-09-24 按用户反馈修两处：
+    ///
+    /// ① **不在上课时间段内不显示**。原来无条件显示，"今天没有这门课/还没到上课时间"时
+    ///    也会挂在胶囊栏上，纯属噪音。现在要求：**当前正在上课**（<see cref="ScheduleManager.GetCurrentEntry"/>
+    ///    含 2 分钟预备铃）+ 这条规则**今天会触发**（<see cref="DayMatches"/>）+ **适用课程是当前这门课**
+    ///    （规则没填适用课程则不限）。三者任一不满足就不显示。
+    ///
+    /// ② **软件不能被当成"课件序列"**。原来把 OpenFile 也算进来，而
+    ///    <see cref="ResolveDirectory"/> 对非课件类规则返回的是**目标文件所在目录** ——
+    ///    规则指向 `某软件.exe` 时那就是**软件安装目录**，于是把安装目录里的 dll 当成了"下一份课件"
+    ///    （用户实际看到的怪异现象）。现在 OpenFile 只在目标**是文档类**时才参与，
+    ///    可执行程序/快捷方式一律排除。
+    ///
+    /// ⚠ 会枚举目录（ListCandidates），调用方**不要每秒调**（主窗口按 5 秒节流）。
     /// </summary>
-    public (string RuleName, string Opened, string Next)? GetCoursewareStatus()
+    public (string RuleName, string Subject, string Opened, string Next)? GetCoursewareStatus()
     {
         try
         {
             if (_data?.Enabled != true || _data.Rules == null) return null;
 
+            var now = DateTime.Now;
+
+            // ① 只在"正在上课"时显示（GetCurrentEntry 已含 2 分钟预备铃窗口）
+            var cur = _manager.GetCurrentEntry(now);
+            if (cur == null) return null;
+
             foreach (var rule in _data.Rules)
             {
                 if (!rule.Enabled) continue;
-                if (rule.ActionKind is not (AutomationActionKind.OpenCourseware or AutomationActionKind.OpenFile))
+                if (!IsSequenceCoursewareRule(rule)) continue;
+
+                // 今天这条规则会触发吗（按星期几；调休已由 GetEffectiveDayOfWeek 处理）
+                if (!DayMatches(rule, now)) continue;
+
+                // 适用课程必须是当前这门课（规则没填适用课程 = 不限）
+                if (!string.IsNullOrWhiteSpace(rule.TriggerSubject) &&
+                    !string.Equals(cur.Subject, rule.TriggerSubject, StringComparison.Ordinal))
                     continue;
 
                 var ptr = OpenStateStore.GetPointer(rule.Id);
                 string opened = string.IsNullOrWhiteSpace(ptr) ? "" : Path.GetFileName(ptr);
+                string openedFull = ptr;
 
-                var candidates = Helpers.FileSequence.ListCandidates(ResolveDirectory(rule, null));
-                string next = "";
+                var candidates = Helpers.FileSequence.ListCandidates(ResolveDirectory(rule, cur.Subject));
+                string next = "", nextFull = "";
                 if (candidates.Count > 0)
                 {
                     var nx = Helpers.FileSequence.Next(string.IsNullOrWhiteSpace(ptr) ? null : ptr, candidates);
-                    if (!string.IsNullOrWhiteSpace(nx)) next = Path.GetFileName(nx);
+                    if (!string.IsNullOrWhiteSpace(nx)) { next = Path.GetFileName(nx); nextFull = nx; }
                 }
 
-                return (rule.Name, opened, next);
+                return (rule.Name, cur.Subject, opened, next);
             }
         }
         catch (Exception ex)
@@ -439,6 +463,27 @@ public class AutomationService : IDisposable
             Helpers.AppLogger.Warn($"[课件顺序] 取状态失败: {ex.Message}");
         }
         return null;
+    }
+
+    /// <summary>
+    /// 这条规则是否属于"按顺序翻的一份份课件"。
+    /// 「打开课件」永远是；「打开文件」只有目标是**文档/媒体类**时才算 ——
+    /// 指向 .exe/.lnk 等可执行文件的规则是"打开某个软件"，没有"下一份"的概念，
+    /// 硬算只会把软件安装目录里的文件当成课件（2026-09-24 修的 bug）。
+    /// </summary>
+    internal static bool IsSequenceCoursewareRule(AutomationRule rule)
+    {
+        if (rule.ActionKind == AutomationActionKind.OpenCourseware) return true;
+        if (rule.ActionKind != AutomationActionKind.OpenFile) return false;
+
+        var ext = "";
+        try { ext = Path.GetExtension(rule.ActionPath?.Trim() ?? "").ToLowerInvariant(); } catch { }
+        return ext switch
+        {
+            ".exe" or ".lnk" or ".bat" or ".cmd" or ".com" or ".msi" or ".scr" or ".ps1" => false,
+            "" => false,          // 没填路径/没有扩展名 → 无从判断，保守排除
+            _ => true,            // 文档、媒体、其它一律当作课件序列
+        };
     }
 
     private void OpenResolved(AutomationRule rule, string? subject)

@@ -607,9 +607,13 @@ public partial class MainWindow : Window
             var st = App.Automation?.GetCoursewareStatus();
             if (st == null) { CoursewareCapsule.IsVisible = false; return; }
 
-            var (_, opened, next) = st.Value;
+            var (ruleName, subject, opened, next) = st.Value;
             CoursewareCapsule.IsVisible = true;
-            CoursewareOpenedTb.Text = opened.Length > 0 ? $"已开：{opened}" : "尚未打开课件";
+
+            // 带科目前缀，老师一眼知道这是哪门课的课件
+            string subj = subject.Length > 0 ? $"{subject}  " : "";
+            CoursewareOpenedTb.Text = opened.Length > 0 ? $"{subj}已开：{opened}" : $"{subj}尚未打开课件";
+
             if (next.Length > 0)
             {
                 CoursewareNextTb.Text = $"下一份：{next}";
@@ -619,6 +623,12 @@ public partial class MainWindow : Window
             {
                 CoursewareNextTb.IsVisible = false;
             }
+
+            // 名字被省略号截断了，完整信息放 ToolTip（鼠标悬停可看全）
+            string tip = $"规则：{ruleName}";
+            if (opened.Length > 0) tip += "\n已打开：" + opened;
+            if (next.Length > 0) tip += "\n下一份：" + next;
+            ToolTip.SetTip(CoursewareCapsule, tip);
         }
         catch { CoursewareCapsule.IsVisible = false; }
     }

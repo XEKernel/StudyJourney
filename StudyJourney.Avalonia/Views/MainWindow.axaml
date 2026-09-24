@@ -128,10 +128,14 @@
                         <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
                             <TextBlock Text="📄" FontSize="13" VerticalAlignment="Center"/>
                             <StackPanel VerticalAlignment="Center" Spacing="1">
+                                <!-- 文件名可能很长（"第3讲 三角函数图像与性质.pdf"）→
+                                     限制宽度 + 省略号，完整路径放 ToolTip，别让胶囊被撑爆 -->
                                 <TextBlock x:Name="CoursewareOpenedTb" Text="" FontSize="12" FontWeight="SemiBold"
-                                           Foreground="#FFFFFFFF"/>
+                                           Foreground="#FFFFFFFF" MaxWidth="200"
+                                           TextTrimming="CharacterEllipsis"/>
                                 <TextBlock x:Name="CoursewareNextTb" Text="" FontSize="10"
-                                           Foreground="#AAFFFFFF" IsVisible="False"/>
+                                           Foreground="#AAFFFFFF" IsVisible="False" MaxWidth="200"
+                                           TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
                         </StackPanel>
                     </Border>

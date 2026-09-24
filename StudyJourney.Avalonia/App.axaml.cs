@@ -226,6 +226,9 @@ public partial class App : Application
             case "makeup":
                 Dispatcher.UIThread.Post(RunMakeupSelfTest, DispatcherPriority.Background);
                 break;
+            case "courseware":
+                Dispatcher.UIThread.Post(RunCoursewareSelfTest, DispatcherPriority.Background);
+                break;
             default:
                 Helpers.AppLogger.Warn($"未知自检模式：{mode}");
                 Environment.Exit(2);
@@ -1026,6 +1029,68 @@ public partial class App : Application
     ///
     /// 同时确认源生成器确实接管了：走的是 AppJsonContext（编译期元数据），不是反射。
     /// </summary>
+    /// <summary>
+    /// 课件序列规则判定自检（SJ_SELFTEST=courseware）。
+    ///
+    /// 2026-09-24 用户反馈的 bug：某节课的自动化只是“打开一个软件”，
+    /// 但主窗口胶囊却显示“下一份：<某 dll>” —— 因为判定把「打开文件」也算成课件序列，
+    /// 而它的目录被解析成了**软件安装目录**，于是把安装目录里的文件当成了“下一份课件”。
+    /// 这个判定错得**不会报错**，只会显示莫名其妙的文件名，所以必须钉住。
+    /// </summary>
+    private static void RunCoursewareSelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            sb.AppendLine("[CWTEST] 课件序列规则判定自检开始");
+
+            static Models.AutomationRule R(Models.AutomationActionKind kind, string path) => new()
+            {
+                Name = "t", Enabled = true, ActionKind = kind, ActionPath = path,
+            };
+
+            var D = "D:" + '\\' + '\\';   // 拼出 D:\\
+
+            var cases = new (Models.AutomationRule Rule, bool Expect, string Desc)[]
+            {
+                (R(Models.AutomationActionKind.OpenCourseware, ""),              true,  "打开课件（无路径）→ 算序列"),
+                (R(Models.AutomationActionKind.OpenCourseware, D + "课件"),      true,  "打开课件（目录）→ 算序列"),
+                (R(Models.AutomationActionKind.OpenFile, D + "Soft" + D + "EV.exe"), false, "★打开 .exe 软件 → 不算序列"),
+                (R(Models.AutomationActionKind.OpenFile, D + "Soft" + D + "X.LNK"), false, "打开快捷方式 .lnk → 不算序列"),
+                (R(Models.AutomationActionKind.OpenFile, D + "a" + D + "run.bat"), false, "打开 .bat → 不算序列"),
+                (R(Models.AutomationActionKind.OpenFile, D + "a" + D + "setup.msi"), false, "打开 .msi → 不算序列"),
+                (R(Models.AutomationActionKind.OpenFile, D + "课件" + D + "第1讲.pdf"), true,  "打开 .pdf → 算序列"),
+                (R(Models.AutomationActionKind.OpenFile, D + "课件" + D + "第1讲.pptx"), true, "打开 .pptx → 算序列"),
+                (R(Models.AutomationActionKind.OpenFile, D + "课件" + D + "a.mp4"), true,  "打开 .mp4 → 算序列"),
+                (R(Models.AutomationActionKind.OpenFile, ""),                  false, "打开文件但没填路径 → 不算序列"),
+                (R(Models.AutomationActionKind.ScreenOff, D + "x.pdf"),        false, "熄屏 → 不算序列"),
+                (R(Models.AutomationActionKind.PlayAudio, D + "x.mp3"),       false, "播放音频 → 不算序列"),
+                (R(Models.AutomationActionKind.OpenWhiteboard, ""),            false, "开白板 → 不算序列"),
+            };
+
+            foreach (var (rule, expect, desc) in cases)
+            {
+                bool got = Services.AutomationService.IsSequenceCoursewareRule(rule);
+                bool ok = got == expect;
+                sb.AppendLine($"[CWTEST]   {(ok ? "ok" : "✗")} {desc,-32} 期望 {(expect ? "算" : "不算")} 实际 {(got ? "算" : "不算")}");
+                if (!ok) throw new Exception($"课件序列判定不符：{desc}");
+            }
+
+            sb.AppendLine("[CWTEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[CWTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
     /// <summary>
     /// 调休（补课日）映射自检（SJ_SELFTEST=makeup）。
     ///
