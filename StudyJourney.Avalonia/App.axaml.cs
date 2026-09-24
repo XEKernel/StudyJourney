@@ -1048,6 +1048,7 @@ public partial class App : Application
     {
         var sb = new System.Text.StringBuilder();
         string? producedZip = null;
+        string? probeDir = null;   // 自检造的"额外目录"探针，跑完要删掉
         try
         {
             sb.AppendLine("[DIAGTEST] 诊断包 / 课件序号自检开始");
@@ -1080,6 +1081,25 @@ public partial class App : Application
                           "中文数字（一/三/十/廿/卅 + 大写体）与误报抑制均已覆盖");
 
             // ── ② 诊断包端到端 ──
+            // 先造一个"额外目录"并把深度调到 3，验证 2026-09-24 新增的「自定义打包内容」真的生效。
+            // ⚠ 只改**内存中**的设置、不调用 SaveSettings，自检结束就 Exit → 不会污染老师的配置。
+            try
+            {
+                probeDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "SJDiagProbe");
+                System.IO.Directory.CreateDirectory(probeDir);
+                System.IO.Directory.CreateDirectory(System.IO.Path.Combine(probeDir, "子目录A"));
+                System.IO.File.WriteAllText(System.IO.Path.Combine(probeDir, "探针课件 第3讲.pdf"), "x");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(probeDir, "子目录A", "深层文件.txt"), "x");
+
+                App.Settings.DiagExtraDirs = probeDir;
+                App.Settings.DiagDesktopTreeDepth = 3;
+                App.Settings.DiagIncludeCoursewareTree = false;   // 不依赖自动化配置，保证可重复
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"[DIAGTEST]   （准备探针目录失败，该项将失败：{ex.Message}）");
+            }
+
             string? zip = Services.DiagnosticPackager.Create();
             if (zip == null) throw new Exception("诊断包生成返回 null（详见日志）");
             producedZip = zip;
@@ -1097,6 +1117,30 @@ public partial class App : Application
                     bool ok = names.Any(x => x == w);
                     sb.AppendLine($"[DIAGTEST]   {(ok ? "ok" : "✗")} 包内含 {w}");
                     if (!ok) throw new Exception("诊断包缺少 " + w);
+                }
+
+                // 新增功能（2026-09-24）：自定义打包内容 —— 额外目录树必须生成且展开到位
+                bool extraInPack = names.Any(x => x == "额外目录树.txt");
+                sb.AppendLine($"[DIAGTEST]   {(extraInPack ? "ok" : "✗")} 包内含 额外目录树.txt（自定义打包内容生效）");
+                if (!extraInPack) throw new Exception("诊断包缺少 额外目录树.txt —— 自定义目录没生效");
+
+                var entry = za.GetEntry("额外目录树.txt");
+                if (entry != null)
+                {
+                    using var r = new System.IO.StreamReader(entry.Open());
+                    string tree = r.ReadToEnd();
+
+                    bool hasPath = tree.Contains(probeDir ?? "\u0000", StringComparison.OrdinalIgnoreCase);
+                    bool hasSub = tree.Contains("子目录A", StringComparison.Ordinal);
+                    bool hasDeep = tree.Contains("深层文件.txt", StringComparison.Ordinal);
+                    bool hasFile = tree.Contains("探针课件 第3讲.pdf", StringComparison.Ordinal);
+
+                    sb.AppendLine($"[DIAGTEST]   {(hasPath ? "ok" : "✗")} 额外目录树写明了指定目录的路径");
+                    sb.AppendLine($"[DIAGTEST]   {(hasFile ? "ok" : "✗")} 额外目录树列出了目录下的文件");
+                    sb.AppendLine($"[DIAGTEST]   {(hasSub && hasDeep ? "ok" : "✗")} 额外目录树展开了子目录与深层文件（深度生效）");
+                    if (!hasPath) throw new Exception("额外目录树里没有指定目录的路径");
+                    if (!hasFile) throw new Exception("额外目录树没有列出目录下的文件");
+                    if (!(hasSub && hasDeep)) throw new Exception("额外目录树的深度没生效（子目录/深层文件缺失）");
                 }
 
                 bool cfg = names.Any(x => x.StartsWith("配置/", StringComparison.Ordinal));
@@ -1129,6 +1173,8 @@ public partial class App : Application
         finally
         {
             try { if (producedZip != null && System.IO.File.Exists(producedZip)) System.IO.File.Delete(producedZip); }
+            catch { }
+            try { if (probeDir != null && System.IO.Directory.Exists(probeDir)) System.IO.Directory.Delete(probeDir, true); }
             catch { }
         }
 

@@ -60,13 +60,34 @@
                                FontSize= "11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap" Margin="24,0,0,0"/>
 
+                    <!-- 打包内容（2026-09-24 用户要求：树深一点 / 内容可自定义） -->
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
+                        <TextBlock Text="目录树深度" FontSize="12" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                        <ComboBox x:Name="DiagDepthCombo" Width="96" FontSize="12"
+                                  SelectionChanged="DiagOption_Changed">
+                            <ComboBoxItem Content="3 层"/>
+                            <ComboBoxItem Content="5 层"/>
+                            <ComboBoxItem Content="8 层"/>
+                            <ComboBoxItem Content="12 层"/>
+                        </ComboBox>
+                        <CheckBox x:Name="DiagCoursewareTreeCheck" FontSize="12" VerticalAlignment="Center"
+                                  Content="附带课件目录树" IsCheckedChanged="DiagOption_Changed"/>
+                    </StackPanel>
+                    <TextBlock Text="额外要打包目录树的路径（每行一个，可填教学资料盘 / U 盘；留空则不加）"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap" Margin="0,2,0,0"/>
+                    <TextBox x:Name="DiagExtraDirsBox" FontSize="12" AcceptsReturn="True" MinHeight="50"
+                             TextWrapping="Wrap" LostFocus="DiagExtraDirs_LostFocus"
+                             Watermark="D:\教学资料"/>
+
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
                         <Button x:Name="DiagPackBtn" Content="生成诊断包…" Click="DiagPackBtn_Click"/>
                         <TextBlock x:Name="DiagStatusTb" Text="" FontSize="12" VerticalAlignment="Center"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                    TextWrapping="Wrap" MaxWidth="360"/>
                     </StackPanel>
-                    <TextBlock Text="诊断包含：活动记录 / 课件清单（带解析出的序号）/ 桌面文件树 / 配置快照（已剔除密码）/ 系统信息 / 日志尾部。生成到桌面。"
+                    <TextBlock Text="诊断包含：活动记录 / 课件清单（带解析序号）/ 桌面文件树 / 课件目录树 / 额外目录树 / 配置快照（已剔除密码，不含 token）/ 系统信息 / 日志尾部。生成到桌面。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap"/>
                 </StackPanel>

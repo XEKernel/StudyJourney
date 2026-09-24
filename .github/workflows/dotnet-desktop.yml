@@ -128,6 +128,27 @@ jobs:
         shell: pwsh
         run: Remove-Item -Path "StudyJourney.pfx" -Force -ErrorAction SilentlyContinue
 
+      # ── 生成安装清单（供更新器差分清理旧文件） ──
+      # 2026-09-24 新增：更新一直是"只覆盖、不删除"，旧版本独有的文件会永远留在程序目录里。
+      # 清单列出包内所有文件的相对路径（正斜杠、排序、UTF-8 无 BOM），更新器拿它和
+      # 目标目录里上一次安装的清单做差分 → 只删"我们装进去过、这次不再有了"的文件。
+      # ⚠ 必须在签名定稿之后、打包之前生成，确保清单与实际入包内容逐字一致。
+      - name: Generate install manifest
+        shell: pwsh
+        run: |
+          foreach ($d in @('publish\sc', 'publish\fd')) {
+            $root = (Resolve-Path $d).Path
+            $len  = $root.Length + 1
+            $list = Get-ChildItem -Path $root -Recurse -File |
+                      ForEach-Object { $_.FullName.Substring($len).Replace('\', '/') } |
+                      Sort-Object
+            if ($list.Count -lt 10) { throw "$d 文件数异常（$($list.Count)），清单不生成" }
+            $out = Join-Path $root 'install-manifest.txt'
+            # 显式用无 BOM 的 UTF8（更新器按行读，BOM 会污染第一行）
+            [System.IO.File]::WriteAllLines($out, [string[]]$list, (New-Object System.Text.UTF8Encoding($false)))
+            Write-Host "$d → 清单写入 $($list.Count) 个文件"
+          }
+
       # ── 打包（带版本号） ──
       - name: Pack SC zip
         shell: pwsh

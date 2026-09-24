@@ -106,7 +106,17 @@ class Program
                     Log("⚠ 本进程正跑在目标目录里（旧版主程序的行为）：将跳过更新程序自身那一组文件");
                 string? skipPrefix = runningInsideTarget ? "StudyJourney.Updater." : null;
 
+                // 3.0 先算出"该删哪些旧文件"。
+                //     ⚠ 必须在复制**之前**读旧清单 —— 复制会把目标目录里那份
+                //       install-manifest.txt 覆盖成本次包里的新清单，之后就比不出来了。
+                var removedList = PlanRemovedFiles(workDir, opts.TargetDir);
+
                 failedFiles = CopyDirectory(workDir, opts.TargetDir, skipPrefix);
+
+                // 3.5 再执行清理。顺序是「先复制、后删除」而不是反过来：
+                //     万一删除环节出问题，程序目录仍是**完整可用**的（只是多了几个旧文件）；
+                //     反过来的话就可能出现"旧的删了、新的没拷进来"的残缺状态。
+                DeletePlannedFiles(removedList, opts.TargetDir);
 
                 // 4. 清理临时内容
                 //    ⚠ 本进程就跑在 workDir 里时当场删不掉自己（exe/dll 被占用）→ 交给
@@ -147,7 +157,10 @@ class Program
             catch (Exception ex)
             {
                 Log($"启动新版本失败：{ex.Message}");
-                ShowWarn($"启动新版本失败：{ex.Message}\n\n请手动打开：\n{opts.ExePath}");
+                // ⚠ 文案必须说清"文件已经换好了"。2026-09-24 用户看到这条提示时第一反应是
+                //    "更新失败了"，其实更新已经完成、只是自动启动那一步没成功 —— 两回事。
+                ShowWarn("学程已更新完成，但没能自动打开它。\n\n请手动打开：\n" +
+                         opts.ExePath + "\n\n（原因：" + ex.Message + "）");
             }
 
             // 5.5 有个别文件没覆盖成功时告诉老师（但仍然照常重启：程序退不回去，
@@ -315,6 +328,161 @@ class Program
         Log($"复制完成：成功 {copied} 个；跳过更新器自身 {skipped} 个；" +
             $"跳过用户数据 {protectedSkipped} 个；失败 {failed.Count} 个");
         return failed;
+    }
+
+    /// <summary>
+    /// 安装清单文件名。**必须与 CI 生成的那份逐字一致**
+    /// （`.github/workflows/dotnet-desktop.yml` 的 "Generate install manifest" 步骤）。
+    /// </summary>
+    private const string ManifestFileName = "install-manifest.txt";
+
+    /// <summary>
+    /// 算出"上一次装着、但本次包里已经没有了"的文件（相对路径列表）。
+    ///
+    /// 背景（2026-09-24 用户提出）：更新一直是**只覆盖、不删除** —— 旧版本独有的文件
+    /// （合并掉的 DLL、改名的资源）会永远留在程序目录里。轻则目录越来越乱、可能加载到
+    /// 旧组件；将来切 NativeAOT 单文件分发时，残留的几十个运行时 DLL 更是会让"单文件"
+    /// 变成假象。
+    ///
+    /// 关键设计：用**清单差分**，而不是"扫描目录里多余的文件然后删掉"。
+    ///   新清单 = 本次包内 install-manifest.txt 列出的文件
+    ///   旧清单 = 目标目录里 install-manifest.txt（上一次安装时随包写下的）
+    ///   要删的 = 旧清单 − 新清单
+    /// 这样**只删我们曾经装进去的东西** —— 老师自己往程序目录里放的任何文件都不在旧清单里，
+    /// 天然不会被碰；用户数据文件（settings.json 等）另有一层名单保险。
+    ///
+    /// ⚠ 目标目录没有旧清单时**直接跳过**（不删任何文件）：那是"第一个带清单的版本"，
+    ///   本次装好后从下一次更新起才具备清理能力。**绝不要**改成"扫到多余的就删" ——
+    ///   那会开始吃老师的文件。
+    /// </summary>
+    private static List<string> PlanRemovedFiles(string newContentDir, string targetDir)
+    {
+        var newSet = ReadManifest(newContentDir);
+        if (newSet == null)
+        {
+            Log("本次包里没有安装清单（旧包或手工准备的目录）→ 跳过旧文件清理");
+            return new List<string>();
+        }
+
+        var oldSet = ReadManifest(targetDir);
+        if (oldSet == null)
+        {
+            Log("目标目录没有安装清单（首次带清单安装）→ 本次不删除任何文件；" +
+                "装好后，从下一次更新开始具备清理旧文件的能力");
+            return new List<string>();
+        }
+
+        var toDelete = oldSet.Where(x => !newSet.Contains(x)).ToList();
+        Log(toDelete.Count == 0
+            ? "旧文件清理：没有需要删除的文件"
+            : $"旧文件清理：待删除 {toDelete.Count} 个（旧清单 {oldSet.Count} 项 − 新清单 {newSet.Count} 项）");
+        return toDelete;
+    }
+
+    /// <summary>执行 <see cref="PlanRemovedFiles"/> 算出的删除列表。单个失败不影响其余，也不影响更新结果。</summary>
+    private static void DeletePlannedFiles(List<string> toDelete, string targetDir)
+    {
+        if (toDelete.Count == 0) return;
+
+        string fullTarget = Path.GetFullPath(targetDir).TrimEnd('\\', '/');
+        int ok = 0, missing = 0, skipped = 0, failed = 0;
+
+        foreach (string rel in toDelete)
+        {
+            if (!IsSafeRelativePath(rel))
+            {
+                Log($"⚠ 清单里的路径不安全，跳过：{rel}");
+                failed++;
+                continue;
+            }
+
+            string path = Path.GetFullPath(Path.Combine(fullTarget, rel.Replace('/', Path.DirectorySeparatorChar)));
+
+            // 双保险：解析后必须真的落在目标目录内（防 `..` 逃逸、盘符跳转）
+            if (!path.StartsWith(fullTarget + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+            {
+                Log($"⚠ 解析后不在目标目录内，跳过：{rel}");
+                failed++;
+                continue;
+            }
+
+            // 用户数据文件永远不删（即使它诡异地出现在清单里也不动）
+            if (IsProtectedUserData(Path.GetFileName(path)))
+            {
+                Log($"跳过用户数据文件（不删除）：{rel}");
+                skipped++;
+                continue;
+            }
+
+            try
+            {
+                if (!File.Exists(path)) { missing++; continue; }
+                File.Delete(path);
+                ok++;
+                Log($"已清理旧文件：{rel}");
+            }
+            catch (Exception ex)
+            {
+                // 被占用/权限不足都只记录 —— 多留一个旧文件不影响使用，绝不能因此让更新失败
+                failed++;
+                Log($"清理失败（不影响本次更新）：{rel} — {ex.Message}");
+            }
+        }
+
+        Log($"旧文件清理结果：删除 {ok} 个；本来就不存在 {missing} 个；" +
+            $"保护跳过 {skipped} 个；失败 {failed} 个");
+
+        // 顺手删掉因此变空的目录（按路径长度倒序 = 先深后浅，否则删父目录时里面还有东西）
+        try
+        {
+            foreach (string dir in Directory.GetDirectories(fullTarget, "*", SearchOption.AllDirectories)
+                                         .OrderByDescending(d => d.Length))
+            {
+                if (!Directory.EnumerateFileSystemEntries(dir).Any())
+                {
+                    Directory.Delete(dir);
+                    Log($"已清理空目录：{Path.GetRelativePath(fullTarget, dir)}");
+                }
+            }
+        }
+        catch { /* 清理空目录纯属锦上添花，失败无所谓 */ }
+    }
+
+    /// <summary>读安装清单（正斜杠归一化）。文件不存在或读不出 → null，调用方据此跳过清理。</summary>
+    private static HashSet<string>? ReadManifest(string dir)
+    {
+        try
+        {
+            string file = Path.Combine(dir, ManifestFileName);
+            if (!File.Exists(file)) return null;
+
+            var set = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string raw in File.ReadAllLines(file))
+            {
+                string line = raw.Trim().TrimStart('\uFEFF').Replace('\\', '/').TrimStart('/');
+                if (line.Length == 0) continue;
+                set.Add(line);
+            }
+            return set.Count > 0 ? set : null;
+        }
+        catch (Exception ex)
+        {
+            Log($"读取安装清单失败（按「无清单」处理，即不删除任何文件）：{dir} — {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>清单里的相对路径是否安全（不接受绝对路径、盘符/ADS、空段、`.` 与 `..`）</summary>
+    private static bool IsSafeRelativePath(string rel)
+    {
+        if (string.IsNullOrWhiteSpace(rel)) return false;
+        if (rel.Contains(':')) return false;
+        if (Path.IsPathRooted(rel)) return false;
+
+        foreach (string seg in rel.Split('/', '\\'))
+            if (seg.Length == 0 || seg == "." || seg == "..") return false;
+
+        return true;
     }
 
     /// <summary>带退避重试的覆盖复制（共享冲突/权限问题大多是短暂的）</summary>

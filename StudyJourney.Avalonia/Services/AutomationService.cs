@@ -418,6 +418,43 @@ public class AutomationService : IDisposable
     ///
     /// ⚠ 会枚举目录（ListCandidates），调用方**不要每秒调**（主窗口按 5 秒节流）。
     /// </summary>
+    /// <summary>
+    /// 列出所有"打开类"规则涉及的课件目录（去重、已校验存在）。
+    ///
+    /// 供诊断包生成**课件目录树**（2026-09-24）：分析"老师实际按什么顺序打开课件"时，
+    /// 光有文件名列表看不出目录层级与分组，需要真实目录结构。
+    /// ⚠ 复用 <see cref="IsSequenceCoursewareRule"/>，所以"打开某个软件"的规则不会被算进来
+    /// （否则会把软件安装目录整棵树打进包里，既没用又长）。
+    /// </summary>
+    public List<string> GetCoursewareDirectories()
+    {
+        var result = new List<string>();
+        try
+        {
+            if (_data?.Rules == null) return result;
+
+            foreach (var rule in _data.Rules)
+            {
+                if (!rule.Enabled) continue;
+                if (rule.ActionKind is not (AutomationActionKind.OpenCourseware or AutomationActionKind.OpenFile))
+                    continue;
+                if (!IsSequenceCoursewareRule(rule)) continue;
+
+                string dir = ResolveDirectory(rule, null);
+                if (string.IsNullOrWhiteSpace(dir)) continue;
+                if (!Directory.Exists(dir)) continue;
+                if (result.Contains(dir, StringComparer.OrdinalIgnoreCase)) continue;
+
+                result.Add(dir);
+            }
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn($"[诊断包] 收集课件目录失败：{ex.Message}");
+        }
+        return result;
+    }
+
     public (string RuleName, string Subject, string Opened, string Next)? GetCoursewareStatus()
     {
         try

@@ -393,6 +393,25 @@ namespace StudyJourney.Avalonia.Models
         /// </summary>
         public bool RecordActivity { get; set; }
 
+        /// <summary>
+        /// 诊断包里**目录树的深度**（2026-09-24 用户要求"桌面文件树深一些"；原硬编码为 3）。
+        /// 桌面和课件目录都按这个深度展开，默认 5，可用范围 2~12。
+        /// 条目上限随深度自动放大（depth×2500，封顶 3 万），避免生成几十 MB 的文本文件。
+        /// </summary>
+        public int DiagDesktopTreeDepth { get; set; } = 5;
+
+        /// <summary>
+        /// 诊断包是否附带**课件目录树**（默认开）。目录来自自动化里所有"打开类"规则 ——
+        /// 分析"课件顺序规律"必须看到真实目录结构，只靠课件清单（文件名列表）看不出层级。
+        /// </summary>
+        public bool DiagIncludeCoursewareTree { get; set; } = true;
+
+        /// <summary>
+        /// 诊断包额外要打包目录树的路径（分号 / 换行 / 竖线分隔；空 = 不加）。
+        /// 用户自己指定要看哪些目录，例如教学资料盘、U 盘里的课件目录。
+        /// </summary>
+        public string DiagExtraDirs { get; set; } = "";
+
 
         /// <summary>
         /// 生成默认老师账号（语数英物化生 6 位 + 管理员 Teacher01）。

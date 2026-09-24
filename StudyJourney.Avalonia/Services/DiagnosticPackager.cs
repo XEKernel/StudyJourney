@@ -32,6 +32,11 @@ public static class DiagnosticPackager
             notes.Add($"版本：{UpdateService.CurrentVersion}");
             notes.Add("");
 
+            // 读诊断包相关设置（2026-09-24：深度与打包内容可自定义）
+            var settings = App.Settings;
+            int depth = Math.Clamp(settings?.DiagDesktopTreeDepth ?? 5, 2, 12);
+            int maxEntries = MaxEntriesFor(depth);
+
             int n;
 
             // ① 活动记录（一天一个 jsonl）
@@ -43,8 +48,31 @@ public static class DiagnosticPackager
             notes.Add($"课件清单.txt   —— {n} 个课件（含解析出的序号、大小、修改时间）");
 
             // ③ 桌面文件树
-            n = WriteDesktopTree(Path.Combine(root, "桌面文件树.txt"));
-            notes.Add($"桌面文件树.txt —— {n} 个条目（深度≤3，桌面目录）");
+            n = WriteDesktopTree(Path.Combine(root, "桌面文件树.txt"), depth, maxEntries);
+            notes.Add($"桌面文件树.txt —— {n} 个条目（深度≤{depth}，桌面目录）");
+
+            // ③b 课件目录树（来自自动化里所有「打开课件/文件」规则）
+            if (settings?.DiagIncludeCoursewareTree != false)
+            {
+                var cwDirs = App.Automation?.GetCoursewareDirectories() ?? new List<string>();
+                if (cwDirs.Count > 0)
+                {
+                    n = WriteDirTrees(Path.Combine(root, "课件目录树.txt"), "课件目录树", cwDirs, depth, maxEntries);
+                    notes.Add($"课件目录树.txt—— {n} 个条目（{cwDirs.Count} 个目录，来自自动化「打开课件/文件」规则）");
+                }
+                else
+                {
+                    notes.Add("课件目录树.txt—— 未生成（自动化里没有可用的「打开课件/文件」规则）");
+                }
+            }
+
+            // ③c 用户指定的额外目录树
+            var extraDirs = ParseDirs(settings?.DiagExtraDirs);
+            if (extraDirs.Count > 0)
+            {
+                n = WriteDirTrees(Path.Combine(root, "额外目录树.txt"), "额外目录树", extraDirs, depth, maxEntries);
+                notes.Add($"额外目录树.txt—— {n} 个条目（{extraDirs.Count} 个自定义目录）");
+            }
 
             // ④ 配置快照（脱敏）
             n = WriteConfigSnapshots(Path.Combine(root, "配置"));
@@ -153,11 +181,14 @@ public static class DiagnosticPackager
         return total;
     }
 
-    /// <summary>桌面文件树（限深度与数量，避免桌面东西多时生成一个巨长的文件）</summary>
-    private static int WriteDesktopTree(string outFile)
+    /// <summary>按深度换算条目上限（深度越大允许越多，但封顶 3 万，避免生成几十 MB 文本）</summary>
+    private static int MaxEntriesFor(int depth) => Math.Min(Math.Max(depth, 3) * 2500, 30000);
+
+    /// <summary>桌面文件树（深度与条目上限由设置决定，见 AppSettings.DiagDesktopTreeDepth）</summary>
+    private static int WriteDesktopTree(string outFile, int depth, int maxEntries)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("桌面文件树（深度 ≤ 3）");
+        sb.AppendLine($"桌面文件树（深度 ≤ {depth}，条目上限 {maxEntries}）");
         sb.AppendLine($"生成时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}");
         sb.AppendLine();
 
@@ -167,7 +198,7 @@ public static class DiagnosticPackager
             string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
             sb.AppendLine($"桌面路径：{desktop}");
             sb.AppendLine();
-            Walk(sb, desktop, "", 0, 3, ref count);
+            Walk(sb, desktop, "", 0, depth, ref count, maxEntries);
         }
         catch (Exception ex) { sb.AppendLine($"（读取桌面失败：{ex.Message}）"); }
 
@@ -175,23 +206,75 @@ public static class DiagnosticPackager
         return count;
     }
 
-    private static void Walk(StringBuilder sb, string dir, string indent, int depth, int maxDepth, ref int count)
+    /// <summary>
+    /// 把若干目录各写一棵树到同一个文件（2026-09-24 新增：课件目录 / 用户指定的额外目录）。
+    /// 每个目录一段、段首写明路径 —— 便于对着活动记录里的文件路径定位它到底在哪。
+    /// </summary>
+    private static int WriteDirTrees(string outFile, string title, List<string> dirs, int depth, int maxEntries)
     {
-        if (depth > maxDepth || count > 3000) return;
+        var sb = new StringBuilder();
+        sb.AppendLine($"{title}（深度 ≤ {depth}，条目上限 {maxEntries}）");
+        sb.AppendLine($"生成时间：{DateTime.Now:yyyy-MM-dd HH:mm:ss}　共 {dirs.Count} 个目录");
+        sb.AppendLine();
+
+        int count = 0;
+        foreach (string dir in dirs)
+        {
+            sb.AppendLine($"════════ {dir} ════════");
+            if (!Directory.Exists(dir))
+            {
+                sb.AppendLine("（目录不存在或不可访问，已跳过）");
+                sb.AppendLine();
+                continue;
+            }
+
+            Walk(sb, dir, "", 0, depth, ref count, maxEntries);
+            sb.AppendLine();
+
+            if (count >= maxEntries)
+            {
+                sb.AppendLine("（已达条目上限，后面的目录不再展开）");
+                break;
+            }
+        }
+
+        File.WriteAllText(outFile, sb.ToString(), Encoding.UTF8);
+        return count;
+    }
+
+    /// <summary>解析「额外目录」设置：分号 / 换行 / 竖线分隔，去空白与重复</summary>
+    private static List<string> ParseDirs(string? raw)
+    {
+        var list = new List<string>();
+        if (string.IsNullOrWhiteSpace(raw)) return list;
+
+        foreach (string part in raw.Split(new[] { ';', '\n', '\r', '|' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            string p = part.Trim().Trim('"');
+            if (p.Length == 0) continue;
+            if (!list.Contains(p, StringComparer.OrdinalIgnoreCase)) list.Add(p);
+        }
+        return list;
+    }
+
+    private static void Walk(StringBuilder sb, string dir, string indent, int depth, int maxDepth, ref int count, int maxEntries)
+    {
+        if (depth > maxDepth || count >= maxEntries) return;
         try
         {
             foreach (var d in Directory.GetDirectories(dir).OrderBy(x => x))
             {
+                if (count >= maxEntries) { sb.AppendLine($"{indent}…（条目过多，已截断）"); return; }
                 sb.AppendLine($"{indent}📁 {Path.GetFileName(d)}/");
                 count++;
-                Walk(sb, d, indent + "   ", depth + 1, maxDepth, ref count);
+                Walk(sb, d, indent + "   ", depth + 1, maxDepth, ref count, maxEntries);
             }
             foreach (var f in Directory.GetFiles(dir).OrderBy(x => x))
             {
+                if (count >= maxEntries) { sb.AppendLine($"{indent}…（条目过多，已截断）"); return; }
                 var fi = new FileInfo(f);
                 sb.AppendLine($"{indent}📄 {fi.Name}   （{fi.Length / 1024} KB，{fi.LastWriteTime:yyyy-MM-dd HH:mm}）");
                 count++;
-                if (count > 3000) { sb.AppendLine($"{indent}…（条目过多，已截断）"); return; }
             }
         }
         catch (UnauthorizedAccessException) { sb.AppendLine($"{indent}（无权限访问）"); }

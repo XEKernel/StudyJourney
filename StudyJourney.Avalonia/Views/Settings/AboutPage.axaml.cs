@@ -29,6 +29,17 @@ public partial class AboutPage : UserControl, ISettingsPage
         // 诊断与记录（2026-09-24）
         RecordActivityCheck.IsChecked = s.RecordActivity;
 
+        // 诊断包选项：回显（用 _loadingDiagOptions 挡住赋值自身触发的事件，免得 Load 时就写盘）
+        _loadingDiagOptions = true;
+        try
+        {
+            int idx = Array.IndexOf(DiagDepths, s.DiagDesktopTreeDepth);
+            DiagDepthCombo.SelectedIndex = idx >= 0 ? idx : 1;      // 认不出就用「5 层」
+            DiagCoursewareTreeCheck.IsChecked = s.DiagIncludeCoursewareTree;
+            DiagExtraDirsBox.Text = s.DiagExtraDirs ?? "";
+        }
+        finally { _loadingDiagOptions = false; }
+
         var ver = UpdateService.CurrentVersion;
         bool isPre = System.Text.RegularExpressions.Regex.IsMatch(
             ver, @"(alpha|beta|rc|pre)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -48,6 +59,40 @@ public partial class AboutPage : UserControl, ISettingsPage
         s.RecordActivity = RecordActivityCheck.IsChecked == true;
         if (s.RecordActivity) Services.ActivityRecorder.Start();
         else Services.ActivityRecorder.Stop();
+
+        // 诊断包选项也一并写回（即时生效那条路径之外的双保险）
+        s.DiagDesktopTreeDepth = SelectedDepth();
+        s.DiagIncludeCoursewareTree = DiagCoursewareTreeCheck.IsChecked != false;
+        s.DiagExtraDirs = DiagExtraDirsBox.Text ?? "";
+    }
+
+    // ── 诊断包选项（2026-09-24）─────────────────────────────
+    // 这几个值只是"生成诊断包时的参数"，改了就该生效 —— 让老师还要记得点「保存」才生效，
+    // 是最容易出错的设计。所以这里改动即写盘（与 RecordActivity 同一思路）。
+    private static readonly int[] DiagDepths = { 3, 5, 8, 12 };
+    private bool _loadingDiagOptions;
+
+    private int SelectedDepth() => DiagDepths[Math.Clamp(DiagDepthCombo.SelectedIndex, 0, DiagDepths.Length - 1)];
+
+    private void DiagOption_Changed(object? sender, RoutedEventArgs e) => SaveDiagOptions();
+
+    private void DiagExtraDirs_LostFocus(object? sender, RoutedEventArgs e) => SaveDiagOptions();
+
+    private void SaveDiagOptions()
+    {
+        // Load 期间给控件赋初值也会触发事件 → 必须挡住，否则一进页面就写一次设置
+        if (_loadingDiagOptions) return;
+        try
+        {
+            App.Settings.DiagDesktopTreeDepth = SelectedDepth();
+            App.Settings.DiagIncludeCoursewareTree = DiagCoursewareTreeCheck.IsChecked != false;
+            App.Settings.DiagExtraDirs = DiagExtraDirsBox.Text ?? "";
+            App.SaveSettings();
+            Helpers.AppLogger.Info($"[诊断包] 选项已更新：深度 {App.Settings.DiagDesktopTreeDepth}、" +
+                                   $"课件目录树 {(App.Settings.DiagIncludeCoursewareTree ? "开" : "关")}、" +
+                                   $"额外目录 {App.Settings.DiagExtraDirs.Length} 字符");
+        }
+        catch (Exception ex) { Helpers.AppLogger.Warn($"[诊断包] 保存选项失败：{ex.Message}"); }
     }
 
     private void RecordActivity_Changed(object? sender, RoutedEventArgs e)
