@@ -555,6 +555,7 @@ public class AutomationService : IDisposable
             if (App.TryOpenCoursewareWithBuiltInReader(target))
             {
                 OpenStateStore.SetPointer(rule.Id, target);
+                ActivityRecorder.RecordOpen("auto", target, subject ?? rule.TriggerSubject ?? "", rule.Name);
                 Helpers.AppLogger.Info($"自动化「{rule.Name}」：用内置阅读器打开 {target}");
                 return;
             }
@@ -565,6 +566,7 @@ public class AutomationService : IDisposable
                 try { OpenStateStore.TrackOpen(target, proc.Id); } catch { }
             }
             OpenStateStore.SetPointer(rule.Id, target);   // 顺序记忆：记下"这次用的是哪份"
+            ActivityRecorder.RecordOpen("auto", target, subject ?? rule.TriggerSubject ?? "", rule.Name);
             Helpers.AppLogger.Info($"自动化「{rule.Name}」：打开 {target}");
         }
         catch (Exception ex)

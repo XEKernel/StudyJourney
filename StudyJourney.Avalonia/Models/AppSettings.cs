@@ -383,6 +383,18 @@ namespace StudyJourney.Avalonia.Models
         public bool OpenPdfWithBuiltInReader { get; set; } = true;
 
         /// <summary>
+        /// 是否记录上课活动（2026-09-24 新增，默认**关**）。
+        ///
+        /// 开启后把一个自然日里发生的事记到程序目录 `records/activity-yyyy-MM-dd.jsonl`：
+        /// 自动化打开的文件、老师自己打开的文件（轮询窗口标题识别）、U 盘插拔。
+        /// 目的是拿到**真实使用数据**来改进"课件下一份"的顺序逻辑（老师实际顺序有规律但不确定）。
+        ///
+        /// ⚠ 这是行为日志，默认关闭，由使用者明确开启；记录内容不含密码/token。
+        /// </summary>
+        public bool RecordActivity { get; set; }
+
+
+        /// <summary>
         /// 生成默认老师账号（语数英物化生 6 位 + 管理员 Teacher01）。
         /// #4-阶段2：默认账号存 PBKDF2 哈希（SetPassword），settings.json 不再出现明文密码。
         ///

@@ -26,6 +26,9 @@ public partial class AboutPage : UserControl, ISettingsPage
         ProxyPrefixBox.Text = s.UpdateProxyPrefix;
         ProxyBoxPanel.IsVisible = s.UpdateUseProxy;
 
+        // 诊断与记录（2026-09-24）
+        RecordActivityCheck.IsChecked = s.RecordActivity;
+
         var ver = UpdateService.CurrentVersion;
         bool isPre = System.Text.RegularExpressions.Regex.IsMatch(
             ver, @"(alpha|beta|rc|pre)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
@@ -40,6 +43,52 @@ public partial class AboutPage : UserControl, ISettingsPage
 
         // 立即生效：设置页保存后不用重启就按新通道下载
         UpdateService.ProxyPrefix = s.UpdateUseProxy ? s.UpdateProxyPrefix : "";
+
+        // 诊断与记录：开关立即生效（开 → 马上开始记录；关 → 停止）
+        s.RecordActivity = RecordActivityCheck.IsChecked == true;
+        if (s.RecordActivity) Services.ActivityRecorder.Start();
+        else Services.ActivityRecorder.Stop();
+    }
+
+    private void RecordActivity_Changed(object? sender, RoutedEventArgs e)
+    {
+        // 勾选/取消立即生效，不必等"保存"——记录开关是行为开关，用户预期是马上生效
+        try
+        {
+            bool on = RecordActivityCheck.IsChecked == true;
+            if (on) Services.ActivityRecorder.Start(); else Services.ActivityRecorder.Stop();
+        }
+        catch (Exception ex) { Helpers.AppLogger.Warn($"[记录] 切换开关失败: {ex.Message}"); }
+    }
+
+    /// <summary>
+    /// 生成诊断包（2026-09-24）：把活动记录 / 课件清单（带解析序号）/ 桌面文件树 /
+    /// 配置快照（脱敏）/ 系统信息 / 日志尾部打成一个 zip 放到桌面。
+    /// ⚠ 同步做会卡 UI（要遍历桌面与课件目录）→ 丢到后台线程。
+    /// </summary>
+    private async void DiagPackBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            DiagPackBtn.IsEnabled = false;
+            DiagStatusTb.Text = "正在收集…（桌面文件多时可能要几秒）";
+
+            string? zip = await System.Threading.Tasks.Task.Run(() => Services.DiagnosticPackager.Create());
+
+            DiagStatusTb.Text = zip == null
+                ? "生成失败，详情见 logs/app.log"
+                : $"已生成到桌面：{System.IO.Path.GetFileName(zip)}";
+            Helpers.AppLogger.Info($"[诊断包] 用户操作结果: {zip ?? "失败"}");
+        }
+        catch (Exception ex)
+        {
+            DiagStatusTb.Text = "生成失败：" + ex.Message;
+            Helpers.AppLogger.Error("[诊断包] 生成异常", ex);
+        }
+        finally
+        {
+            DiagPackBtn.IsEnabled = true;
+        }
     }
 
     private void UseProxyCheck_Changed(object? sender, RoutedEventArgs e)

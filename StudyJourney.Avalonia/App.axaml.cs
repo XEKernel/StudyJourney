@@ -132,6 +132,10 @@ public partial class App : Application
         Settings = AppSettings.Load();
         Mark("settings.json 加载完成");
 
+        // 上课活动记录（2026-09-24）：设置里开启才启动 —— 自动化打开的文件、老师手动打开的、
+        // U 盘插拔都记到 records/ 下，供分析"课件顺序规律"
+        if (Settings.RecordActivity) Services.ActivityRecorder.Start();
+
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             AppIcon = LoadAppIcon();
@@ -228,6 +232,9 @@ public partial class App : Application
                 break;
             case "courseware":
                 Dispatcher.UIThread.Post(RunCoursewareSelfTest, DispatcherPriority.Background);
+                break;
+            case "diag":
+                Dispatcher.UIThread.Post(RunDiagSelfTest, DispatcherPriority.Background);
                 break;
             default:
                 Helpers.AppLogger.Warn($"未知自检模式：{mode}");
@@ -1029,6 +1036,109 @@ public partial class App : Application
     ///
     /// 同时确认源生成器确实接管了：走的是 AppJsonContext（编译期元数据），不是反射。
     /// </summary>
+    /// <summary>
+    /// 诊断包 + 课件序号解析自检（SJ_SELFTEST=diag）。
+    ///
+    /// 两件事一起验：
+    ///  ① **课件序号解析**（含中文数字）—— 用户问过“中文序号做了没”，这里用真实文件名把结论钉死；
+    ///  ② **诊断包端到端** —— 真跑一次 Create()，断言 zip 生成了、且包含预期的分节与安全约束，
+    ///     跑完把 zip 删掉（不在用户桌面上留垃圾）。
+    /// </summary>
+    private static void RunDiagSelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        string? producedZip = null;
+        try
+        {
+            sb.AppendLine("[DIAGTEST] 诊断包 / 课件序号自检开始");
+
+            // ── ① 课件序号解析（阿拉伯 + 中文数字 + 误报抑制）──
+            var seqCases = new (string Name, int Expect, string Desc)[]
+            {
+                ("01 集合.pdf",             1,  "阿拉伯两位"),
+                ("unit3 lesson.pptx",      3,  "unit 前缀"),
+                ("第3讲 函数.pdf",          3,  "第N讲"),
+                ("第十讲 力学.pdf",        10,  "第十讲 → 10"),
+                ("三 化学平衡.pptx",        3,  "中文数字+空格"),
+                ("五、牛顿定律.docx",       5,  "中文数字+顿号"),
+                ("一 集合的概念.pptx",      1,  "中文 一"),
+                ("Lesson2 Grammar.pdf",    2,  "Lesson 前缀"),
+                // ↓ 误报抑制：这些里面的中文数字**不是**序号（否则会被当成第 1 份排到最前）
+                ("一次函数图像.pptx",       -1,  "应抑制：“一次函数”不是第 1 份"),
+                ("一元二次方程.pdf",       -1,  "应抑制：“一元二次”不是序号"),
+                ("三角函数.pdf",           -1,  "没有序号 → 返回 -1（未识别）"),
+            };
+
+            foreach (var (name, expect, desc) in seqCases)
+            {
+                int got = Helpers.FileSequence.ExtractNumber(name);
+                bool ok = got == expect;
+                sb.AppendLine($"[DIAGTEST]   {(ok ? "ok" : "✗")} {desc,-28} “{name}” → {got}（期望 {expect}）");
+                if (!ok) throw new Exception($"课件序号解析不符：{desc} “{name}” → {got}，期望 {expect}");
+            }
+            sb.AppendLine("[DIAGTEST]   序号列说明：-1 = 未识别出序号（排序时排在最后）；" +
+                          "中文数字（一/三/十/廿/卅 + 大写体）与误报抑制均已覆盖");
+
+            // ── ② 诊断包端到端 ──
+            string? zip = Services.DiagnosticPackager.Create();
+            if (zip == null) throw new Exception("诊断包生成返回 null（详见日志）");
+            producedZip = zip;
+            if (!System.IO.File.Exists(zip)) throw new Exception("诊断包文件不存在：" + zip);
+
+            long size = new System.IO.FileInfo(zip).Length;
+            sb.AppendLine($"[DIAGTEST]   诊断包已生成：{System.IO.Path.GetFileName(zip)}（{size / 1024} KB）");
+            if (size < 200) throw new Exception("诊断包过小，可能内容缺失");
+
+            using (var za = System.IO.Compression.ZipFile.OpenRead(zip))
+            {
+                var names = za.Entries.Select(e => e.FullName).ToList();
+                foreach (var w in new[] { "说明.txt", "课件清单.txt", "桌面文件树.txt", "系统信息.txt" })
+                {
+                    bool ok = names.Any(x => x == w);
+                    sb.AppendLine($"[DIAGTEST]   {(ok ? "ok" : "✗")} 包内含 {w}");
+                    if (!ok) throw new Exception("诊断包缺少 " + w);
+                }
+
+                bool cfg = names.Any(x => x.StartsWith("配置/", StringComparison.Ordinal));
+                sb.AppendLine($"[DIAGTEST]   {(cfg ? "ok" : "✗")} 包内含 配置/ 分节");
+                if (!cfg) throw new Exception("诊断包缺少 配置/ 分节");
+
+                // ⚠ 安全断言：凭据绝不能进包
+                bool leak = names.Any(x => x.Contains("tokens.json", StringComparison.OrdinalIgnoreCase));
+                sb.AppendLine($"[DIAGTEST]   {(leak ? "✗" : "ok")} 包内不含 tokens.json（凭据不外泄）");
+                if (leak) throw new Exception("诊断包泄漏了 tokens.json！");
+
+                var se = za.GetEntry("配置/settings.json");
+                if (se != null)
+                {
+                    using var r = new System.IO.StreamReader(se.Open());
+                    string txt = r.ReadToEnd();
+                    bool clean = !txt.Contains("PBKDF2", StringComparison.Ordinal);
+                    sb.AppendLine($"[DIAGTEST]   {(clean ? "ok" : "✗")} settings.json 已剔除密码哈希");
+                    if (!clean) throw new Exception("诊断包里的 settings.json 仍含密码哈希！");
+                }
+            }
+
+            sb.AppendLine("[DIAGTEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[DIAGTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+        finally
+        {
+            try { if (producedZip != null && System.IO.File.Exists(producedZip)) System.IO.File.Delete(producedZip); }
+            catch { }
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
     /// <summary>
     /// 课件序列规则判定自检（SJ_SELFTEST=courseware）。
     ///
