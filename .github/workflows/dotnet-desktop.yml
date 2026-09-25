@@ -189,7 +189,10 @@ jobs:
         id: notes
         shell: pwsh
         run: |
-          $msg = git log -1 --pretty=%B
+          # ⚠ 坑（2026-09-25 实际踩到）：原生命令（git）的**多行输出在 PowerShell 里是字符串数组**，
+          #    而数组上的 -match 是"过滤"语义 —— 判定为真但**不会给 $Matches 赋值** →
+          #    下一行 $Matches[1] 报 "Cannot index into a null array"。必须 -join 拼成单个字符串。
+          $msg = (git log -1 --pretty=%B) -join "`n"
           if ($msg -match '(?s)<!--RELEASE-->(.*?)<!--/RELEASE-->') {
             $body = $Matches[1].Trim()
           } else {
