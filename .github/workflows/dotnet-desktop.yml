@@ -199,6 +199,15 @@ jobs:
             $body = ($msg -split "`r?`n")[0].Trim()   # 兜底：只取标题行
           }
           if ([string]::IsNullOrWhiteSpace($body)) { $body = "维护更新" }
+
+          # 追加「下载哪个版本」说明（2026-09-25 用户要求保留自包含版 / 框架依赖版的区别）。
+          # 放在标记块**之后**：标记块只写"更新了什么、修了什么"，这段下载说明由 CI 统一补，
+          # 免得每次手写漏掉、也免得各版本措辞不一致。
+          # ⚠ 此处不写体积 —— 正文生成时资产还没上传，GitHub Release 页面本身会显示每个文件的大小。
+          # ⚠ .NET 10 是 Avalonia 版本的运行时（v1.x 的 WPF 版是 .NET 8，这里不再区分）。
+          $ver = "${{ steps.version.outputs.version }}"
+          $body += "`n`n### 下载哪个版本`n- **自包含版**（``StudyJourney-v$ver-win-x64.zip``）：无需安装 .NET，直接运行。体积较大。`n- **框架依赖版**（``StudyJourney-v$ver-win-x64-fd.zip``）：需安装 [.NET 10 桌面运行时](https://dotnet.microsoft.com/download/dotnet/10.0)。体积较小。`n"
+
           [System.IO.File]::WriteAllText("release-notes.md", $body, (New-Object System.Text.UTF8Encoding($false)))
           Write-Host "—— 发布正文 ——"
           Write-Host $body
