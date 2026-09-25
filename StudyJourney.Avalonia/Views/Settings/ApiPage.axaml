@@ -1,6 +1,7 @@
 <UserControl x:Class="StudyJourney.Avalonia.Views.Settings.ApiPage"
              xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:v="using:StudyJourney.Avalonia.Views">
     <ScrollViewer>
         <StackPanel Spacing="14" Margin="0,8,20,20">
 
@@ -26,13 +27,9 @@
                         <Slider x:Name="QuoteFontSizeSlider" ValueChanged="QuoteFontSizeSlider_ValueChanged" Grid.Column="1" Minimum="8" Maximum="24" Value="12" TickFrequency="1" IsSnapToTickEnabled="True"/>
                         <TextBlock x:Name="QuoteFontSizeText" Grid.Column="2" Text="12" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
-                    <Grid ColumnDefinitions="70,*,Auto" Margin="0,4,0,6">
+                    <Grid ColumnDefinitions="70,*" Margin="0,4,0,6">
                         <TextBlock Text="文字颜色" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <TextBox x:Name="QuoteForegroundBox" Grid.Column="1" Text="#FFAAAAAA"/>
-                        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
-                            <Border Width="26" Height="26" CornerRadius="4" Background="#FFAAAAAA"/>
-                            <Button Content="选择…" Click="PickQuoteForeground_Click"/>
-                        </StackPanel>
+                        <v:ColorSwatch x:Name="QuoteForegroundSwatch" Grid.Column="1" MinWidth="240"/>
                     </Grid>
                     <CheckBox x:Name="QuoteItalicCheck" Content="斜体" IsChecked="True"/>
                 </StackPanel>
@@ -100,31 +97,14 @@
 
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="文字颜色" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                    <TextBlock Text="城市名颜色" FontSize="13" Margin="0,4,0,4"/>
-                    <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox x:Name="WeatherCityColorBox" Grid.Column="0" Text="#FFFFFFFF"/>
-                        <Border x:Name="WeatherCityColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Click="PickWeatherCityColor_Click" Margin="8,0,0,0"/>
-                    </Grid>
-                    <TextBlock Text="天气信息颜色（天气描述、风、湿度）" FontSize="13" Margin="0,10,0,4"/>
-                    <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox x:Name="WeatherInfoColorBox" Grid.Column="0" Text="#FFCCCCDD"/>
-                        <Border x:Name="WeatherInfoColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFCCCCDD" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Click="PickWeatherInfoColor_Click" Margin="8,0,0,0"/>
-                    </Grid>
-                    <TextBlock Text="温度颜色" FontSize="13" Margin="0,10,0,4"/>
-                    <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox x:Name="WeatherTempColorBox" Grid.Column="0" Text="#FFFF8844"/>
-                        <Border x:Name="WeatherTempColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFF8844" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Click="PickWeatherTempColor_Click" Margin="8,0,0,0"/>
-                    </Grid>
-                    <TextBlock Text="天气图标颜色" FontSize="13" Margin="0,10,0,4"/>
-                    <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox x:Name="WeatherIconColorBox" Grid.Column="0" Text="#FFFFAA00"/>
-                        <Border x:Name="WeatherIconColorPreview" Grid.Column="1" Width="26" Height="26" CornerRadius="4" Background="#FFFFAA00" HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Click="PickWeatherIconColor_Click" Margin="8,0,0,0"/>
-                    </Grid>
+                    <TextBlock Text="文字颜色" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="点色块改色。城市名 / 天气描述 / 温度 / 图标可以各配一套。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <v:ColorSwatch x:Name="WeatherCityColorSwatch" Caption="城市名颜色"/>
+                    <v:ColorSwatch x:Name="WeatherInfoColorSwatch" Caption="天气信息颜色（描述/风/湿度）" Margin="0,4,0,0"/>
+                    <v:ColorSwatch x:Name="WeatherTempColorSwatch" Caption="温度颜色" Margin="0,4,0,0"/>
+                    <v:ColorSwatch x:Name="WeatherIconColorSwatch" Caption="天气图标颜色" Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
 

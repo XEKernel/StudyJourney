@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using StudyJourney.Avalonia.Helpers;
 using StudyJourney.Avalonia.Models;
 
 namespace StudyJourney.Avalonia.Views.Settings;
@@ -140,8 +141,20 @@ public partial class AutomationPage : UserControl, ISettingsPage
         MarkDirty();
     }
 
-    private static int ParseInt(string? text, int fallback)
-        => int.TryParse(text, out var v) ? Math.Max(v, 0) : fallback;
+    /// <summary>数字步进框取值并夹进允许范围。
+    /// 2026-09-25：这些输入原来是 TextBox + ParseInt 手打 —— 打错（"abc"、"1e5"、粘贴一串字符）
+    /// 会被**静默**当成默认值，老师看不出规则已经变了。步进框从结构上消灭这类值。</summary>
+    private static int Num(NumericUpDown box, int fallback)
+    {
+        int v = box.Value == null ? fallback : (int)box.Value.Value;
+        if (v < (int)box.Minimum) v = (int)box.Minimum;
+        if (v > (int)box.Maximum) v = (int)box.Maximum;
+        return v;
+    }
+
+    /// <summary>把规则里的旧数值装进步进框（负数 → 用默认值；越界 → 夹回范围内）</summary>
+    private static decimal ClampInto(NumericUpDown box, int raw, int fallback)
+        => Math.Clamp((decimal)(raw >= 0 ? raw : fallback), box.Minimum, box.Maximum);
 
     // ── 规则列表 ────────────────────────────────────────────
 
@@ -217,11 +230,11 @@ public partial class AutomationPage : UserControl, ISettingsPage
             TriggerTypeCombo.SelectedIndex = (int)r.TriggerKind;   // 枚举顺序与下拉一致
             ActionTypeCombo.SelectedIndex = (int)r.ActionKind;     // 枚举顺序与下拉一致
 
-            TimeBox.Text = r.TriggerTime;
-            BeforeMinutesBox.Text = Math.Max(r.TriggerMinutes, 0).ToString();
-            EndMinutesBox.Text = Math.Max(r.TriggerMinutes, 0).ToString();
-            IdleMinutesBox.Text = Math.Max(r.TriggerMinutes, 0).ToString();
-            StartMinutesBox.Text = Math.Max(r.TriggerMinutes, 0).ToString();
+            TimeBox.SelectedTime = DateTimeStr.ParseTimeOfDay(r.TriggerTime);
+            BeforeMinutesBox.Value = ClampInto(BeforeMinutesBox, r.TriggerMinutes, 5);
+            EndMinutesBox.Value = ClampInto(EndMinutesBox, r.TriggerMinutes, 0);
+            IdleMinutesBox.Value = ClampInto(IdleMinutesBox, r.TriggerMinutes, 10);
+            StartMinutesBox.Value = ClampInto(StartMinutesBox, r.TriggerMinutes, 0);
 
             // 星期：空/全 7 天 = 每天。视觉上把 7 个框都点亮，取消「每天」后老师直接在此基础上改勾选
             var days = r.TriggerDays ?? new List<int>();
@@ -246,7 +259,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
             // 动作
             OpenPathBox.Text = r.ActionPath;
             AudioPathBox.Text = r.ActionPath;
-            PowerSecondsBox.Text = Math.Max(r.ActionDelaySeconds, 5).ToString();
+            PowerSecondsBox.Value = ClampInto(PowerSecondsBox, r.ActionDelaySeconds, 60);
             MsgBox.Text = r.ActionMessage;
             CloseTargetBox.Text = r.CloseTarget;
             RememberLastCheck.IsChecked = r.RememberLast;
@@ -318,24 +331,27 @@ public partial class AutomationPage : UserControl, ISettingsPage
         switch (_current.TriggerKind)
         {
             case AutomationTriggerKind.FixedTime:
-                if (TimeSpan.TryParse(TimeBox.Text?.Trim(), out _)) _current.TriggerTime = TimeBox.Text.Trim();
+                // 2026-09-25：时间由 TimePicker 给出，值一定合法（原 TextBox 允许存下 "18" = 18 天）。
+                // 未选时间（老师把框清空了）→ 保留原时刻不动，绝不写成空串让规则静默失效。
+                if (TimeBox.SelectedTime is TimeSpan pickedTime)
+                    _current.TriggerTime = DateTimeStr.FormatTimeOfDay(pickedTime);
                 _current.TriggerDays = ReadDays();
                 break;
             case AutomationTriggerKind.BeforeClassStart:
-                _current.TriggerMinutes = ParseInt(BeforeMinutesBox.Text, 5);
+                _current.TriggerMinutes = Num(BeforeMinutesBox, 5);
                 _current.TriggerSubject = ReadSubject();
                 break;
             case AutomationTriggerKind.AtClassEnd:
-                _current.TriggerMinutes = ParseInt(EndMinutesBox.Text, 0);
+                _current.TriggerMinutes = Num(EndMinutesBox, 0);
                 _current.TriggerSubject = ReadSubject();
                 break;
             case AutomationTriggerKind.AtDayEnd:
                 break;
             case AutomationTriggerKind.Idle:
-                _current.TriggerMinutes = ParseInt(IdleMinutesBox.Text, 10);
+                _current.TriggerMinutes = Num(IdleMinutesBox, 10);
                 break;
             case AutomationTriggerKind.AppStarted:
-                _current.TriggerMinutes = ParseInt(StartMinutesBox.Text, 0);
+                _current.TriggerMinutes = Num(StartMinutesBox, 0);
                 break;
         }
 
@@ -349,8 +365,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
                 break;
             case AutomationActionKind.Shutdown:
             case AutomationActionKind.Restart:
-                // 倒计时下限 30 秒（复核裁决：5 秒没有取消窗口；与服务端/摘要三处统一）
-                _current.ActionDelaySeconds = Math.Max(ParseInt(PowerSecondsBox.Text, 60), 30);
+                _current.ActionDelaySeconds = Num(PowerSecondsBox, 60);   // 下限 30 秒由步进框 Minimum 保证
                 break;
             case AutomationActionKind.ShowMessage:
                 _current.ActionMessage = MsgBox.Text?.Trim() ?? "";
@@ -425,15 +440,18 @@ public partial class AutomationPage : UserControl, ISettingsPage
     }
 
     /// <summary>文本类控件改动：仅刷新预览（不重建列表 —— 打字每帧重建会让 ListBox 滚动条跳回顶部）。
-    /// 遗留6 修复：固定时间格式非法时预览条给出警示（原静默不触发，老师无感知）。</summary>
+    /// 遗留6 修复：固定时间格式非法时预览条给出警示（原静默不触发，老师无感知）。
+    /// 2026-09-25：时间改由 TimePicker 提供后，"手打错格式"这类非法值**不可能再由本页产生**；
+    /// 这里保留的检查只为**旧的、手打时代存下的脏数据**（例如 "18" 曾被 TimeSpan 解析成 18 天）——
+    /// 那种值会让 LoadRuleIntoEditor 填不出时间，必须明说而不是让规则继续静默失效。</summary>
     private void RefreshPreviewOnly()
     {
         if (!_loadingEditor) CommitEditorToCurrent();
         if (_current == null) { PreviewTb.Text = ""; return; }
         if (_current.TriggerKind == AutomationTriggerKind.FixedTime &&
-            !TimeSpan.TryParse(TimeBox.Text?.Trim(), out _))
+            DateTimeStr.ParseTimeOfDay(_current.TriggerTime) == null)
         {
-            PreviewTb.Text = "⚠ 时间格式无效（应为 HH:mm，如 18:00）——保存后此规则不会触发";
+            PreviewTb.Text = "⚠ 这条规则的时刻无法识别（多半是旧版手填的脏值）——请在上面的时间框重新选一个时刻，保存后生效";
             return;
         }
         PreviewTb.Text = $"预览：{_current.Summary}";
@@ -486,37 +504,15 @@ public partial class AutomationPage : UserControl, ISettingsPage
         if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); UpdatePreview(); }
     }
 
-    private void TimeBox_TextChanged(object? sender, TextChangedEventArgs e)
+    /// <summary>时间选择器改变（2026-09-25 由 TextBox 改为 TimePicker）</summary>
+    private void TimeBox_Changed(object? sender, TimePickerSelectedValueChangedEventArgs e)
     {
         if (!_ready) return;
         if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); RefreshPreviewOnly(); }
     }
 
-    private void BeforeMinutesBox_TextChanged(object? sender, TextChangedEventArgs e)
-    {
-        if (!_ready) return;
-        if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); RefreshPreviewOnly(); }
-    }
-
-    private void EndMinutesBox_TextChanged(object? sender, TextChangedEventArgs e)
-    {
-        if (!_ready) return;
-        if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); RefreshPreviewOnly(); }
-    }
-
-    private void IdleMinutesBox_TextChanged(object? sender, TextChangedEventArgs e)
-    {
-        if (!_ready) return;
-        if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); RefreshPreviewOnly(); }
-    }
-
-    private void StartMinutesBox_TextChanged(object? sender, TextChangedEventArgs e)
-    {
-        if (!_ready) return;
-        if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); RefreshPreviewOnly(); }
-    }
-
-    private void PowerSecondsBox_TextChanged(object? sender, TextChangedEventArgs e)
+    /// <summary>五个"几分钟 / 几秒"步进框共用（原来各有一份一模一样的 TextChanged 处理）</summary>
+    private void NumberBox_ValueChanged(object? sender, NumericUpDownValueChangedEventArgs e)
     {
         if (!_ready) return;
         if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); RefreshPreviewOnly(); }

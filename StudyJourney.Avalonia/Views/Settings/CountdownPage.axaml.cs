@@ -1,8 +1,13 @@
 using System;
+using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
+using StudyJourney.Avalonia.Helpers;
 using StudyJourney.Avalonia.Models;
 using StudyJourney.Avalonia.Views;
 
@@ -14,14 +19,15 @@ public partial class CountdownPage : UserControl, ISettingsPage
     /// 与 ServerPage 的 _teachers 同款心智模型）</summary>
     private System.Collections.ObjectModel.ObservableCollection<CustomCountdown> _countdowns = new();
 
-    /// <summary>#8：自定义倒计时是否有未保存修改（增删/单元格编辑置位；切页与关窗时提示）</summary>
+    /// <summary>#8：自定义倒计时是否有未保存修改（增删/改名/改日期置位；切页与关窗时提示）</summary>
     private bool _countdownDirty;
+
+    /// <summary>时刻未填时的默认值（09:00 是绝大多数考试的开工时间）</summary>
+    private static readonly TimeSpan DefaultTime = new(9, 0, 0);
 
     public CountdownPage()
     {
         InitializeComponent();
-        // DataGrid 单元格编辑（改名/改日期）算 dirty；Load 后首次挂上，避免构造期误触发
-        CustomCountdownGrid.CellEditEnding += (_, _) => _countdownDirty = true;
     }
 
     public void Load(AppSettings s)
@@ -44,18 +50,25 @@ public partial class CountdownPage : UserControl, ISettingsPage
         ShowHoursCheck.IsChecked = s.ShowHours;
         ShowMinutesCheck.IsChecked = s.ShowMinutes;
         ShowSecondsCheck.IsChecked = s.ShowSeconds;
-        GaokaoDateBox.Text = s.GaokaoDateStr;
-        StartDateBox.Text = s.StartDateStr;
+
+        // 日期（2026-09-25：手打格式串 → 日期/时刻选择器）
+        var gao = DateTimeStr.ParseDateTime(s.GaokaoDateStr);
+        GaokaoDatePicker.SelectedDate = DateTimeStr.ToOffset(gao);
+        GaokaoTimePicker.SelectedTime = gao != null
+            ? new TimeSpan(gao.Value.Hour, gao.Value.Minute, 0)
+            : DefaultTime;
+        StartDatePicker.SelectedDate = DateTimeStr.ToOffset(DateTimeStr.ParseDate(s.StartDateStr));
+        RefreshDateHint();
+
         // #8：倒计时列表复制到副本编辑（与字体/日期等控件一致：改完点保存才落盘）
         _countdowns = new System.Collections.ObjectModel.ObservableCollection<CustomCountdown>(
             (s.CustomCountdowns ?? new()).Select(c => new CustomCountdown { Name = c.Name, DateStr = c.DateStr }));
-        CustomCountdownGrid.ItemsSource = _countdowns;
+        BuildCountdownRows();
         _countdownDirty = false;
 
-        TextColorBox.Text = s.TextColor.ToString();
-        AccentColorBox.Text = s.AccentColor.ToString();
-        UpdateColorPreview(TextColorPreview, TextColorBox.Text);
-        UpdateColorPreview(AccentColorPreview, AccentColorBox.Text);
+        // 颜色（2026-09-25：hex 输入框 → 可点击色板）
+        TextColorSwatch.Value = s.TextColor.ToString();
+        AccentColorSwatch.Value = s.AccentColor.ToString();
     }
 
     public void Apply(AppSettings s)
@@ -71,19 +84,23 @@ public partial class CountdownPage : UserControl, ISettingsPage
         s.ShowHours = ShowHoursCheck.IsChecked == true;
         s.ShowMinutes = ShowMinutesCheck.IsChecked == true;
         s.ShowSeconds = ShowSecondsCheck.IsChecked == true;
-        // B2 修复：日期非法时保留原值并提示（原实现原样落盘 → 主窗口解析失败后倒计时冻结在旧值）
-        var gaoText = GaokaoDateBox.Text?.Trim() ?? "";
-        if (gaoText.Length == 0) s.GaokaoDateStr = "";
-        else if (DateTime.TryParse(gaoText, out _)) s.GaokaoDateStr = gaoText;
-        else _ = App.ShowMessageAsync("倒计时", $"目标日期格式不正确：{gaoText}\n已保留原值（建议格式 2027-06-07 09:00:00）");
 
-        var startText = StartDateBox.Text?.Trim() ?? "";
-        if (startText.Length == 0) s.StartDateStr = "";
-        else if (DateTime.TryParse(startText, out _)) s.StartDateStr = startText;
-        else _ = App.ShowMessageAsync("倒计时", $"进度起算日期格式不正确：{startText}\n已保留原值（建议格式 2024-08-24）");
+        // 日期：选择器保证值一定合法（旧版"手打 → 格式非法 → 弹框提示"那条路径已不可能发生）；
+        // 秒沿用原值（老师改别的设置时不该顺手把 09:00:30 悄悄变成 09:00:00）。
+        var gaoDate = DateTimeStr.ToDate(GaokaoDatePicker.SelectedDate);
+        var gaoTime = GaokaoTimePicker.SelectedTime ?? DefaultTime;
+        int sec = gaoDate != null
+            ? DateTimeStr.PreserveSecond(s.GaokaoDateStr, gaoDate.Value, gaoTime)
+            : 0;
+        s.GaokaoDateStr = DateTimeStr.ComposeDateTime(gaoDate, gaoTime, DefaultTime, sec);
+        s.StartDateStr = DateTimeStr.ComposeDate(DateTimeStr.ToDate(StartDatePicker.SelectedDate));
 
-        if (TryParseColor(TextColorBox.Text ?? "#FFFFFF", out var tc)) s.TextColor = tc;
-        if (TryParseColor(AccentColorBox.Text ?? "#2B6CB0", out var ac)) s.AccentColor = ac;
+        // 颜色：色板值理论上一定合法；不合法说明配置文件被外部改坏了 → 保留原值并明确提示
+        if (ColorSwatch.TryParse(TextColorSwatch.Value, out var tc)) s.TextColor = tc;
+        else _ = App.ShowMessageAsync("倒计时", $"文字颜色无法识别：{TextColorSwatch.Value}\n已保留原值。");
+
+        if (ColorSwatch.TryParse(AccentColorSwatch.Value, out var ac)) s.AccentColor = ac;
+        else _ = App.ShowMessageAsync("倒计时", $"强调色无法识别：{AccentColorSwatch.Value}\n已保留原值。");
 
         // #8：倒计时副本写回设置
         s.CustomCountdowns = _countdowns.Select(c => new CustomCountdown { Name = c.Name, DateStr = c.DateStr }).ToList();
@@ -104,68 +121,102 @@ public partial class CountdownPage : UserControl, ISettingsPage
         if (OpacityText != null) OpacityText.Text = $"{e.NewValue * 100:F0}%";
     }
 
-    // ── 颜色选择 ────────────────────────────────────────────
-    private void PickTextColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(TextColorBox, TextColorPreview);
+    // ── 日期 / 时刻（2026-09-25）────────────────────────────
+    private void GaokaoDateChanged(object? sender, DatePickerSelectedValueChangedEventArgs e) => RefreshDateHint();
+    private void GaokaoTimeChanged(object? sender, TimePickerSelectedValueChangedEventArgs e) => RefreshDateHint();
+    private void StartDateChanged(object? sender, DatePickerSelectedValueChangedEventArgs e) { }
 
-    private void PickAccentColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(AccentColorBox, AccentColorPreview);
-
-    private void PickColor(TextBox box, Border preview)
+    private void ClearGaokaoDate_Click(object? sender, RoutedEventArgs e)
     {
-        var dlg = new ColorPickerDialog(box.Text ?? "#FFFFFFFF");
-        var owner = GetWindow();
-        if (owner != null) dlg.ShowDialog(owner); else dlg.Show();
-        dlg.Closed += (_, _) =>
-        {
-            if (dlg.SelectedHex != null)
-            {
-                box.Text = dlg.SelectedHex;
-                UpdateColorPreview(preview, dlg.SelectedHex);
-            }
-        };
+        GaokaoDatePicker.SelectedDate = null;
+        RefreshDateHint();
     }
 
-    private static void UpdateColorPreview(Border? preview, string? hex)
+    private void ClearStartDate_Click(object? sender, RoutedEventArgs e)
     {
-        if (preview == null || string.IsNullOrEmpty(hex)) return;
-        if (TryParseColor(hex, out var c))
-            preview.Background = new SolidColorBrush(c);
+        StartDatePicker.SelectedDate = null;
     }
 
-    private static bool TryParseColor(string hex, out Color c)
+    /// <summary>把"现在到底存的是什么"直接写出来 —— 老师不用猜选择器里那几个框是干嘛的</summary>
+    private void RefreshDateHint()
     {
-        try { c = Color.Parse(hex); return true; }
-        catch { c = Colors.White; return false; }
+        var d = DateTimeStr.ToDate(GaokaoDatePicker.SelectedDate);
+        GaokaoDateHintTb.Text = d == null
+            ? "未设置日期 → 主窗口不显示高考倒计时。"
+            : $"当前设定：{DateTimeStr.ComposeDateTime(d, GaokaoTimePicker.SelectedTime ?? DefaultTime, DefaultTime)}";
     }
 
-    private Window? GetWindow() => TopLevel.GetTopLevel(this) as Window;
-
-    // ── 自定义倒计时：增删 + 网格刷新（#8：操作的是编辑副本，点「保存」才落盘）──
+    // ── 自定义倒计时：行内编辑器（名称 + 日期选择器 + 删除）──
+    // 2026-09-25：原 DataGrid 的「日期」列是纯文本单元格，要老师手打 yyyy-MM-dd；
+    // 且 DataGrid 在触屏上要"双击进入编辑态"才好改，老师嫌麻烦 → 改为每行直接可编辑。
     private void AddCountdownBtn_Click(object? sender, RoutedEventArgs e)
     {
         _countdowns.Add(new CustomCountdown
         {
             Name = "新倒计时",
-            DateStr = DateTime.Today.AddDays(30).ToString("yyyy-MM-dd")
+            DateStr = DateTime.Today.AddDays(30).ToString(DateTimeStr.DateFormat)
         });
         _countdownDirty = true;
-        RefreshGrid();
+        BuildCountdownRows();
     }
 
-    private void DeleteCountdownBtn_Click(object? sender, RoutedEventArgs e)
+    private void BuildCountdownRows()
     {
-        if (CustomCountdownGrid.SelectedItem is CustomCountdown c)
+        CountdownListPanel.Children.Clear();
+
+        foreach (var c in _countdowns)
         {
-            _countdowns.Remove(c);
-            _countdownDirty = true;
-            RefreshGrid();
-        }
-    }
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,184,40") };
 
-    private void RefreshGrid()
-    {
-        CustomCountdownGrid.ItemsSource = null;
-        CustomCountdownGrid.ItemsSource = _countdowns;
+            var nameBox = new TextBox
+            {
+                Text = c.Name,
+                FontSize = 13,
+                MinHeight = 34,
+                PlaceholderText = "名称",
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+            nameBox.TextChanged += (_, _) => { c.Name = nameBox.Text ?? ""; _countdownDirty = true; };
+
+            var datePicker = new DatePicker
+            {
+                SelectedDate = DateTimeStr.ToOffset(DateTimeStr.ParseDate(c.DateStr)),
+                FontSize = 13,
+                MinHeight = 34,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            datePicker.SelectedDateChanged += (_, _) =>
+            {
+                c.DateStr = DateTimeStr.ComposeDate(DateTimeStr.ToDate(datePicker.SelectedDate));
+                _countdownDirty = true;
+            };
+
+            var delBtn = new Button
+            {
+                Content = "✕",
+                FontSize = 11,
+                Padding = new Thickness(6, 0),
+                MinHeight = 34,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            delBtn.Click += (_, _) =>
+            {
+                _countdowns.Remove(c);
+                _countdownDirty = true;
+                // ⚠ 不能在按钮自己的 Click 里把**它所在的这一行**从视觉树摘掉（事件路由还会访问已脱离的控件）
+                // → 推迟到下一个消息循环再重建列表。
+                Dispatcher.UIThread.Post(BuildCountdownRows, DispatcherPriority.Background);
+            };
+
+            Grid.SetColumn(nameBox, 0);
+            Grid.SetColumn(datePicker, 1);
+            Grid.SetColumn(delBtn, 2);
+            row.Children.Add(nameBox);
+            row.Children.Add(datePicker);
+            row.Children.Add(delBtn);
+            CountdownListPanel.Children.Add(row);
+        }
+
+        CountdownEmptyTb.IsVisible = _countdowns.Count == 0;
     }
 }

@@ -79,7 +79,7 @@
                                TextWrapping="Wrap" Margin="0,2,0,0"/>
                     <TextBox x:Name="DiagExtraDirsBox" FontSize="12" AcceptsReturn="True" MinHeight="50"
                              TextWrapping="Wrap" LostFocus="DiagExtraDirs_LostFocus"
-                             Watermark="D:\教学资料"/>
+                             PlaceholderText="D:\教学资料"/>
 
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,8,0,0">
                         <Button x:Name="DiagPackBtn" Content="生成诊断包…" Click="DiagPackBtn_Click"/>

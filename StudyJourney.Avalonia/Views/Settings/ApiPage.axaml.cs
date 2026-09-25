@@ -1,7 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
-using Avalonia.Media;
 using StudyJourney.Avalonia.Models;
 using StudyJourney.Avalonia.Views;
 
@@ -18,7 +17,6 @@ public partial class ApiPage : UserControl, ISettingsPage
     {
         ShowDailyQuoteCheck.IsChecked = s.ShowDailyQuote;
         QuoteFontSizeSlider.Value = s.QuoteFontSize;
-        QuoteForegroundBox.Text = s.QuoteForegroundHex;
         QuoteItalicCheck.IsChecked = s.QuoteItalic;
         QuoteApiUrlBox.Text = s.QuoteApiUrl;
         QuoteTextFieldNameBox.Text = s.QuoteTextFieldName;
@@ -29,23 +27,18 @@ public partial class ApiPage : UserControl, ISettingsPage
         WeatherRefreshIntervalSlider.Value = s.WeatherRefreshInterval;
         WeatherDetailLevelCombo.SelectedIndex = Math.Clamp(s.WeatherDetailLevel, 0, 2);
 
-        WeatherCityColorBox.Text = s.WeatherCityColor;
-        WeatherInfoColorBox.Text = s.WeatherInfoColor;
-        WeatherTempColorBox.Text = s.WeatherTempColor;
-        WeatherIconColorBox.Text = s.WeatherIconColor;
-
-        // D2 修复：天气颜色预览色块随设置/选色实时刷新（原实现预览永远停在 XAML 默认色）
-        UpdateColorPreview(WeatherCityColorPreview, s.WeatherCityColor);
-        UpdateColorPreview(WeatherInfoColorPreview, s.WeatherInfoColor);
-        UpdateColorPreview(WeatherTempColorPreview, s.WeatherTempColor);
-        UpdateColorPreview(WeatherIconColorPreview, s.WeatherIconColor);
+        WeatherCityColorSwatch.Value = s.WeatherCityColor;
+        WeatherInfoColorSwatch.Value = s.WeatherInfoColor;
+        WeatherTempColorSwatch.Value = s.WeatherTempColor;
+        WeatherIconColorSwatch.Value = s.WeatherIconColor;
+        QuoteForegroundSwatch.Value = s.QuoteForegroundHex;
     }
 
     public void Apply(AppSettings s)
     {
         s.ShowDailyQuote = ShowDailyQuoteCheck.IsChecked == true;
         s.QuoteFontSize = QuoteFontSizeSlider.Value;
-        s.QuoteForegroundHex = QuoteForegroundBox.Text ?? s.QuoteForegroundHex;
+        s.QuoteForegroundHex = PickColor(QuoteForegroundSwatch, s.QuoteForegroundHex);
         s.QuoteItalic = QuoteItalicCheck.IsChecked == true;
         s.QuoteApiUrl = QuoteApiUrlBox.Text ?? s.QuoteApiUrl;
         s.QuoteTextFieldName = QuoteTextFieldNameBox.Text ?? s.QuoteTextFieldName;
@@ -56,10 +49,10 @@ public partial class ApiPage : UserControl, ISettingsPage
         s.WeatherRefreshInterval = (int)WeatherRefreshIntervalSlider.Value;
         s.WeatherDetailLevel = WeatherDetailLevelCombo.SelectedIndex < 0 ? 1 : WeatherDetailLevelCombo.SelectedIndex;
 
-        s.WeatherCityColor = WeatherCityColorBox.Text ?? s.WeatherCityColor;
-        s.WeatherInfoColor = WeatherInfoColorBox.Text ?? s.WeatherInfoColor;
-        s.WeatherTempColor = WeatherTempColorBox.Text ?? s.WeatherTempColor;
-        s.WeatherIconColor = WeatherIconColorBox.Text ?? s.WeatherIconColor;
+        s.WeatherCityColor = PickColor(WeatherCityColorSwatch, s.WeatherCityColor);
+        s.WeatherInfoColor = PickColor(WeatherInfoColorSwatch, s.WeatherInfoColor);
+        s.WeatherTempColor = PickColor(WeatherTempColorSwatch, s.WeatherTempColor);
+        s.WeatherIconColor = PickColor(WeatherIconColorSwatch, s.WeatherIconColor);
     }
 
     // ── 滑条联动 ────────────────────────────────────────────
@@ -83,39 +76,10 @@ public partial class ApiPage : UserControl, ISettingsPage
         if (WeatherRefreshIntervalText != null) WeatherRefreshIntervalText.Text = $"{(int)e.NewValue}分";
     }
 
-    // ── 颜色选择 ────────────────────────────────────────────
-    private void PickQuoteForeground_Click(object? sender, RoutedEventArgs e)
-        => PickColor(QuoteForegroundBox);
-
-    private void PickWeatherCityColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(WeatherCityColorBox, WeatherCityColorPreview);
-
-    private void PickWeatherInfoColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(WeatherInfoColorBox, WeatherInfoColorPreview);
-
-    private void PickWeatherTempColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(WeatherTempColorBox, WeatherTempColorPreview);
-
-    private void PickWeatherIconColor_Click(object? sender, RoutedEventArgs e)
-        => PickColor(WeatherIconColorBox, WeatherIconColorPreview);
-
-    private void PickColor(TextBox box, Border? preview = null)
-    {
-        var dlg = new ColorPickerDialog(box.Text ?? "#FFFFFFFF");
-        var owner = TopLevel.GetTopLevel(this) as Window;
-        if (owner != null) dlg.ShowDialog(owner); else dlg.Show();
-        dlg.Closed += (_, _) =>
-        {
-            if (dlg.SelectedHex == null) return;
-            box.Text = dlg.SelectedHex;
-            UpdateColorPreview(preview, dlg.SelectedHex);
-        };
-    }
-
-    /// <summary>刷新颜色预览色块（D2）</summary>
-    private static void UpdateColorPreview(Border? preview, string? hex)
-    {
-        if (preview == null || string.IsNullOrEmpty(hex)) return;
-        try { preview.Background = new SolidColorBrush(Color.Parse(hex)); } catch { /* 非法色值保持原样 */ }
-    }
+    // ── 颜色 ────────────────────────────────────────────────
+    // 2026-09-25（规划 2.7 ③）：hex 输入框 → ColorSwatch 色板（整行可点）。
+    // 顺带修掉一个静默缺陷：原来「每日一言 · 文字颜色」的预览 Border **没有 x:Name**，
+    // 选完色只改了输入框、预览色块永远停在 XAML 里的 #FFAAAAAA（看着像没生效）。
+    private static string PickColor(ColorSwatch sw, string fallback)
+        => ColorSwatch.TryParse(sw.Value, out _) ? sw.Value : fallback;
 }

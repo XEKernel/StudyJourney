@@ -979,16 +979,26 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
         foreach (var t in list)
         {
             // 列：节次 / 开始 / 结束 / 类型(占剩余) / 删除
-            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("44,54,54,*,28") };
+            // 2026-09-25（规划 2.7 ②）：开始/结束原来是 TextBox，作息表要老师逐格手打 "08:00"
+            // → 改 TimePicker（24 小时制、5 分钟步进）。作息表一个学期只填一次，但一次要填十几行。
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("46,100,100,*,32") };
             var periodBox = new TextBox { Text = t.Period.ToString(), FontSize = 13, MinHeight = 34, VerticalContentAlignment = VerticalAlignment.Center };
             periodBox.TextChanged += (_, _) =>
             { if (int.TryParse(periodBox.Text, out int p)) { t.Period = p; MarkTplDirty(); } };
 
-            var startBox = new TextBox { Text = t.StartTime, FontSize = 13, MinHeight = 34, VerticalContentAlignment = VerticalAlignment.Center };
-            startBox.TextChanged += (_, _) => { t.StartTime = startBox.Text ?? "08:00"; MarkTplDirty(); };
+            var startPicker = NewTimePicker(t.StartTime);
+            startPicker.SelectedTimeChanged += (_, _) =>
+            {
+                var v = Helpers.DateTimeStr.FormatTimeOfDay(startPicker.SelectedTime);
+                if (v.Length > 0) { t.StartTime = v; MarkTplDirty(); }
+            };
 
-            var endBox = new TextBox { Text = t.EndTime, FontSize = 13, MinHeight = 34, VerticalContentAlignment = VerticalAlignment.Center };
-            endBox.TextChanged += (_, _) => { t.EndTime = endBox.Text ?? "08:45"; MarkTplDirty(); };
+            var endPicker = NewTimePicker(t.EndTime);
+            endPicker.SelectedTimeChanged += (_, _) =>
+            {
+                var v = Helpers.DateTimeStr.FormatTimeOfDay(endPicker.SelectedTime);
+                if (v.Length > 0) { t.EndTime = v; MarkTplDirty(); }
+            };
 
             var typeBox = new ComboBox { FontSize = 13, MinHeight = 34, ItemsSource = PeriodTypeItems, HorizontalAlignment = HorizontalAlignment.Stretch };
             typeBox.SelectedItem = PeriodTypeItems.FirstOrDefault(p => p.Value == t.Type);
@@ -1010,15 +1020,27 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
                 RebuildTimetable();
             };
 
-            Grid.SetColumn(periodBox, 0); Grid.SetColumn(startBox, 1);
-            Grid.SetColumn(endBox, 2); Grid.SetColumn(typeBox, 3); Grid.SetColumn(delBtn, 4);
-            row.Children.Add(periodBox); row.Children.Add(startBox);
-            row.Children.Add(endBox); row.Children.Add(typeBox); row.Children.Add(delBtn);
+            Grid.SetColumn(periodBox, 0); Grid.SetColumn(startPicker, 1);
+            Grid.SetColumn(endPicker, 2); Grid.SetColumn(typeBox, 3); Grid.SetColumn(delBtn, 4);
+            row.Children.Add(periodBox); row.Children.Add(startPicker);
+            row.Children.Add(endPicker); row.Children.Add(typeBox); row.Children.Add(delBtn);
             panel.Children.Add(row);
         }
 
         TemplateHost.Content = panel;
     }
+
+    /// <summary>时段模板里的时刻选择器（24 小时制、5 分钟步进；值一律合法，不会再存进 "8:0" 这类脏串）</summary>
+    private static TimePicker NewTimePicker(string current)
+        => new()
+        {
+            SelectedTime = Helpers.DateTimeStr.ParseTimeOfDay(current),
+            FontSize = 13,
+            MinHeight = 34,
+            ClockIdentifier = "24HourClock",
+            MinuteIncrement = 5,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
 
     private void AddTimeSlotBtn_Click(object? sender, RoutedEventArgs e)
     {

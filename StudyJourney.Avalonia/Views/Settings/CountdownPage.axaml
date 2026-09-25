@@ -1,7 +1,7 @@
 <UserControl x:Class="StudyJourney.Avalonia.Views.Settings.CountdownPage"
              xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:dg="using:Avalonia.Controls"
+             xmlns:v="using:StudyJourney.Avalonia.Views"
              x:CompileBindings="False">
     <ScrollViewer>
         <StackPanel Spacing="14" Margin="0,8,20,20">
@@ -37,20 +37,9 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="配色方案" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                    <TextBlock Text="文字颜色（倒计时文字）" FontSize="13" Margin="0,4,0,4"/>
-                    <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" x:Name="TextColorBox" Text="#FFFFFFFF"/>
-                        <Border Grid.Column="1" x:Name="TextColorPreview" Width="26" Height="26" CornerRadius="4" Background="#FFFFFFFF"
-                                HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickTextColor_Click"/>
-                    </Grid>
-                    <TextBlock Text="强调色（进度条 / 圆环 / 课表高亮）" FontSize="13" Margin="0,10,0,4"/>
-                    <Grid ColumnDefinitions="90,*,Auto">
-                        <TextBox Grid.Column="0" x:Name="AccentColorBox" Text="#FF2B6CB0"/>
-                        <Border Grid.Column="1" x:Name="AccentColorPreview" Width="26" Height="26" CornerRadius="4" Background="#FF2B6CB0"
-                                HorizontalAlignment="Left" Margin="8,0,0,0"/>
-                        <Button Grid.Column="2" Content="选择…" Margin="8,0,0,0" Click="PickAccentColor_Click"/>
-                    </Grid>
+                    <v:ColorSwatch x:Name="TextColorSwatch" Caption="文字颜色（倒计时文字）"/>
+                    <v:ColorSwatch x:Name="AccentColorSwatch" Caption="强调色（进度条 / 圆环 / 课表高亮）"
+                                   Margin="0,6,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -77,14 +66,24 @@
                 </StackPanel>
             </Border>
 
-            <!-- 目标日期 -->
+            <!-- 目标日期（2026-09-25：原来要手打 yyyy-MM-dd HH:mm:ss → 改为日期 + 时刻选择器） -->
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="目标考试日期" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                    <TextBlock Text="格式：yyyy-MM-dd HH:mm:ss  （例：2027-06-07 09:00:00）"
+                    <TextBlock Text="点日期框选日历，旁边选时刻；倒计时在那一刻清零。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                               TextWrapping="Wrap" Margin="0,0,0,6"/>
-                    <TextBox x:Name="GaokaoDateBox" Text="2027-06-07 09:00:00"/>
+                               TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <DatePicker x:Name="GaokaoDatePicker" Width="180" SelectedDateChanged="GaokaoDateChanged"/>
+                        <TimePicker x:Name="GaokaoTimePicker" Width="130"
+                                    ClockIdentifier="24HourClock" MinuteIncrement="5"
+                                    SelectedTimeChanged="GaokaoTimeChanged"/>
+                        <Button Content="清除" Click="ClearGaokaoDate_Click" VerticalAlignment="Center"
+                                ToolTip.Tip="清空后不显示高考倒计时"/>
+                    </StackPanel>
+                    <TextBlock x:Name="GaokaoDateHintTb" Text="" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap" Margin="0,4,0,0"/>
                 </StackPanel>
             </Border>
 
@@ -92,28 +91,32 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="进度条起算日期" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                    <TextBlock Text="格式：yyyy-MM-dd  （例：2024-08-24）"
+                    <TextBlock Text="进度条从这一天算起，到目标日期为 100%。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                               TextWrapping="Wrap" Margin="0,0,0,6"/>
-                    <TextBox x:Name="StartDateBox" Text="2024-08-24"/>
+                               TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                        <DatePicker x:Name="StartDatePicker" Width="180" SelectedDateChanged="StartDateChanged"/>
+                        <Button Content="清除" Click="ClearStartDate_Click" VerticalAlignment="Center"
+                                ToolTip.Tip="清空后进度条按默认区间估算"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
-            <!-- 自定义倒计时 -->
+            <!-- 自定义倒计时（2026-09-25：表格手打日期 → 行内日期选择器） -->
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="📅  自定义倒计时" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <dg:DataGrid x:Name="CustomCountdownGrid" Height="140" AutoGenerateColumns="False"
-                                 IsReadOnly="False" GridLinesVisibility="Horizontal">
-                        <dg:DataGrid.Columns>
-                            <dg:DataGridTextColumn Header="名称" Width="150" Binding="{Binding Name}"/>
-                            <dg:DataGridTextColumn Header="日期" Width="*" Binding="{Binding DateStr}"/>
-                        </dg:DataGrid.Columns>
-                    </dg:DataGrid>
-                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,8,0,0">
-                        <Button x:Name="AddCountdownBtn" Content="＋ 添加" Click="AddCountdownBtn_Click"/>
-                        <Button x:Name="DeleteCountdownBtn" Content="－ 删除" Click="DeleteCountdownBtn_Click"/>
-                    </StackPanel>
+                    <TextBlock Text="📅  自定义倒计时" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock Text="例如「期末考试」「运动会」。改完点窗口下方「保存设置」生效。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,8"/>
+                    <ScrollViewer MaxHeight="200" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="CountdownListPanel" Spacing="6"/>
+                    </ScrollViewer>
+                    <TextBlock x:Name="CountdownEmptyTb" Text="（还没有自定义倒计时）" FontSize="12"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    <Button x:Name="AddCountdownBtn" Content="＋ 添加" Click="AddCountdownBtn_Click"
+                            HorizontalAlignment="Left" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>
         </StackPanel>

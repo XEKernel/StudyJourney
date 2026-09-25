@@ -1,10 +1,7 @@
-using System;
-using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
-using Avalonia.Media;
-using Avalonia.Threading;
+using Avalonia.Media;   // FontManager
 using StudyJourney.Avalonia.Models;
 using StudyJourney.Avalonia.Views;
 
@@ -54,42 +51,13 @@ public partial class ExamPage : UserControl, ISettingsPage
         if (tb != null) tb.Text = ((int)value).ToString();
     }
 
-    // ── 颜色选择 ────────────────────────────────────────────
-    private void PickExamSubjectColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamSubjectColorBox, ExamSubjectColorPreview);
-    private void PickExamNameColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamNameColorBox, ExamNameColorPreview);
-    private void PickExamCountdownNormalColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamCountdownNormalColorBox, ExamCountdownNormalColorPreview);
-    private void PickExamCountdownWarningColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamCountdownWarningColorBox, ExamCountdownWarningColorPreview);
-    private void PickExamCountdownCriticalColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamCountdownCriticalColorBox, ExamCountdownCriticalColorPreview);
-    private void PickExamDistanceColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamDistanceColorBox, ExamDistanceColorPreview);
-    private void PickExamInfoColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamInfoColorBox, ExamInfoColorPreview);
-    private void PickExamInfoDimColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamInfoDimColorBox, ExamInfoDimColorPreview);
-    private void PickExamProgressBarColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamProgressBarColorBox, ExamProgressBarColorPreview);
-    private void PickExamProgressBarBgColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamProgressBarBgColorBox, ExamProgressBarBgColorPreview);
-    private void PickExamNextSubjectColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamNextSubjectColorBox, ExamNextSubjectColorPreview);
-    private void PickExamWarningColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamWarningColorBox, ExamWarningColorPreview);
-    private void PickExamProgressPctColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamProgressPctColorBox, ExamProgressPctColorPreview);
-    private void PickExamBackgroundColor_Click(object? sender, RoutedEventArgs e) => PickColor(ExamBackgroundColorBox, ExamBackgroundColorPreview);
-
-    private void PickColor(TextBox box, Border preview)
-    {
-        var dlg = new ColorPickerDialog(box.Text ?? "#FFFFFFFF");
-        var owner = TopLevel.GetTopLevel(this) as Window;
-        if (owner != null) dlg.ShowDialog(owner); else dlg.Show();
-        dlg.Closed += (_, _) =>
-        {
-            if (dlg.SelectedHex != null)
-            {
-                box.Text = dlg.SelectedHex;
-                UpdateColorPreview(preview, dlg.SelectedHex);
-            }
-        };
-    }
-
-    private static void UpdateColorPreview(Border? preview, string? hex)
-    {
-        if (preview == null || string.IsNullOrEmpty(hex)) return;
-        try { preview.Background = new SolidColorBrush(Color.Parse(hex)); } catch { }
-    }
+    // ── 颜色 ────────────────────────────────────────────────
+    // 2026-09-25（规划 2.7 ③）：原来的「hex 输入框 + 预览方块 + 选择…按钮」三件套
+    // （本页 14 组、全项目 20 组）换成 ColorSwatch 色板：整行可点、显示当前颜色、
+    // 值非法时画成空心并标注 → 老师再也不用看 / 手打 `#AARRGGBB`。
+    // 取值时不做任何"格式化改写"（防止把 #8899CC 顺手改成 #FF8899CC），只挡非法值。
+    private static string PickColor(ColorSwatch sw, string fallback)
+        => ColorSwatch.TryParse(sw.Value, out _) ? sw.Value : fallback;
 
     // ── Load / Apply ────────────────────────────────────────
     public void Load(AppSettings s)
@@ -106,31 +74,21 @@ public partial class ExamPage : UserControl, ISettingsPage
         ExamEscHintFontSizeSlider.Value = s.ExamEscHintFontSize;
         ExamProgressBarHeightSlider.Value = s.ExamProgressBarHeight;
 
-        // 颜色
-        ExamSubjectColorBox.Text = s.ExamSubjectColor;
-        ExamNameColorBox.Text = s.ExamNameColor;
-        ExamCountdownNormalColorBox.Text = s.ExamCountdownNormalColor;
-        ExamCountdownWarningColorBox.Text = s.ExamCountdownWarningColor;
-        ExamCountdownCriticalColorBox.Text = s.ExamCountdownCriticalColor;
-        ExamDistanceColorBox.Text = s.ExamDistanceColor;
-        ExamInfoColorBox.Text = s.ExamInfoColor;
-        ExamInfoDimColorBox.Text = s.ExamInfoDimColor;
-        ExamProgressBarColorBox.Text = s.ExamProgressBarColor;
-        ExamProgressBarBgColorBox.Text = s.ExamProgressBarBgColor;
-        ExamNextSubjectColorBox.Text = s.ExamNextSubjectColor;
-        ExamWarningColorBox.Text = s.ExamWarningColor;
-        ExamProgressPctColorBox.Text = s.ExamProgressPctColor;
-        ExamBackgroundColorBox.Text = s.ExamBackgroundColor;
-        foreach (var (box, preview) in new[] {
-            (ExamSubjectColorBox, ExamSubjectColorPreview), (ExamNameColorBox, ExamNameColorPreview),
-            (ExamCountdownNormalColorBox, ExamCountdownNormalColorPreview), (ExamCountdownWarningColorBox, ExamCountdownWarningColorPreview),
-            (ExamCountdownCriticalColorBox, ExamCountdownCriticalColorPreview), (ExamDistanceColorBox, ExamDistanceColorPreview),
-            (ExamInfoColorBox, ExamInfoColorPreview), (ExamInfoDimColorBox, ExamInfoDimColorPreview),
-            (ExamProgressBarColorBox, ExamProgressBarColorPreview), (ExamProgressBarBgColorBox, ExamProgressBarBgColorPreview),
-            (ExamNextSubjectColorBox, ExamNextSubjectColorPreview), (ExamWarningColorBox, ExamWarningColorPreview),
-            (ExamProgressPctColorBox, ExamProgressPctColorPreview), (ExamBackgroundColorBox, ExamBackgroundColorPreview)
-        })
-            UpdateColorPreview(preview, box.Text);
+        // 颜色（14 项）
+        ExamSubjectSwatch.Value = s.ExamSubjectColor;
+        ExamNameSwatch.Value = s.ExamNameColor;
+        ExamCountdownNormalSwatch.Value = s.ExamCountdownNormalColor;
+        ExamCountdownWarningSwatch.Value = s.ExamCountdownWarningColor;
+        ExamCountdownCriticalSwatch.Value = s.ExamCountdownCriticalColor;
+        ExamDistanceSwatch.Value = s.ExamDistanceColor;
+        ExamInfoSwatch.Value = s.ExamInfoColor;
+        ExamInfoDimSwatch.Value = s.ExamInfoDimColor;
+        ExamProgressBarSwatch.Value = s.ExamProgressBarColor;
+        ExamProgressBarBgSwatch.Value = s.ExamProgressBarBgColor;
+        ExamNextSubjectSwatch.Value = s.ExamNextSubjectColor;
+        ExamWarningSwatch.Value = s.ExamWarningColor;
+        ExamProgressPctSwatch.Value = s.ExamProgressPctColor;
+        ExamBackgroundSwatch.Value = s.ExamBackgroundColor;
 
         // 倒计时字体族（系统字体）
         if (ExamCountdownFontFamilyBox.Items.Count == 0)
@@ -155,20 +113,20 @@ public partial class ExamPage : UserControl, ISettingsPage
         s.ExamEscHintFontSize = ExamEscHintFontSizeSlider.Value;
         s.ExamProgressBarHeight = ExamProgressBarHeightSlider.Value;
 
-        s.ExamSubjectColor = ExamSubjectColorBox.Text ?? s.ExamSubjectColor;
-        s.ExamNameColor = ExamNameColorBox.Text ?? s.ExamNameColor;
-        s.ExamCountdownNormalColor = ExamCountdownNormalColorBox.Text ?? s.ExamCountdownNormalColor;
-        s.ExamCountdownWarningColor = ExamCountdownWarningColorBox.Text ?? s.ExamCountdownWarningColor;
-        s.ExamCountdownCriticalColor = ExamCountdownCriticalColorBox.Text ?? s.ExamCountdownCriticalColor;
-        s.ExamDistanceColor = ExamDistanceColorBox.Text ?? s.ExamDistanceColor;
-        s.ExamInfoColor = ExamInfoColorBox.Text ?? s.ExamInfoColor;
-        s.ExamInfoDimColor = ExamInfoDimColorBox.Text ?? s.ExamInfoDimColor;
-        s.ExamProgressBarColor = ExamProgressBarColorBox.Text ?? s.ExamProgressBarColor;
-        s.ExamProgressBarBgColor = ExamProgressBarBgColorBox.Text ?? s.ExamProgressBarBgColor;
-        s.ExamNextSubjectColor = ExamNextSubjectColorBox.Text ?? s.ExamNextSubjectColor;
-        s.ExamWarningColor = ExamWarningColorBox.Text ?? s.ExamWarningColor;
-        s.ExamProgressPctColor = ExamProgressPctColorBox.Text ?? s.ExamProgressPctColor;
-        s.ExamBackgroundColor = ExamBackgroundColorBox.Text ?? s.ExamBackgroundColor;
+        s.ExamSubjectColor = PickColor(ExamSubjectSwatch, s.ExamSubjectColor);
+        s.ExamNameColor = PickColor(ExamNameSwatch, s.ExamNameColor);
+        s.ExamCountdownNormalColor = PickColor(ExamCountdownNormalSwatch, s.ExamCountdownNormalColor);
+        s.ExamCountdownWarningColor = PickColor(ExamCountdownWarningSwatch, s.ExamCountdownWarningColor);
+        s.ExamCountdownCriticalColor = PickColor(ExamCountdownCriticalSwatch, s.ExamCountdownCriticalColor);
+        s.ExamDistanceColor = PickColor(ExamDistanceSwatch, s.ExamDistanceColor);
+        s.ExamInfoColor = PickColor(ExamInfoSwatch, s.ExamInfoColor);
+        s.ExamInfoDimColor = PickColor(ExamInfoDimSwatch, s.ExamInfoDimColor);
+        s.ExamProgressBarColor = PickColor(ExamProgressBarSwatch, s.ExamProgressBarColor);
+        s.ExamProgressBarBgColor = PickColor(ExamProgressBarBgSwatch, s.ExamProgressBarBgColor);
+        s.ExamNextSubjectColor = PickColor(ExamNextSubjectSwatch, s.ExamNextSubjectColor);
+        s.ExamWarningColor = PickColor(ExamWarningSwatch, s.ExamWarningColor);
+        s.ExamProgressPctColor = PickColor(ExamProgressPctSwatch, s.ExamProgressPctColor);
+        s.ExamBackgroundColor = PickColor(ExamBackgroundSwatch, s.ExamBackgroundColor);
 
         if (ExamCountdownFontFamilyBox.SelectedItem is string ff && !string.IsNullOrWhiteSpace(ff))
             s.ExamCountdownFontFamily = ff;

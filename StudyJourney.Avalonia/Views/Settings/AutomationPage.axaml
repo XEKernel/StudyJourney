@@ -92,14 +92,14 @@
                                 <ComboBox x:Name="TriggerTypeCombo" FontSize="13"
                                           SelectionChanged="TriggerTypeCombo_SelectionChanged"/>
 
-                                <!-- 固定时间参数 -->
+                                <!-- 固定时间参数（2026-09-25：手打 18:00 → 时间选择器） -->
                                 <StackPanel x:Name="FixedPanel" Spacing="8">
                                     <StackPanel Spacing="2">
                                         <TextBlock Text="几点几分" FontSize="12"
                                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                        <TextBox x:Name="TimeBox" Text="18:00" FontSize="14"
-                                                 HorizontalAlignment="Left" Width="120"
-                                                 TextChanged="TimeBox_TextChanged"/>
+                                        <TimePicker x:Name="TimeBox" HorizontalAlignment="Left" Width="140"
+                                                    ClockIdentifier="24HourClock" MinuteIncrement="5"
+                                                    SelectedTimeChanged="TimeBox_Changed"/>
                                     </StackPanel>
                                     <CheckBox x:Name="DailyCheck" Content="每天（取消勾选可指定星期）"
                                               IsCheckedChanged="DailyCheck_Toggled"/>
@@ -122,13 +122,14 @@
                                               SelectionChanged="SubjectCombo_SelectionChanged"/>
                                 </StackPanel>
 
-                                <!-- 上课前 N 分钟 -->
+                                <!-- 上课前 N 分钟（2026-09-25：手打数字 → 步进框，打不出非法值） -->
                                 <StackPanel x:Name="BeforePanel" Spacing="4">
                                     <TextBlock Text="上课前几分钟（0 = 打铃时刻）" FontSize="12"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                    <TextBox x:Name="BeforeMinutesBox" Text="1" FontSize="14"
-                                             HorizontalAlignment="Left" Width="100"
-                                             TextChanged="BeforeMinutesBox_TextChanged"/>
+                                    <NumericUpDown x:Name="BeforeMinutesBox" Minimum="0" Maximum="1440"
+                                                   Increment="1" FormatString="0" FontSize="13"
+                                                   HorizontalAlignment="Left" Width="120"
+                                                   ValueChanged="NumberBox_ValueChanged"/>
                                     <TextBlock Text="选「全部」则每一节普通课都触发（自习/班会不触发）"
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>
@@ -138,9 +139,10 @@
                                 <StackPanel x:Name="EndPanel" Spacing="4">
                                     <TextBlock Text="下课后延后几分钟（0 = 准点）" FontSize="12"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                    <TextBox x:Name="EndMinutesBox" Text="0" FontSize="14"
-                                             HorizontalAlignment="Left" Width="100"
-                                             TextChanged="EndMinutesBox_TextChanged"/>
+                                    <NumericUpDown x:Name="EndMinutesBox" Minimum="0" Maximum="1440"
+                                                   Increment="1" FormatString="0" FontSize="13"
+                                                   HorizontalAlignment="Left" Width="120"
+                                                   ValueChanged="NumberBox_ValueChanged"/>
                                 </StackPanel>
 
                                 <!-- 放学 -->
@@ -154,9 +156,10 @@
                                 <StackPanel x:Name="IdlePanel" Spacing="4">
                                     <TextBlock Text="闲置几分钟后触发" FontSize="12"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                    <TextBox x:Name="IdleMinutesBox" Text="10" FontSize="14"
-                                             HorizontalAlignment="Left" Width="100"
-                                             TextChanged="IdleMinutesBox_TextChanged"/>
+                                    <NumericUpDown x:Name="IdleMinutesBox" Minimum="1" Maximum="1440"
+                                                   Increment="1" FormatString="0" FontSize="13"
+                                                   HorizontalAlignment="Left" Width="120"
+                                                   ValueChanged="NumberBox_ValueChanged"/>
                                     <TextBlock Text="上课 / 考试时不会触发（防放 PPT 时误熄屏）；鼠标或触屏一动就重新计时"
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>
@@ -166,9 +169,10 @@
                                 <StackPanel x:Name="AppStartPanel" Spacing="4">
                                     <TextBlock Text="启动后延迟几分钟（0 = 立即）" FontSize="12"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                    <TextBox x:Name="StartMinutesBox" Text="0" FontSize="14"
-                                             HorizontalAlignment="Left" Width="100"
-                                             TextChanged="StartMinutesBox_TextChanged"/>
+                                    <NumericUpDown x:Name="StartMinutesBox" Minimum="0" Maximum="1440"
+                                                   Increment="1" FormatString="0" FontSize="13"
+                                                   HorizontalAlignment="Left" Width="120"
+                                                   ValueChanged="NumberBox_ValueChanged"/>
                                     <TextBlock Text="每次打开软件只执行一次，适合开机自动打开课件"
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>
@@ -201,7 +205,7 @@
 
                                 <!-- 打开文件 -->
                                 <StackPanel x:Name="OpenFilePanel" Spacing="4">
-                                    <TextBlock Text="文件路径（双击浏览）" FontSize="12"
+                                    <TextBlock Text="文件路径（点「浏览…」选择）" FontSize="12"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBox x:Name="OpenPathBox" FontSize="12"
@@ -246,9 +250,10 @@
                                 <StackPanel x:Name="PowerPanel" Spacing="4">
                                     <TextBlock Text="倒计时秒数（默认 60，期间可取消）" FontSize="12"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                    <TextBox x:Name="PowerSecondsBox" Text="60" FontSize="14"
-                                             HorizontalAlignment="Left" Width="100"
-                                             TextChanged="PowerSecondsBox_TextChanged"/>
+                                    <NumericUpDown x:Name="PowerSecondsBox" Minimum="30" Maximum="3600"
+                                                   Increment="10" FormatString="0" FontSize="13"
+                                                   HorizontalAlignment="Left" Width="130"
+                                                   ValueChanged="NumberBox_ValueChanged"/>
                                     <TextBlock Text="触发后系统弹出「即将关机」提示；反悔可在倒计时内运行 shutdown /a 取消"
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>

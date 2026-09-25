@@ -170,23 +170,68 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow, I
     }
 
     /// <summary>恢复默认设置（对齐 WPF ResetButton_Click）：重置为 new AppSettings() 并广播刷新。
-    /// 注意：会同时重置存于 settings.json 的业务数据（老师账号→内置账号、选科、自定义倒计时），
-    /// 确认框已明示影响范围；课表/自动化规则/登录状态为独立文件不受影响。</summary>
+    ///
+    /// 2026-09-25（规划 2.7 ①）重做，起因是"按下去不知道会清掉什么"（数据安全问题）：
+    ///  · 原确认框只有一句"将恢复默认：外观 / 位置 / 提醒 / 考试模式等偏好"，
+    ///    实际却会**清空老师账号、删除自定义倒计时、重置选科、抹掉远程控制台配置** —— 真正的业务数据；
+    ///  · 原话术里"重置老师账号为内置账号"还**不准确**：`new AppSettings().Teachers` 是**空表**，
+    ///    重置后账号列表为空（老师登录会回落到内置账号），并非"列表里有内置账号"（已按实际行为改文案）。
+    /// 现在：清单由 `SettingsReset` 按**当前设置的真实内容**生成（带数量），
+    /// 动手前**自动备份 settings.json**（可反悔），并要求老师勾选确认才能按。
+    /// </summary>
     private async void ResetBtn_Click(object? sender, RoutedEventArgs e)
     {
-        var ok = await App.ConfirmAsync("重置所有设置",
-            "确定要重置所有设置吗？\n\n" +
-            "将恢复默认：外观 / 位置 / 提醒 / 考试模式等偏好；\n" +
-            "并会重置老师账号为内置账号（含初始密码）、清空自定义倒计时、恢复默认选科。\n\n" +
-            "课表、自动化任务规则、登录状态不受影响。");
+        string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+        string settingsPath = System.IO.Path.Combine(baseDir, "settings.json");
+
+        // 先把当前页的改动落盘，再备份 —— 这样备份里是"重置前的完整设置"，不是缺一块的设置
+        if (_currentPage is ISettingsPage cur) cur.Apply(App.Settings);
+        App.SaveSettings();
+
+        // 预先把时间戳定下来：清单里展示的备份路径 == 备份真正写到的路径
+        var now = DateTime.Now;
+        string previewPath = System.IO.Path.Combine(
+            Helpers.SettingsReset.BackupRoot(baseDir),
+            "reset-" + now.ToString("yyyyMMdd_HHmmss"),
+            "settings.json");
+
+        var dlg = new ResetSettingsDialog(
+            Helpers.SettingsReset.DescribeImpact(App.Settings, previewPath));
+        bool ok = await dlg.ShowDialog<bool>(this);
         if (!ok) return;
 
+        // ① 备份（失败也继续重置，但必须明确告诉老师"这次没有备份"）
+        string? backupPath = Helpers.SettingsReset.Backup(settingsPath, baseDir, now, out var backupError);
+
+        // ② 重置
         App.Settings = new AppSettings();
         App.SaveSettings();
 
-        // 刷新当前页面显示为默认值
         if (_currentPage is ISettingsPage sp) sp.Load(App.Settings);
         RefreshBaseline();
+
+        Helpers.AppLogger.Info($"[恢复默认] 已重置全部设置；备份：{backupPath ?? "（未生成：" + backupError + "）"}");
+
+        // ③ 告诉老师结果 + 备份在哪（能直接打开）
+        string msg = backupPath != null
+            ? $"已恢复默认设置。\n\n重置前的设置已备份到：\n{backupPath}\n\n" +
+              "如需找回，用「课表 → 恢复数据」选中这个文件即可。"
+            : $"已恢复默认设置。\n\n⚠ 但重置前**未能自动备份**：{backupError}\n" +
+              "（设置已重置，此次无法找回之前的内容）";
+
+        var choice = await Helpers.DialogHelper.ShowChoiceAsync(this, "恢复默认设置", msg,
+            "打开备份文件夹", "知道了");
+        if (choice == 1)
+        {
+            try
+            {
+                var dir = System.IO.Path.GetDirectoryName(backupPath)
+                          ?? Helpers.SettingsReset.BackupRoot(baseDir);
+                System.Diagnostics.Process.Start(
+                    new System.Diagnostics.ProcessStartInfo(dir) { UseShellExecute = true });
+            }
+            catch (Exception ex) { Helpers.AppLogger.Warn($"打开备份文件夹失败：{ex.Message}"); }
+        }
     }
 
     private void SaveBtn_Click(object? sender, RoutedEventArgs e)

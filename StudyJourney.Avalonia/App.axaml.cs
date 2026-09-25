@@ -236,6 +236,10 @@ public partial class App : Application
             case "diag":
                 Dispatcher.UIThread.Post(RunDiagSelfTest, DispatcherPriority.Background);
                 break;
+            case "settings":
+                // 2026-09-25（规划 2.7）：恢复默认的影响清单 + 重置前备份 + 日期/时间串往返 + 颜色 hex
+                Dispatcher.UIThread.Post(RunSettingsSelfTest, DispatcherPriority.Background);
+                break;
             default:
                 Helpers.AppLogger.Warn($"未知自检模式：{mode}");
                 Environment.Exit(2);
@@ -1237,6 +1241,179 @@ public partial class App : Application
         catch (Exception ex)
         {
             sb.AppendLine($"[CWTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
+    /// <summary>
+    /// 设置页语义自检（SJ_SELFTEST=settings）。
+    ///
+    /// 2026-09-25（规划 2.7 ①②③④）本轮改动的三类语义都属"错了不会报错、只会静默做错事"：
+    ///  · **恢复默认的影响清单** —— 清单漏项 = 老师按下去才发现数据没了；备份没生成 = 不可逆；
+    ///  · **日期/时间串往返** —— 控件值 ⇄ 落盘串一旦错位，倒计时/自动化会**静默**停在错误时刻；
+    ///  · **颜色 hex 解析** —— 解析失败若被当作"正常"，老师改的颜色会悄悄不生效。
+    /// 因此这里把三块抽出来的纯函数逐个断言。**不碰真实 settings.json**（备份测试全在临时目录）。
+    /// </summary>
+    private static void RunSettingsSelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        try
+        {
+            sb.AppendLine("[SJTEST] 设置页语义自检开始");
+
+            // ── A. 恢复默认：影响范围清单 ──────────────────────
+            var rich = new Models.AppSettings
+            {
+                Teachers = Models.AppSettings.CreateDefaultTeachers(),
+                CustomCountdowns = new List<Models.CustomCountdown>
+                {
+                    new() { Name = "期末", DateStr = "2027-01-20" },
+                    new() { Name = "运动会", DateStr = "2026-10-15" },
+                },
+                CustomUploadDirectory = @"D:\课件上传",
+                ClassName = "高三（7）班 智慧黑板",
+                WeatherCity = "太原",
+                WeatherAdcode = "140100",
+                DiagExtraDirs = "D:\\教学资料;E:\\U盘",
+                RecordActivity = true,
+                AutoStart = true,
+            };
+
+            void Check(bool cond, string desc)
+            {
+                sb.AppendLine($"[SJTEST]   {(cond ? "ok" : "✗")} {desc}");
+                if (!cond) throw new Exception($"断言失败：{desc}");
+            }
+
+            var loss = Helpers.SettingsReset.LossItems(rich);
+            string lossText = string.Join("\n", loss);
+            foreach (var it in loss) sb.AppendLine($"[SJTEST]      · {it}");   // 失败时能直接看出多了/少了哪一条
+            // 期望 8 项：账号 / 自定义倒计时 / 上传目录 / 班级名称 / 天气 / 额外目录 / 活动记录 / 自启动
+            Check(loss.Count == 8, $"「会清除」项数 = 8（实际 {loss.Count}）");
+            Check(lossText.Contains("清空 7 个账号"), "清单写明老师账号数量（7 个）");
+            Check(lossText.Contains("删除 2 条"), "清单写明自定义倒计时条数（2 条）");
+            Check(lossText.Contains("额外目录 2 项"), "清单写明诊断包额外目录数（2 项）");
+            Check(lossText.Contains("上课活动记录"), "清单提示活动记录会被关闭");
+            Check(lossText.Contains("开机自启动"), "清单提示自启动会被关闭");
+
+            // 空设置不该刷出一堆"0 条"的噪音项
+            var empty = new Models.AppSettings();
+            var emptyLoss = Helpers.SettingsReset.LossItems(empty);
+            Check(emptyLoss.Count == 0, $"默认设置下「会清除」应为空（实际 {emptyLoss.Count} 项）");
+
+            // 「与出厂默认一样」的值不算"会丢掉的数据" —— 否则全新安装也会吓唬老师
+            var sameAsDefault = new Models.AppSettings { ClassName = new Models.AppSettings().ClassName };
+            Check(!string.Join("\n", Helpers.SettingsReset.LossItems(sameAsDefault)).Contains("班级名称"),
+                "班级名称未改过 → 不出现在「会清除」里");
+
+            // 三段标题 + 不受影响项必须都在正文里（老师看不到就会以为"课表也没了"）
+            string desc = Helpers.SettingsReset.DescribeImpact(rich, @"E:\app\backups\reset-20260925_074421\settings.json");
+            Check(desc.Contains("会被清除"), "正文含「会被清除」段");
+            Check(desc.Contains("恢复成出厂默认"), "正文含「恢复成出厂默认」段");
+            Check(desc.Contains("不受影响"), "正文含「不受影响」段");
+            Check(desc.Contains("课表 schedule.json"), "正文写明课表不受影响");
+            Check(desc.Contains("自动化任务规则 automations.json"), "正文写明自动化规则不受影响");
+            Check(desc.Contains("tokens.json"), "正文写明登录状态不受影响");
+            Check(desc.Contains("reset-20260925_074421"), "正文带上自动备份的具体路径");
+
+            // 清单里不能出现"重置为内置账号"这种与实现不符的说法（new AppSettings().Teachers 是空表）
+            Check(!desc.Contains("重置老师账号为内置账号"), "不含与实现不符的旧话术");
+
+            // ── B. 重置前备份（全程临时目录，不碰真实 settings.json）──
+            string tempRoot = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                "sj-reset-selftest-" + Guid.NewGuid().ToString("N")[..8]);
+            try
+            {
+                System.IO.Directory.CreateDirectory(tempRoot);
+                string srcPath = System.IO.Path.Combine(tempRoot, "settings.json");
+                string payload = "{\"FontSize\":17,\"ClassName\":\"测试班级\"}";
+                System.IO.File.WriteAllText(srcPath, payload);
+
+                var stamp = new DateTime(2026, 9, 25, 7, 44, 21);
+                string? bak = Helpers.SettingsReset.Backup(srcPath, tempRoot, stamp, out var err);
+                Check(bak != null && System.IO.File.Exists(bak), $"备份文件已生成（{err ?? "无错误"}）");
+                Check(bak != null && bak.Contains("reset-20260925_074421"), "备份目录名含时间戳 reset-yyyyMMdd_HHmmss");
+                Check(bak != null && System.IO.File.ReadAllText(bak) == payload, "备份内容与重置前完全一致");
+                Check(System.IO.File.Exists(srcPath) && System.IO.File.ReadAllText(srcPath) == payload,
+                    "备份**不修改**源文件（只复制）");
+                Check(bak != null && System.IO.File.Exists(
+                    System.IO.Path.Combine(System.IO.Path.GetDirectoryName(bak)!, "说明.txt")),
+                    "备份目录里附了「说明.txt」（告诉老师怎么恢复）");
+
+                // 源文件不存在 → 明确失败，而不是抛异常
+                string? none = Helpers.SettingsReset.Backup(
+                    System.IO.Path.Combine(tempRoot, "not-exist.json"), tempRoot, stamp, out var err2);
+                Check(none == null && !string.IsNullOrEmpty(err2), "源文件不存在 → 返回 null 且给出原因");
+
+                // 只保留最近 5 份：造 8 个目录，Trim 后应剩 5
+                var root = Helpers.SettingsReset.BackupRoot(tempRoot);
+                for (int i = 1; i <= 7; i++)
+                    System.IO.Directory.CreateDirectory(
+                        System.IO.Path.Combine(root, $"reset-2026090{i}_000000"));
+                Helpers.SettingsReset.TrimBackups(tempRoot, keep: 5);
+                int left = System.IO.Directory.GetDirectories(root, "reset-*").Length;
+                Check(left == 5, $"旧备份只保留 5 份（实际 {left}）");
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tempRoot, true); } catch { }
+            }
+
+            // ── C. 日期 / 时间串往返（控件值 ⇄ 落盘串）────────
+            var dt = Helpers.DateTimeStr.ParseDateTime("2027-06-07 09:00:00");
+            Check(dt == new DateTime(2027, 6, 7, 9, 0, 0), "ParseDateTime 还原日期时间");
+            Check(Helpers.DateTimeStr.ParseDateTime("") == null, "空串 → null");
+            Check(Helpers.DateTimeStr.ParseDateTime("随便写的字") == null, "垃圾串 → null");
+            Check(Helpers.DateTimeStr.ParseDate("2024-08-24 10:00:00") == new DateTime(2024, 8, 24),
+                "ParseDate 取日期部分");
+            Check(Helpers.DateTimeStr.ComposeDateTime(dt, new TimeSpan(9, 0, 0), new TimeSpan(9, 0, 0))
+                  == "2027-06-07 09:00:00", "ComposeDateTime 落盘格式与旧版一致");
+            Check(Helpers.DateTimeStr.ComposeDateTime(null, null, new TimeSpan(9, 0, 0)) == "",
+                "日期为空 → 空串（= 不显示倒计时）");
+            Check(Helpers.DateTimeStr.ComposeDate(null) == "", "起算日期为空 → 空串");
+            Check(Helpers.DateTimeStr.ComposeDate(new DateTime(2024, 8, 24)) == "2024-08-24", "起算日期落盘格式");
+
+            // 秒保留：改别的设置不该把 09:00:30 悄悄变成 09:00:00
+            Check(Helpers.DateTimeStr.PreserveSecond("2027-06-07 09:00:30", new DateTime(2027, 6, 7),
+                      new TimeSpan(9, 0, 0)) == 30, "分时未变 → 保留原秒 30");
+            Check(Helpers.DateTimeStr.PreserveSecond("2027-06-07 09:00:30", new DateTime(2027, 6, 7),
+                      new TimeSpan(9, 5, 0)) == 0, "改了分钟 → 秒归零");
+            Check(Helpers.DateTimeStr.PreserveSecond("2027-06-08 09:00:30", new DateTime(2027, 6, 7),
+                      new TimeSpan(9, 0, 0)) == 0, "改了日期 → 秒归零");
+
+            // 自动化固定时间：旧版 TimeSpan.TryParse 会把 "18" 当 18 天 → 规则静默失效
+            Check(Helpers.DateTimeStr.ParseTimeOfDay("18:00") == new TimeSpan(18, 0, 0), "\"18:00\" → 18 点");
+            Check(Helpers.DateTimeStr.ParseTimeOfDay("8:05") == new TimeSpan(8, 5, 0), "\"8:05\"（旧数据）→ 8:05");
+            Check(Helpers.DateTimeStr.ParseTimeOfDay("18:00:30") == new TimeSpan(18, 0, 30), "\"18:00:30\" → 带秒");
+            Check(Helpers.DateTimeStr.ParseTimeOfDay("18") == null, "\"18\" → null（绝不能当成 18 天）");
+            Check(Helpers.DateTimeStr.ParseTimeOfDay("25:00") == null, "小时越界 → null");
+            Check(Helpers.DateTimeStr.ParseTimeOfDay("18:70") == null, "分钟越界 → null");
+            Check(Helpers.DateTimeStr.FormatTimeOfDay(new TimeSpan(8, 5, 0)) == "08:05", "格式化补零 08:05");
+            Check(Helpers.DateTimeStr.FormatTimeOfDay(null) == "", "未选时间 → 空串");
+
+            Check(Helpers.DateTimeStr.ParseMinutes("abc", 5) == 5, "「几分钟」非法输入 → 默认值");
+            Check(Helpers.DateTimeStr.ParseMinutes("-3", 5) == 5, "负数 → 默认值");
+            Check(Helpers.DateTimeStr.ParseMinutes("99999", 5, 1440) == 1440, "超大值 → 夹到上限");
+
+            // ── D. 颜色 hex（色板 → 设置值）──────────────────
+            Check(Views.ColorSwatch.TryParse("#FF2B6CB0", out var c1) && c1.R == 0x2B && c1.B == 0xB0,
+                "8 位 hex 解析（#FF2B6CB0 = 校园蓝）");
+            Check(Views.ColorSwatch.TryParse("#8899CC", out _), "6 位 hex 也认（旧配置里有这种写法）");
+            Check(!Views.ColorSwatch.TryParse("", out _), "空值 → 非法");
+            Check(!Views.ColorSwatch.TryParse("红色", out _), "非 hex 文本 → 非法");
+            Check(!Views.ColorSwatch.TryParse("#GGGGGG", out _), "非法字符 → 非法");
+
+            sb.AppendLine("[SJTEST] 结论：PASS");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine($"[SJTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
             sb.AppendLine(ex.StackTrace);
         }
 

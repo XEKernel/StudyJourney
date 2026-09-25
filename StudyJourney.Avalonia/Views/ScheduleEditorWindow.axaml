@@ -88,7 +88,7 @@
             </TabItem>
             <!-- ── 周视图 · 调课 Tab ── -->
             <TabItem Header="周视图 · 调课">
-                <Grid ColumnDefinitions="*,360" Margin="0,4,0,0">
+                <Grid ColumnDefinitions="*,430" Margin="0,4,0,0">
 
                     <!-- 左：课程表网格（代码动态构建，单击格子选源/目标） -->
                     <Grid Grid.Column="0" RowDefinitions="Auto,*">
