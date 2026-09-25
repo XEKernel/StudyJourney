@@ -49,6 +49,23 @@ jobs:
           echo "prerelease=$isPre" >> $env:GITHUB_OUTPUT
           Write-Host "Version: $ver (prerelease: $isPre)"
 
+      # 这个版本是否**已经发过**（tag 已存在）。
+      # ⚠ 2026-09-25 发现的问题：Release 正文原来是 `${{ github.event.head_commit.message }}`，
+      #    而 action-gh-release 在 tag 已存在时会**更新**那个 Release（含正文与资产）→
+      #    每次普通提交（如改文档/改设置页）跑 CI 都会把上一个版本的 Release 正文改写成
+      #    本次提交的整段说明 —— 既覆盖了原正文，又让 Release 页面变成一屏读不完的长文。
+      #    现在：非发版提交只构建、不发布（构建本身仍有价值：验证能不能编过）。
+      - name: Check if this version is already released
+        if: github.event_name == 'push'
+        id: tagcheck
+        shell: pwsh
+        run: |
+          $tag = "v${{ steps.version.outputs.version }}"
+          $found = git ls-remote --tags origin "refs/tags/$tag"
+          $exists = -not [string]::IsNullOrWhiteSpace($found)
+          "exists=$($exists.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          Write-Host "tag ${tag} 已存在: $exists（true = 本次不是发版提交，跳过发布）"
+
       - name: Restore
         run: dotnet restore ${{ env.Project_Path }}
 
@@ -162,23 +179,35 @@ jobs:
           cd publish\fd
           powershell Compress-Archive -Path * -DestinationPath ..\..\StudyJourney-v${{ steps.version.outputs.version }}-win-x64-fd.zip
 
-      - name: Create Release & Upload
+      # ── 生成 Release 正文：只取提交说明里的 <!--RELEASE--> 块 ──
+      # 约定（2026-09-25）：提交说明可以写长篇（背景 / 原因 / 踩坑 / 验证），
+      # **Release 正文只放面向使用者的两份清单：更新了什么、修了什么**，其它一律不要。
+      # 所以正文从标记块里提取；**没写标记就只取标题行**，绝不把整段提交说明贴上去
+      # （那正是以前 Release 页面一屏读不完的原因）。
+      - name: Prepare release notes
         if: github.event_name == 'push'
+        id: notes
+        shell: pwsh
+        run: |
+          $msg = git log -1 --pretty=%B
+          if ($msg -match '(?s)<!--RELEASE-->(.*?)<!--/RELEASE-->') {
+            $body = $Matches[1].Trim()
+          } else {
+            $body = ($msg -split "`r?`n")[0].Trim()   # 兜底：只取标题行
+          }
+          if ([string]::IsNullOrWhiteSpace($body)) { $body = "维护更新" }
+          [System.IO.File]::WriteAllText("release-notes.md", $body, (New-Object System.Text.UTF8Encoding($false)))
+          Write-Host "—— 发布正文 ——"
+          Write-Host $body
+
+      - name: Create Release & Upload
+        if: github.event_name == 'push' && steps.tagcheck.outputs.exists == 'false'
         uses: softprops/action-gh-release@v2
         with:
           name: 学程 v${{ steps.version.outputs.version }}
           tag_name: v${{ steps.version.outputs.version }}
           prerelease: ${{ steps.version.outputs.prerelease }}
-          body: |
-            ## 学程 v${{ steps.version.outputs.version }}（Avalonia 新框架）
-
-            **自包含版** (`-win-x64.zip`)：无需安装 .NET，直接运行。体积较大。
-            **框架依赖版** (`-win-x64-fd.zip`)：需安装 [.NET 10 桌面运行时](https://dotnet.microsoft.com/download/dotnet/10.0)。体积较小。
-
-            ${{ steps.version.outputs.prerelease == 'true' && '> ⚠️ 这是预发布测试版，可能存在未修复的小问题。' || '' }}
-
-            > 自动构建 · `${{ github.sha }}`
-            > ${{ github.event.head_commit.message }}
+          body_path: release-notes.md
           files: |
             StudyJourney-v${{ steps.version.outputs.version }}-win-x64.zip
             StudyJourney-v${{ steps.version.outputs.version }}-win-x64-fd.zip
