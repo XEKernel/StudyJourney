@@ -1296,7 +1296,8 @@ public partial class App : Application
             foreach (var it in loss) sb.AppendLine($"[SJTEST]      · {it}");   // 失败时能直接看出多了/少了哪一条
             // 期望 8 项：账号 / 自定义倒计时 / 上传目录 / 班级名称 / 天气 / 额外目录 / 活动记录 / 自启动
             Check(loss.Count == 8, $"「会清除」项数 = 8（实际 {loss.Count}）");
-            Check(lossText.Contains("清空 7 个账号"), "清单写明老师账号数量（7 个）");
+            Check(lossText.Contains("7 个自定义账号"), "清单写明老师账号数量（7 个自定义账号）");
+            Check(lossText.Contains("会被替换为内置账号"), "清单说明账号会被替换成内置账号");
             Check(lossText.Contains("删除 2 条"), "清单写明自定义倒计时条数（2 条）");
             Check(lossText.Contains("额外目录 2 项"), "清单写明诊断包额外目录数（2 项）");
             Check(lossText.Contains("上课活动记录"), "清单提示活动记录会被关闭");
@@ -1322,8 +1323,27 @@ public partial class App : Application
             Check(desc.Contains("tokens.json"), "正文写明登录状态不受影响");
             Check(desc.Contains("reset-20260925_074421"), "正文带上自动备份的具体路径");
 
-            // 清单里不能出现"重置为内置账号"这种与实现不符的说法（new AppSettings().Teachers 是空表）
-            Check(!desc.Contains("重置老师账号为内置账号"), "不含与实现不符的旧话术");
+            // 重置目标必须**含内置账号**（用户 2026-09-25 决定）。
+            // 这条断言同时钉住两个容易回归的点：①`new AppSettings().Teachers` 是空表（默认值），
+            // 所以必须显式带 CreateDefaultTeachers()；②"含初始密码"必须真能登录（哈希真的算过）。
+            var target = Helpers.SettingsReset.CreateResetTarget();
+            Check(target.Teachers.Count == 7, $"重置目标含 7 个内置账号（实际 {target.Teachers.Count}）");
+            Check(target.Teachers.Any(t => t.Username == "Teacher01"), "含管理员 Teacher01");
+            foreach (var u in new[] { "teacher01", "teacher02", "teacher03", "teacher04", "teacher05", "teacher06" })
+                Check(target.Teachers.Any(t => t.Username == u), $"含内置账号 {u}");
+            Check(target.Teachers.All(t => !string.IsNullOrEmpty(t.PasswordHash) && t.Password == ""),
+                "内置账号密码以 PBKDF2 哈希存储（明文为空）");
+            var master = target.Teachers.First(t => t.Username == "Teacher01");
+            var t01 = target.Teachers.First(t => t.Username == "teacher01");
+            Check(master.VerifyPassword("Study@2026"), "Teacher01 用初始密码 Study@2026 能登录");
+            Check(t01.VerifyPassword("123456"), "teacher01 用初始密码 123456 能登录");
+            Check(!t01.VerifyPassword("654321"), "错误密码校验失败（哈希确实在起作用）");
+            Check(new Models.AppSettings().Teachers.Count == 0,
+                "⚠ 直接 new AppSettings() 得到空账号表 —— 所以重置目标必须显式带内置账号");
+            string descReset = Helpers.SettingsReset.DescribeImpact(rich, null);
+            Check(descReset.Contains("内置账号") && descReset.Contains("teacher01"),
+                "「会恢复成出厂默认」段写明账号重置为内置账号");
+            Check(descReset.Contains("⚠ 重置不可撤销"), "未传备份路径时提示不可撤销");
 
             // ── B. 重置前备份（全程临时目录，不碰真实 settings.json）──
             string tempRoot = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
@@ -1400,6 +1420,25 @@ public partial class App : Application
             Check(Helpers.DateTimeStr.ParseMinutes("abc", 5) == 5, "「几分钟」非法输入 → 默认值");
             Check(Helpers.DateTimeStr.ParseMinutes("-3", 5) == 5, "负数 → 默认值");
             Check(Helpers.DateTimeStr.ParseMinutes("99999", 5, 1440) == 1440, "超大值 → 夹到上限");
+
+            // 考试 Tab（v2.20.0 由 DataGrid 改为行内 DatePicker/TimePicker）：
+            // 控件写回的串**必须仍能被模型解析** —— 解析失败时 ExamSubject 会静默按 09:00 兜底、
+            // ExamEntry.Date 会静默按今天，考试模式的时间全错却不报错。
+            var es = new Models.ExamSubject { Name = "语文", StartTimeStr = "09:00", EndTimeStr = "11:30" };
+            Check(es.StartTime == new TimeSpan(9, 0, 0) && es.EndTime == new TimeSpan(11, 30, 0),
+                "ExamSubject 解析 HH:mm");
+            es.StartTimeStr = Helpers.DateTimeStr.FormatTimeOfDay(new TimeSpan(9, 5, 0));
+            es.EndTimeStr = Helpers.DateTimeStr.FormatTimeOfDay(new TimeSpan(10, 45, 0));
+            Check(es.StartTime == new TimeSpan(9, 5, 0) && es.Duration == TimeSpan.FromMinutes(100),
+                "TimePicker 写回的串 ExamSubject 能解析，且时长算对（100 分钟）");
+            Check(Helpers.DateTimeStr.ParseTimeOfDay("9:00") == new TimeSpan(9, 0, 0),
+                "旧数据 \"9:00\"（DataGrid 手打时代）仍能解析、能填进 TimePicker");
+            var eeExam = new Models.ExamEntry
+            {
+                Name = "期中",
+                DateStr = Helpers.DateTimeStr.ComposeDate(new DateTime(2026, 11, 5))
+            };
+            Check(eeExam.Date == new DateTime(2026, 11, 5), "ExamEntry.Date 能解析 DatePicker 写回的日期串");
 
             // ── D. 颜色 hex（色板 → 设置值）──────────────────
             Check(Views.ColorSwatch.TryParse("#FF2B6CB0", out var c1) && c1.R == 0x2B && c1.B == 0xB0,

@@ -26,6 +26,21 @@ public static class SettingsReset
 
     public static string BackupRoot(string baseDir) => Path.Combine(baseDir, BackupFolderName);
 
+    /// <summary>
+    /// 「恢复默认」要写入的**目标设置对象**（用户 2026-09-25 决定：重置后**恢复内置账号**）。
+    ///
+    /// ⚠ 必须显式带上 <see cref="AppSettings.CreateDefaultTeachers"/>：
+    /// `AppSettings.Teachers` 的**默认值是空表**（2026-09-18 为省 470ms 启动时间把属性初始化器里的
+    /// `DefaultTeachers()` 拿掉了），所以直接 `new AppSettings()` 会得到"一个账号都没有"的设置 ——
+    /// 重置完老师打开远程控制台看到账号列表空了，会以为数据丢了。
+    /// v2.19.0 之前的文案甚至写着"会重置老师账号为内置账号"，与实现不符；v2.20.0 起实现与文案一致。
+    ///
+    /// 代价：`CreateDefaultTeachers()` 要算 7 次 PBKDF2(10 万迭代) ≈ 0.5s —— 只在**按下重置那一次**发生，
+    /// 与"每次启动白付 470ms"是两码事，不要试图把它挪回属性初始化器。
+    /// </summary>
+    public static AppSettings CreateResetTarget()
+        => new() { Teachers = AppSettings.CreateDefaultTeachers() };
+
     /// <summary>目标考试日期 / 起算日期的兜底显示（空值说明白，别显示成空白）</summary>
     private static string Show(string? v, string empty = "（未设置）")
         => string.IsNullOrWhiteSpace(v) ? empty : v.Trim();
@@ -43,7 +58,7 @@ public static class SettingsReset
 
         int teachers = s.Teachers?.Count ?? 0;
         if (teachers > 0)
-            list.Add($"老师账号：清空 {teachers} 个账号  →  重置后远程登录会回落到内置账号");
+            list.Add($"老师账号：{teachers} 个自定义账号会被替换为内置账号 —— 用户名/密码/任教科目都会丢");
 
         int countdowns = s.CustomCountdowns?.Count ?? 0;
         if (countdowns > 0)
@@ -87,6 +102,7 @@ public static class SettingsReset
         var defaults = new AppSettings();
         var list = new List<string>
         {
+            "老师账号：重置为内置账号 teacher01~teacher06 + Teacher01（含各自初始密码，请立即修改）",
             "外观：字体 / 字号 / 透明度 / 胶囊样式与圆角 / 时间单位与进度条显示",
             "位置：屏幕位置预设、自定义坐标、水平垂直偏移、置顶、点击穿透",
             "提醒：8 个提醒开关、提示音路径、提醒方式（胶囊弹窗 / 系统通知）",

@@ -203,8 +203,9 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow, I
         // ① 备份（失败也继续重置，但必须明确告诉老师"这次没有备份"）
         string? backupPath = Helpers.SettingsReset.Backup(settingsPath, baseDir, now, out var backupError);
 
-        // ② 重置
-        App.Settings = new AppSettings();
+        // ② 重置（目标对象由 SettingsReset 给：**含内置账号** —— 直接 new AppSettings() 会得到空账号表。
+        //    用户 2026-09-25 决定：重置后恢复内置账号，见 SettingsReset.CreateResetTarget 的注释）
+        App.Settings = Helpers.SettingsReset.CreateResetTarget();
         App.SaveSettings();
 
         if (_currentPage is ISettingsPage sp) sp.Load(App.Settings);

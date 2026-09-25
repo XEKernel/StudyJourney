@@ -47,40 +47,27 @@
                 </Grid>
             </TabItem>
 
-            <!-- ── 考试 Tab（考试 + 科目日程两级编辑） ── -->
+            <!-- ── 考试 Tab（考试 + 科目日程两级编辑；2026-09-25 由 DataGrid 改为行内控件） ── -->
             <TabItem Header="考试">
-                <Grid RowDefinitions="Auto,170,Auto,Auto,170,Auto" Margin="0,4,0,0">
-                    <TextBlock Grid.Row="0" Text="考试列表（选中一场后，下方编辑其科目日程）"
+                <Grid RowDefinitions="Auto,190,Auto,Auto,190,Auto" Margin="0,4,0,0">
+                    <TextBlock Grid.Row="0" Text="考试列表（点左边的圆圈选中一场，再在下方编辑它的科目日程）"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,0,0,4"/>
-                    <dg:DataGrid Grid.Row="1" x:Name="ExamGrid" ColumnHeaderHeight="34" CanUserResizeColumns="True"
-                                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
-                                 SelectionMode="Single" SelectionChanged="ExamGrid_SelectionChanged">
-                        <dg:DataGrid.Columns>
-                            <dg:DataGridTextColumn Header="考试名称" Width="*" Binding="{Binding Name}"/>
-                            <dg:DataGridTextColumn Header="日期" Width="160" Binding="{Binding DateStr}"/>
-                        </dg:DataGrid.Columns>
-                    </dg:DataGrid>
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="ExamListPanel" Spacing="6"/>
+                    </ScrollViewer>
                     <StackPanel Grid.Row="2" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
                         <Button Content="＋ 添加考试" Click="AddExamBtn_Click"/>
-                        <Button Content="－ 删除选中" Click="DeleteExamBtn_Click"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="8" Margin="0,12,0,4">
-                        <TextBlock Text="科目日程（开考/结束时间）" FontSize="12" FontWeight="SemiBold"
+                        <TextBlock Text="科目日程（开考 / 结束时间）" FontSize="12" FontWeight="SemiBold"
                                    VerticalAlignment="Center"/>
                         <Button Content="＋ 添加科目" Click="AddExamSubjectBtn_Click"/>
-                        <Button Content="－ 删除科目" Click="DeleteExamSubjectBtn_Click"/>
                         <Button Content="保存考试" Classes="accent" Click="SaveExamsBtn_Click"/>
                     </StackPanel>
-                    <dg:DataGrid Grid.Row="4" x:Name="ExamSubjectGrid" ColumnHeaderHeight="34" CanUserResizeColumns="True"
-                                 AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
-                                 SelectionMode="Single">
-                        <dg:DataGrid.Columns>
-                            <dg:DataGridTextColumn Header="科目名称" Width="*" Binding="{Binding Name}"/>
-                            <dg:DataGridTextColumn Header="开考时间" Width="120" Binding="{Binding StartTimeStr}"/>
-                            <dg:DataGridTextColumn Header="结束时间" Width="120" Binding="{Binding EndTimeStr}"/>
-                        </dg:DataGrid.Columns>
-                    </dg:DataGrid>
+                    <ScrollViewer Grid.Row="4" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel x:Name="ExamSubjectListPanel" Spacing="6"/>
+                    </ScrollViewer>
                     <TextBlock Grid.Row="5" x:Name="ExamStatusTb" Text="" FontSize="11"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}" Margin="0,6,0,0"
                                TextWrapping="Wrap"/>

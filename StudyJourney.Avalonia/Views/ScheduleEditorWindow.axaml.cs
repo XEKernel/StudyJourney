@@ -113,8 +113,10 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
         Dispatcher.UIThread.Post(() =>
         {
             var data = App.Schedule.Data;
+            // 考试那半边原来是 ExamGrid.ItemsSource 比对；2026-09-25 改成行内控件后，
+            // 用"上次构建行列表时用的那个 Exams 实例"做同样的实例比对。
             if (ReferenceEquals(EntryGrid.ItemsSource, data.Entries) &&
-                ReferenceEquals(ExamGrid.ItemsSource, data.Exams))
+                ReferenceEquals(_boundExams, data.Exams))
                 return;   // 实例未变：只是本窗口保存触发的通知，跳过
             MarkClean();
             RefreshGrid();
@@ -178,46 +180,204 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
         var exam = new ExamEntry
         {
             Name = "新考试",
-            DateStr = DateTime.Today.ToString("yyyy-MM-dd"),
+            DateStr = DateTime.Today.ToString(Helpers.DateTimeStr.DateFormat),
             Subjects = new() { new ExamSubject { Name = "科目", StartTimeStr = "09:00", EndTimeStr = "11:00" } }
         };
         App.Schedule.Data.Exams.Add(exam);
         PersistExams();
+        _selectedExam = exam;      // 选中新考试，直接进入科目编辑
         RefreshExamGrid();
-        // 选中新考试，直接进入科目编辑
-        ExamGrid.SelectedItem = exam;
     }
 
-    private void DeleteExamBtn_Click(object? sender, RoutedEventArgs e)
-    {
-        if (ExamGrid.SelectedItem is ExamEntry exam)
-        {
-            App.Schedule.Data.Exams.Remove(exam);
-            PersistExams();
-            RefreshExamGrid();
-        }
-    }
+    /// <summary>当前在编辑的考试（原来是 DataGrid.SelectedItem；2026-09-25 改为行内圆圈选择）</summary>
+    private ExamEntry? _selectedExam;
+
+    /// <summary>上次构建考试行列表时用的 Exams 实例（用于判断"数据被整体替换"要不要重绑）</summary>
+    private object? _boundExams;
 
     /// <summary>选中考试 → 联动展示科目日程</summary>
-    private void ExamGrid_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private void SelectExam(ExamEntry? exam)
     {
-        if (ExamGrid.SelectedItem is ExamEntry exam)
+        _selectedExam = exam;
+        BuildExamSubjectRows();
+        UpdateExamStatus();
+    }
+
+    /// <summary>
+    /// 考试列表：每行直接可编辑（圆圈选择 + 名称 + 日期选择器 + 删除）。
+    ///
+    /// 2026-09-25 由 DataGrid 改为行内控件，两个原因：
+    ///  · DataGrid 单元格要**双击进入编辑态**才能改，触屏上很难点；
+    ///  · 「日期」列是纯文本单元格 → 老师得手打 `yyyy-MM-dd`（本轮整顿要消掉的就是手打格式串）。
+    /// </summary>
+    private void BuildExamRows()
+    {
+        ExamListPanel.Children.Clear();
+
+        foreach (var exam in App.Schedule.Data.Exams)
         {
-            ExamSubjectGrid.ItemsSource = exam.Subjects;
-            ExamStatusTb.Text = $"「{exam.Name}」{exam.DateStr} · {exam.Subjects.Count} 个科目（可直接编辑）";
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("40,*,200,40") };
+
+            // ⚠ 勾选处理里**不能重建考试行**（会把这个正在响应的 RadioButton 从视觉树摘掉）；
+            //    同一 GroupName 的 RadioButton 本来就会互斥，只有科目表需要跟着重建。
+            var pick = new RadioButton
+            {
+                GroupName = "ExamPick",
+                IsChecked = ReferenceEquals(exam, _selectedExam),
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            ToolTip.SetTip(pick, "选中这场考试，在下方编辑它的科目日程");
+            pick.IsCheckedChanged += (_, _) =>
+            {
+                if (pick.IsChecked == true) SelectExam(exam);
+            };
+
+            var nameBox = new TextBox
+            {
+                Text = exam.Name,
+                FontSize = 13,
+                MinHeight = 34,
+                PlaceholderText = "考试名称",
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+            // 只改内存，落盘交给「保存考试」/底部「保存」（HasChanges 快照会拦住关窗时的静默丢失）
+            nameBox.TextChanged += (_, _) => exam.Name = nameBox.Text ?? "";
+
+            var datePicker = new DatePicker
+            {
+                SelectedDate = Helpers.DateTimeStr.ToOffset(Helpers.DateTimeStr.ParseDate(exam.DateStr)),
+                FontSize = 13,
+                MinHeight = 34,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            datePicker.SelectedDateChanged += (_, _) =>
+            {
+                exam.DateStr = Helpers.DateTimeStr.ComposeDate(
+                    Helpers.DateTimeStr.ToDate(datePicker.SelectedDate));
+                UpdateExamStatus();
+            };
+
+            var delBtn = new Button
+            {
+                Content = "✕",
+                FontSize = 11,
+                Padding = new Thickness(4, 0),
+                MinHeight = 34,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            delBtn.Click += async (_, _) =>
+            {
+                // 删考试是**立即落盘**的，误点就没了 → 加确认（原来「－ 删除选中」没有任何确认）
+                var ok = await Helpers.DialogHelper.ShowConfirmAsync(this, "删除考试",
+                    $"确定删除「{exam.Name}」（{exam.DateStr}，含 {exam.Subjects.Count} 个科目）吗？");
+                if (!ok) return;
+                App.Schedule.Data.Exams.Remove(exam);
+                PersistExams();
+                if (ReferenceEquals(_selectedExam, exam)) _selectedExam = null;
+                // 不在按钮自己的 Click 里重建（它所在的那一行会被摘掉）→ 推到下一轮消息循环
+                Dispatcher.UIThread.Post(RefreshExamGrid, DispatcherPriority.Background);
+            };
+
+            Grid.SetColumn(pick, 0); Grid.SetColumn(nameBox, 1);
+            Grid.SetColumn(datePicker, 2); Grid.SetColumn(delBtn, 3);
+            row.Children.Add(pick); row.Children.Add(nameBox);
+            row.Children.Add(datePicker); row.Children.Add(delBtn);
+            ExamListPanel.Children.Add(row);
         }
-        else
+    }
+
+    /// <summary>科目日程：每行直接可编辑（科目名 + 开考 + 结束 + 删除），时间用 TimePicker</summary>
+    private void BuildExamSubjectRows()
+    {
+        ExamSubjectListPanel.Children.Clear();
+        if (_selectedExam == null) return;
+
+        foreach (var subject in _selectedExam.Subjects)
         {
-            ExamSubjectGrid.ItemsSource = null;
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,132,132,40") };
+
+            var nameBox = new TextBox
+            {
+                Text = subject.Name,
+                FontSize = 13,
+                MinHeight = 34,
+                PlaceholderText = "科目名称",
+                VerticalContentAlignment = VerticalAlignment.Center
+            };
+            nameBox.TextChanged += (_, _) => subject.Name = nameBox.Text ?? "";
+
+            var startPicker = NewExamTimePicker(subject.StartTimeStr);
+            startPicker.SelectedTimeChanged += (_, _) =>
+            {
+                var v = Helpers.DateTimeStr.FormatTimeOfDay(startPicker.SelectedTime);
+                if (v.Length > 0) subject.StartTimeStr = v;   // 清空 → 保留原值，绝不写成空串
+                UpdateExamStatus();
+            };
+
+            var endPicker = NewExamTimePicker(subject.EndTimeStr);
+            endPicker.SelectedTimeChanged += (_, _) =>
+            {
+                var v = Helpers.DateTimeStr.FormatTimeOfDay(endPicker.SelectedTime);
+                if (v.Length > 0) subject.EndTimeStr = v;
+                UpdateExamStatus();
+            };
+
+            var delBtn = new Button
+            {
+                Content = "✕",
+                FontSize = 11,
+                Padding = new Thickness(4, 0),
+                MinHeight = 34,
+                Margin = new Thickness(8, 0, 0, 0)
+            };
+            delBtn.Click += (_, _) =>
+            {
+                _selectedExam.Subjects.Remove(subject);
+                PersistExams();
+                Dispatcher.UIThread.Post(() =>
+                {
+                    BuildExamSubjectRows();
+                    UpdateExamStatus($"已删除科目，当前共 {_selectedExam?.Subjects.Count ?? 0} 个科目");
+                }, DispatcherPriority.Background);
+            };
+
+            Grid.SetColumn(nameBox, 0); Grid.SetColumn(startPicker, 1);
+            Grid.SetColumn(endPicker, 2); Grid.SetColumn(delBtn, 3);
+            row.Children.Add(nameBox); row.Children.Add(startPicker);
+            row.Children.Add(endPicker); row.Children.Add(delBtn);
+            ExamSubjectListPanel.Children.Add(row);
         }
+    }
+
+    /// <summary>考试科目的时刻选择器（24 小时制、5 分钟步进；值一定合法，不会再存进 "9" 这类脏串）</summary>
+    private static TimePicker NewExamTimePicker(string current)
+        => new()
+        {
+            SelectedTime = Helpers.DateTimeStr.ParseTimeOfDay(current),
+            FontSize = 13,
+            MinHeight = 34,
+            ClockIdentifier = "24HourClock",
+            MinuteIncrement = 5,
+            Margin = new Thickness(8, 0, 0, 0)
+        };
+
+    private void UpdateExamStatus(string? prefix = null)
+    {
+        if (ExamStatusTb == null) return;
+        string text = _selectedExam == null
+            ? (App.Schedule.Data.Exams.Count == 0
+                ? "暂无考试 —— 点「＋ 添加考试」新建"
+                : "⚠ 请先点左边的圆圈选中一场考试")
+            : $"「{_selectedExam.Name}」{_selectedExam.DateStr} · {_selectedExam.Subjects.Count} 个科目";
+        ExamStatusTb.Text = string.IsNullOrEmpty(prefix) ? text : $"{prefix}（{text}）";
     }
 
     /// <summary>给选中考试添加科目（考试日程）</summary>
     private void AddExamSubjectBtn_Click(object? sender, RoutedEventArgs e)
     {
-        if (ExamGrid.SelectedItem is not ExamEntry exam)
+        if (_selectedExam is not ExamEntry exam)
         {
-            ExamStatusTb.Text = "⚠ 请先在考试列表选中一场考试";
+            ExamStatusTb.Text = "⚠ 请先在考试列表里点圆圈选中一场考试";
             return;
         }
         var last = exam.Subjects.LastOrDefault();
@@ -234,25 +394,15 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
             EndTimeStr = Format(end)
         });
         PersistExams();
+        BuildExamSubjectRows();
         ExamStatusTb.Text = $"已添加科目，当前共 {exam.Subjects.Count} 个科目";
-    }
-
-    private void DeleteExamSubjectBtn_Click(object? sender, RoutedEventArgs e)
-    {
-        if (ExamGrid.SelectedItem is not ExamEntry exam) return;
-        if (ExamSubjectGrid.SelectedItem is ExamSubject subject)
-        {
-            exam.Subjects.Remove(subject);
-            PersistExams();
-            ExamStatusTb.Text = $"已删除科目，当前共 {exam.Subjects.Count} 个科目";
-        }
     }
 
     private void SaveExamsBtn_Click(object? sender, RoutedEventArgs e)
     {
         PersistExams();   // 即改即存后此按钮主要用于手动确认/刷新提示
-        ExamStatusTb.Text = ExamGrid.SelectedItem is ExamEntry exam
-            ? $"✓ 已保存「{exam.Name}」及 {exam.Subjects.Count} 个科目 → schedule.json"
+        ExamStatusTb.Text = _selectedExam != null
+            ? $"✓ 已保存「{_selectedExam.Name}」及 {_selectedExam.Subjects.Count} 个科目 → schedule.json"
             : "✓ 考试日程已保存到 schedule.json";
     }
 
@@ -308,22 +458,19 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
         EntryGrid.ItemsSource = App.Schedule.Data.Entries;
     }
 
+    /// <summary>重建考试 Tab 的两级行列表（考试 → 科目日程）。
+    /// 2026-09-25：原来是两个 DataGrid 的 ItemsSource 重绑，改成行内控件后统一走这里。</summary>
     private void RefreshExamGrid()
     {
-        ExamGrid.ItemsSource = null;
-        ExamGrid.ItemsSource = App.Schedule.Data.Exams;
-        // 自动选中第一场考试，联动科目表（对齐 WPF RefreshExamGrid）
-        if (App.Schedule.Data.Exams.Count > 0 && ExamGrid.SelectedItem == null)
-        {
-            ExamGrid.SelectedItem = App.Schedule.Data.Exams[0];
-            ExamSubjectGrid.ItemsSource = App.Schedule.Data.Exams[0].Subjects;
-            ExamStatusTb.Text = $"「{App.Schedule.Data.Exams[0].Name}」{App.Schedule.Data.Exams[0].DateStr} · {App.Schedule.Data.Exams[0].Subjects.Count} 个科目";
-        }
-        else if (App.Schedule.Data.Exams.Count == 0)
-        {
-            ExamSubjectGrid.ItemsSource = null;
-            ExamStatusTb.Text = "暂无考试 — 点击「＋ 添加考试」新建";
-        }
+        var exams = App.Schedule.Data.Exams;
+        _boundExams = exams;   // 供 OnScheduleDataChanged 做"实例是否被替换"的比对
+        // 选中的那场被删了 / 还没选过 → 收敛到合法状态
+        if (_selectedExam != null && !exams.Contains(_selectedExam)) _selectedExam = null;
+        if (_selectedExam == null && exams.Count > 0) _selectedExam = exams[0];
+
+        BuildExamRows();
+        BuildExamSubjectRows();
+        UpdateExamStatus();
     }
 
     // ── 导入 / 导出 JSON（对齐 WPF ImportScheduleJson / ExportScheduleJson）──
