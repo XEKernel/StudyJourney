@@ -34,14 +34,16 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
         Closed += (_, _) => App.Schedule.DataChanged -= OnScheduleDataChanged;
         _baselineJson = SerializeData();
 
-        // 周视图：调休下拉 + 时段模板 + 网格
+        // 周视图：调休（按日期，一次性）+ 时段模板 + 网格
         foreach (var name in DayNames)
         {
-            AdjustFromDayCb.Items.Add(name);
-            AdjustToDayCb.Items.Add(name);
+            MakeupWeekday.Items.Add(name);
+            ClearDayCombo.Items.Add(name);
         }
-        AdjustFromDayCb.SelectedIndex = 0;
-        AdjustToDayCb.SelectedIndex = 1;
+        MakeupWeekday.SelectedIndex = 4;              // 默认周五（最常见的补课目标）
+        MakeupDate.SelectedDate = DateTimeOffset.Now;
+        ClearDayCombo.SelectedIndex = 6;              // 默认周日（旧版误操作最常落在周日）
+        RefreshMakeupSummary();
         // 时段模板：默认编辑全周通用模板；可切换到某天单独定制（如周六特殊作息）
         TplDayCombo.ItemsSource = new[]
         {
@@ -874,11 +876,22 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
                         WriteEntryFromCell(s2, tb.Text ?? "");
                     }
                 };
-                tb.PointerPressed += (_, e) =>
-                {
-                    if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+                // 单击选格：⚠ 挂在**整格 Border** 上 + handledEventsToo（2026-09-27 用户报"单击没反馈"后改）：
+                //   ① 只挂 TextBox 时，点在格子边缘/边框那一圈落空，什么都不发生；
+                //   ② TextBox 的类处理器可能把 PointerPressed 标记为已处理，`+=` 注册的实例处理器
+                //      默认收不到已处理事件（DoubleTapped 是另一个事件，所以双击一直正常）。
+                border.AddHandler(InputElement.PointerPressedEvent,
+                    (_, e) =>
+                    {
+                        if (!e.GetCurrentPoint(border).Properties.IsLeftButtonPressed) return;
+                        string before = _swapSource?.Display ?? "";
                         SelectSlot(slot, border);
-                };
+                        // 状态条明确回话 —— 光靠格子淡色高亮，老师常常看不出来点了没生效
+                        ShowStatus(_swapSource?.Display == before
+                            ? $"该格已是源：{slot.Display}（点其它格子选目标，或用右侧「清除选择」取消）"
+                            : $"已选源：{slot.Display} → 再点一个格子选目标");
+                    },
+                    RoutingStrategies.Bubble, handledEventsToo: true);
                 // 交互修复：双击才进入文字编辑（单击保持"选源/选目标"语义）
                 tb.DoubleTapped += (_, e) =>
                 {
@@ -945,7 +958,9 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
         }
         if (_swapSource.RowIndex == slot.RowIndex && _swapSource.DayIndex == slot.DayIndex)
         {
-            ClearSwapSelection();
+            // ⚠ 原来这里 ClearSwapSelection()：老师第一次单击没看清反馈、再点同一格 →
+            //   "选中又取消"→ 看起来永远没反应（2026-09-27 用户报的就是这个）。
+            // 现在保持选中（要取消请用右侧「✕ 清除选择」按钮），语义更不容易误解。
             return;
         }
         _swapTarget = slot;
@@ -969,11 +984,20 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
         {
             bool isSource = _swapSource != null && slot.RowIndex == _swapSource.RowIndex && slot.DayIndex == _swapSource.DayIndex;
             bool isTarget = _swapTarget != null && slot.RowIndex == _swapTarget.RowIndex && slot.DayIndex == _swapTarget.DayIndex;
+            // 2026-09-27：原来只有 0x40 的淡色背景，老师看不清"点没点上" → 加深 + 描色边
+            var src = Color.FromArgb(0x66, 0xFF, 0x88, 0x44);
+            var tgt = Color.FromArgb(0x55, accent.R, accent.G, accent.B);
             border.Background = isSource
-                ? new SolidColorBrush(Color.FromArgb(0x40, 0xFF, 0x88, 0x44))
+                ? new SolidColorBrush(src)
                 : isTarget
-                    ? new SolidColorBrush(Color.FromArgb(0x40, accent.R, accent.G, accent.B))
+                    ? new SolidColorBrush(tgt)
                     : Brushes.Transparent;
+            border.BorderBrush = isSource
+                ? new SolidColorBrush(Color.FromArgb(0xFF, 0xFF, 0x88, 0x44))
+                : isTarget
+                    ? new SolidColorBrush(Color.FromArgb(0xFF, accent.R, accent.G, accent.B))
+                    : new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
+            border.BorderThickness = isSource || isTarget ? new Thickness(2) : new Thickness(0.5);
         }
     }
 
@@ -1228,19 +1252,105 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
     }
 
     // ── 调休顺延 ─────────────────────────────────────────────
-    private async void ShiftRestBtn_Click(object? sender, RoutedEventArgs e)
-    {
-        int from = AdjustFromDayCb.SelectedIndex;
-        int to = AdjustToDayCb.SelectedIndex;
-        if (from < 0 || to < 0 || from == to || _rows == null) return;
-        RebuildTimetable();   // #9：先以 Entries 最新投影重建 rows，避免覆盖 DataGrid 直改
+    // ══ 调休（2026-09-27 重做）════════════════════════════════════════════
+    // 旧实现是"把 A 天的课程复制到 B 天的星期槽位并落盘"——**永久**改动课表数据：
+    // 老师把它当"调休"用（一次性），下个同一星期几却**不会恢复**（用户 2026-09-27 实测：
+    // 上周日补周五的课 → 这周日课表仍是周五的）。
+    // 现在改用数据模型本来就有的「按日期映射」：MakeupDays{DateStr → DayOfWeek}，
+    // 只对那一天生效，提醒/自动化/主窗口都走 ScheduleData.ResolveEffectiveDayOfWeek，**不动课表数据**。
 
-        if (!await Helpers.DialogHelper.ShowConfirmAsync(this, "调休确认", $"确定将{DayNames[from]}的课程复制到{DayNames[to]}吗？")) return;
-        foreach (var row in _rows)
-            row[to] = row[from];
-        SaveTimetableToEntries(_rows);
-        RebuildTimetable();
+    private void MakeupAdd_Click(object? sender, RoutedEventArgs e)
+    {
+        if (MakeupDate.SelectedDate is not { } sel || MakeupWeekday.SelectedIndex < 0)
+        {
+            ShowStatus("请先选择日期，以及要按哪一天的课表上课。");
+            return;
+        }
+        string key = sel.Date.ToString("yyyy-MM-dd");
+        int target = MakeupWeekday.SelectedIndex + 1;
+        var days = App.Schedule.Data.MakeupDays ??= new();
+        var exist = days.FirstOrDefault(x => x.DateStr == key);
+        if (exist != null) exist.DayOfWeek = target;
+        else days.Add(new MakeupDay { DateStr = key, DayOfWeek = target });
+
+        App.Schedule.Save();      // 触发 DataChanged → 主窗口/提醒/自动化立即按新映射工作
+        RefreshMakeupSummary();
+        ShowStatus($"已设为调休：{key} 按{DayNames[target - 1]}的课表上课（仅这一天，次日自动恢复）");
+    }
+
+    private void MakeupDelete_Click(object? sender, RoutedEventArgs e)
+    {
+        if (MakeupDate.SelectedDate is not { } sel)
+        {
+            ShowStatus("请先选择要取消调休的日期。");
+            return;
+        }
+        string key = sel.Date.ToString("yyyy-MM-dd");
+        var days = App.Schedule.Data.MakeupDays ??= new();
+        // ⚠ 按 DateStr 在**当前**实例里查找（课表可能被远程/恢复整体替换过，别直接 Remove 旧引用）
+        var hit = days.FirstOrDefault(x => x.DateStr == key);
+        if (hit == null)
+        {
+            ShowStatus($"{key} 没有调休记录。");
+            return;
+        }
+        days.Remove(hit);
+        App.Schedule.Save();
+        RefreshMakeupSummary();
+        ShowStatus($"已取消调休：{key}（恢复按真实星期几上课）");
+    }
+
+    /// <summary>已设调休的一行摘要（完整列表在「设置 → 课表」页，这里只做回显与增删）</summary>
+    private void RefreshMakeupSummary()
+    {
+        var days = App.Schedule.Data.MakeupDays ??= new();
+        MakeupSummary.Text = days.Count == 0
+            ? "（当前没有调休）"
+            : "已设调休：" + string.Join("、", days.OrderBy(x => x.DateStr)
+                .Select(x => $"{x.DateStr}→{DayNames[Math.Clamp(x.DayOfWeek, 1, 7) - 1]}"));
+    }
+
+    /// <summary>
+    /// 删除某天（1=周一 … 7=周日）的全部课程条目，返回删除条数。**不落盘**（调用方负责 Save）。
+    /// 抽成静态 + 可传 data 是为了能被自检直接验证（不必真的动 App.Schedule.Data）。
+    /// </summary>
+    internal static int ClearEntriesForDay(Models.ScheduleData data, int dayOfWeek)
+    {
+        var hits = data.Entries.Where(x => x.DayOfWeek == dayOfWeek).ToList();
+        foreach (var h in hits) data.Entries.Remove(h);
+        if (hits.Count > 0) data.SortEntries();
+        return hits.Count;
+    }
+
+    /// <summary>清空某天的全部课程（补救旧版「复制课程（调休）」留下的永久改动）</summary>
+    private async void ClearDayBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        if (ClearDayCombo.SelectedIndex < 0) return;
+        int day = ClearDayCombo.SelectedIndex + 1;
+        var data = App.Schedule.Data;
+        var hits = data.Entries.Where(x => x.DayOfWeek == day).ToList();
+        if (hits.Count == 0)
+        {
+            ShowStatus($"{DayNames[day - 1]}本来就没有课程。");
+            return;
+        }
+        string preview = string.Join("、", hits.Select(x => x.Subject).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().Take(6));
+        // ⚠ 刻意用**逐字插值字符串**（$@"..."）：本仓踩过——把 "\n" 放进 shell heredoc 会被转义层吃掉，
+        //   变成真正的换行 → 单行字符串被截断（CS1039 字符串未终止）
+        bool ok = await Helpers.DialogHelper.ShowConfirmAsync(this, "清空该天课程",
+            $@"确定清空{DayNames[day - 1]}的全部 {hits.Count} 节课吗？
+
+将删除：{preview}{(hits.Count > 6 ? " …" : "")}
+
+（若这些课是旧版「复制课程（调休）」误写进来的，清空后该天即恢复为空，随时可再编辑。）");
+        if (!ok) return;
+
+        ClearEntriesForDay(data, day);
+        App.Schedule.Save();
+        MarkClean();              // 即改即存 → 基线对齐，避免关窗误报未保存
         RefreshGrid();
+        RebuildTimetable();
+        ShowStatus($"已清空{DayNames[day - 1]}的 {hits.Count} 节课");
     }
 
     private void SaveScheduleBtn_Click(object? sender, RoutedEventArgs e)

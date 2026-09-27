@@ -1662,6 +1662,90 @@ public partial class App : Application
                 var schWin = new Views.ScheduleEditorWindow();
                 Check(schWin.EntryGrid != null && schWin.EntryGrid.Columns.Count >= 6,
                     $"课表编辑器可实例化且 DataGrid 列就位（实际 {schWin.EntryGrid?.Columns.Count} 列）");
+
+                // ── 周视图「单击选格」必须真的生效 ──────────────────────
+                // 2026-09-27 用户报「单击格子没有反馈、双击却是改课程名」。
+                // 怀疑：TextBox 的类处理器把 PointerPressed 标记为 Handled，而用 `+=` 注册的实例处理器
+                // 默认**收不到已处理事件** → 单击完全没反应（DoubleTapped 是另一个事件，所以双击照常）。
+                // 这里直接对格子里的 TextBox 抛一个 PointerPressed，看源标签会不会变。
+                TextBox? cell = null;
+                if (schWin.TimetableScroll.Content is Grid tg)
+                {
+                    foreach (var b in tg.Children.OfType<Border>())
+                        if (b.Child is Grid host &&
+                            host.Children.OfType<TextBox>().FirstOrDefault(x => x.Tag is Models.CourseSlot) is { } t)
+                        { cell = t; break; }
+                }
+                Check(cell != null, "周视图能定位到课表格子");
+                if (cell != null)
+                {
+                    schWin.SwapSourceLb.Text = "源：未选择";
+                    // ⚠ 这些类型也要 global::（App 在 StudyJourney.Avalonia 命名空间里，否则相对解析）
+                    var pointer = new global::Avalonia.Input.Pointer(1, global::Avalonia.Input.PointerType.Mouse, true);
+                    var props = new global::Avalonia.Input.PointerPointProperties(
+                        global::Avalonia.Input.RawInputModifiers.LeftMouseButton,
+                        global::Avalonia.Input.PointerUpdateKind.LeftButtonPressed);
+                    var args = new global::Avalonia.Input.PointerPressedEventArgs(
+                        cell, pointer, schWin, new global::Avalonia.Point(5, 5), 0, props,
+                        global::Avalonia.Input.KeyModifiers.None);
+                    cell.RaiseEvent(args);
+                    Check(schWin.SwapSourceLb.Text != "源：未选择",
+                        $"单击格子 → 有选中反馈（源标签 = {schWin.SwapSourceLb.Text}）");
+                }
+
+                // ── 调休：必须只写「按日期映射」，绝不动课表数据 ────────────────
+                // 用户 2026-09-27 报的严重 bug：旧版「复制课程（调休）」是把 A 天的课**永久写进** B 天的
+                // 星期槽位并落盘 → 上周日补周五的课，这周日课表仍是周五的（不会恢复）。
+                // 这里既钉住"数据不被改"，也钉住"下一周同日要恢复真实星期几"。
+                {
+                    // 1) 纯函数：当天按映射、下一周同日恢复
+                    var mk = new List<Models.MakeupDay>
+                    {
+                        new() { DateStr = "2026-09-20", DayOfWeek = 5 }      // 2026-09-20 是周日 → 按周五
+                    };
+                    Check(Models.ScheduleData.ResolveEffectiveDayOfWeek(new DateTime(2026, 9, 20), mk) == 5,
+                        "调休当天：2026-09-20（周日）→ 按周五上课");
+                    Check(Models.ScheduleData.ResolveEffectiveDayOfWeek(new DateTime(2026, 9, 27), mk) == 7,
+                        "★ 下一周同日：2026-09-27（周日）→ 恢复真实星期几（7=周日）——用户报的正是这条");
+                    Check(Models.ScheduleData.ResolveEffectiveDayOfWeek(new DateTime(2026, 9, 27), null) == 7,
+                        "无任何调休时按真实星期几");
+
+                    // 2) 页面级：设为调休只写映射、不改课表条目
+                    var data0 = App.Schedule.Data;
+                    int entriesBefore = data0.Entries.Count;
+                    data0.MakeupDays ??= new();
+                    var preexisting = data0.MakeupDays.FirstOrDefault(x => x.DateStr == "2026-09-20");
+
+                    schWin.MakeupDate.SelectedDate = new global::System.DateTimeOffset(new DateTime(2026, 9, 20));
+                    schWin.MakeupWeekday.SelectedIndex = 4;             // 周五
+                    schWin.MakeupAddBtn.RaiseEvent(
+                        new global::Avalonia.Interactivity.RoutedEventArgs(global::Avalonia.Controls.Button.ClickEvent));
+                    Check(data0.MakeupDays.Any(x => x.DateStr == "2026-09-20" && x.DayOfWeek == 5),
+                        "「设为调休」写入按日期映射（2026-09-20 → 周五）");
+                    Check(data0.Entries.Count == entriesBefore,
+                        "★「设为调休」不增删任何课表条目（旧版是永久复制 → 本次修的正是这个）");
+
+                    // 3) 取消调休：只删映射
+                    schWin.MakeupDeleteBtn.RaiseEvent(
+                        new global::Avalonia.Interactivity.RoutedEventArgs(global::Avalonia.Controls.Button.ClickEvent));
+                    Check(data0.MakeupDays.All(x => x.DateStr != "2026-09-20"),
+                        "「取消该日期的调休」删除该日期映射");
+                    Check(data0.Entries.Count == entriesBefore, "「取消调休」也不改课表条目");
+
+                    // 4) 补救工具：只清目标那一天（在临时数据上验，不碰真实课表）
+                    var tmp = new Models.ScheduleData();
+                    tmp.Entries.Add(new Models.ScheduleEntry { DayOfWeek = 7, Period = 1, Subject = "语文" });
+                    tmp.Entries.Add(new Models.ScheduleEntry { DayOfWeek = 7, Period = 2, Subject = "数学" });
+                    tmp.Entries.Add(new Models.ScheduleEntry { DayOfWeek = 5, Period = 1, Subject = "英语" });
+                    int removed = Views.ScheduleEditorWindow.ClearEntriesForDay(tmp, 7);
+                    Check(removed == 2 && tmp.Entries.Count == 1 && tmp.Entries[0].DayOfWeek == 5,
+                        "★「清空该天课程」只删该天条目、不动其它天（补救旧版误用留下的永久改动）");
+
+                    // 自检不留痕：删掉测试期间写入的调休（若原本就有则还原）
+                    data0.MakeupDays.RemoveAll(x => x.DateStr == "2026-09-20");
+                    if (preexisting != null) data0.MakeupDays.Add(preexisting);
+                }
+
                 schWin.Close();
             }
 

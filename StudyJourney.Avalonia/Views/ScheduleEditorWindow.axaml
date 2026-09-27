@@ -137,14 +137,27 @@
 
                         <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="18,16">
                             <StackPanel Spacing="8">
-                                <TextBlock Text="调休顺延" FontSize="15" FontWeight="SemiBold"/>
+                                <TextBlock Text="调休（某天按另一天的课表上课）" FontSize="15" FontWeight="SemiBold"/>
+                                <TextBlock Text="只对所选日期生效：那天的课表、提醒、自动化都按「按」的那一天走，第二天自动恢复真实星期几；不会改动课表本身。要长期把某一列改成别天的课，请到「课表」标签页直接改。"
+                                           FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}" TextWrapping="Wrap"/>
                                 <Grid ColumnDefinitions="Auto,*,Auto,*">
-                                    <TextBlock Text="从" FontSize="12" VerticalAlignment="Center"/>
-                                    <ComboBox x:Name="AdjustFromDayCb" Grid.Column="1" Margin="6,0,0,0"/>
-                                    <TextBlock Grid.Column="2" Text="到" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                                    <ComboBox x:Name="AdjustToDayCb" Grid.Column="3" Margin="6,0,0,0"/>
+                                    <TextBlock Text="日期" FontSize="12" VerticalAlignment="Center"/>
+                                    <DatePicker x:Name="MakeupDate" Grid.Column="1" Margin="6,0,0,0" Width="150"/>
+                                    <TextBlock Grid.Column="2" Text="按" FontSize="12" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <ComboBox x:Name="MakeupWeekday" Grid.Column="3" Margin="6,0,0,0"/>
                                 </Grid>
-                                <Button Content="复制课程（调休）" Click="ShiftRestBtn_Click" Padding="12,8" HorizontalAlignment="Stretch"/>
+                                <Button x:Name="MakeupAddBtn" Content="设为调休（仅这一天）" Click="MakeupAdd_Click" Padding="12,8" HorizontalAlignment="Stretch"/>
+                                <TextBlock x:Name="MakeupSummary" Text="（当前没有调休）" FontSize="11"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}" TextWrapping="Wrap"/>
+                                <Button x:Name="MakeupDeleteBtn" Content="取消该日期的调休" Click="MakeupDelete_Click" Padding="12,6" HorizontalAlignment="Stretch"/>
+
+                                <Border Height="1" Background="#20FFFFFF" Margin="0,4,0,0"/>
+                                <TextBlock Text="⚠ 补救工具：旧版本的「复制课程（调休）」是把课程永久写进另一天，如果你误用过、现在某天多出了别天的课，可在这里把该天课表整体清空。"
+                                           FontSize="11" Foreground="#FFE08040" TextWrapping="Wrap"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <ComboBox x:Name="ClearDayCombo" Width="110"/>
+                                    <Button x:Name="ClearDayBtn" Content="清空该天全部课程" Click="ClearDayBtn_Click" Padding="12,6"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
