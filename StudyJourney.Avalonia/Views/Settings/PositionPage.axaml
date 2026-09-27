@@ -10,8 +10,8 @@
                     <TextBlock Text="灵动岛外观" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
 
                     <TextBlock Text="胶囊样式" FontSize="13" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,0,0,4"/>
-                    <RadioButton x:Name="CapsuleMerged" Content="单条大胶囊（所有内容合并一块）"/>
-                    <RadioButton x:Name="CapsuleSeparated" Content="多块胶囊（每块独立，可自定义布局）" Margin="0,6,0,0"/>
+                    <RadioButton x:Name="CapsuleMerged" Content="单条大胶囊（所有内容合并一块）" IsCheckedChanged="MarkDirty_Changed"/>
+                    <RadioButton x:Name="CapsuleSeparated" Content="多块胶囊（每块独立，可自定义布局）" Margin="0,6,0,0" IsCheckedChanged="MarkDirty_Changed"/>
 
                     <Grid ColumnDefinitions="110,*,70" Margin="0,14,0,4">
                         <TextBlock Text="胶囊圆角" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
@@ -22,7 +22,7 @@
                     <TextBlock Text="0=直角，20=完全胶囊。圆角对两种胶囊样式同时生效。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="0,2,0,0" TextWrapping="Wrap"/>
-                    <CheckBox x:Name="CountdownBarCheck" Content="倒计时进度条用条形（默认环形，进度数字在环旁）" Margin="0,10,0,0"/>
+                    <CheckBox x:Name="CountdownBarCheck" Content="倒计时进度条用条形（默认环形，进度数字在环旁）" Margin="0,10,0,0" IsCheckedChanged="MarkDirty_Changed"/>
 
                 </StackPanel>
             </Border>
@@ -31,31 +31,48 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="屏幕位置预设" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <RadioButton x:Name="PosTop" GroupName="PosPreset" Content="顶部"/>
-                    <RadioButton x:Name="PosUpperCenter" GroupName="PosPreset" Content="中上（默认）" IsChecked="True" Margin="0,6,0,0"/>
-                    <RadioButton x:Name="PosCenter" GroupName="PosPreset" Content="居中" Margin="0,6,0,0"/>
-                    <RadioButton x:Name="PosLowerCenter" GroupName="PosPreset" Content="中下" Margin="0,6,0,0"/>
-                    <RadioButton x:Name="PosBottom" GroupName="PosPreset" Content="底部" Margin="0,6,0,0"/>
+                    <RadioButton x:Name="PosTop" GroupName="PosPreset" Content="顶部" IsCheckedChanged="MarkDirty_Changed"/>
+                    <RadioButton x:Name="PosUpperCenter" GroupName="PosPreset" Content="中上（默认）" IsChecked="True" Margin="0,6,0,0" IsCheckedChanged="MarkDirty_Changed"/>
+                    <RadioButton x:Name="PosCenter" GroupName="PosPreset" Content="居中" Margin="0,6,0,0" IsCheckedChanged="MarkDirty_Changed"/>
+                    <RadioButton x:Name="PosLowerCenter" GroupName="PosPreset" Content="中下" Margin="0,6,0,0" IsCheckedChanged="MarkDirty_Changed"/>
+                    <RadioButton x:Name="PosBottom" GroupName="PosPreset" Content="底部" Margin="0,6,0,0" IsCheckedChanged="MarkDirty_Changed"/>
                     <RadioButton x:Name="PosCustom" GroupName="PosPreset" Content="自定义坐标" Margin="0,8,0,0"
-                                IsCheckedChanged="PosCustom_IsCheckedChanged"/>
+                                IsCheckedChanged="MarkDirty_Changed"/>
 
-                    <StackPanel x:Name="CustomCoordPanel" Margin="16,8,0,0" Opacity="0.55" IsEnabled="False">
-                        <TextBlock Text="X 坐标（像素；-1 = 水平居中）" FontSize="13"/>
-                        <TextBox x:Name="CustomXBox" Text="-1" Width="130" Margin="0,4,0,0"/>
-                        <TextBlock Text="Y 坐标（像素；-1 = 自动）" FontSize="13" Margin="0,8,0,0"/>
-                        <TextBox x:Name="CustomYBox" Text="-1" Width="130" Margin="0,4,0,0"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-            <!-- 微调 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
-                <StackPanel Spacing="4">
-                    <TextBlock Text="微调" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,6"/>
-                    <TextBlock Text="水平偏移像素（负值=左移，正值=右移）" FontSize="13" Margin="0,0,0,4"/>
-                    <TextBox x:Name="OffsetXBox" Text="0" Width="90"/>
-                    <TextBlock Text="垂直偏移像素（负值=上移，正值=下移）" FontSize="13" Margin="0,8,0,4"/>
-                    <TextBox x:Name="OffsetYBox" Text="0" Width="90"/>
+                    <!-- 高级定位（v2.21.0：原两块面板常驻 —— 老师看到"X 坐标（像素）"无从下手。
+                         拖动定位才是主交互：选「自定义坐标」后直接拖窗口即可，数字框只做精调兜底） -->
+                    <Expander Header="高级定位（一般不用改 —— 选「自定义坐标」后直接拖动窗口即可）"
+                              FontSize="13" IsExpanded="False" Margin="0,10,0,0">
+                        <StackPanel Spacing="10" Margin="0,8,0,4">
+                            <Grid ColumnDefinitions="170,120,20,170,120">
+                                <TextBlock Text="X 坐标（-1 = 水平居中）" FontSize="12" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                <NumericUpDown Grid.Column="1" x:Name="CustomXBox" Minimum="-99999" Maximum="99999"
+                                               Increment="1" FormatString="0" ValueChanged="PosBox_ValueChanged"/>
+                                <TextBlock Grid.Column="3" Text="Y 坐标（-1 = 自动）" FontSize="12" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                <NumericUpDown Grid.Column="4" x:Name="CustomYBox" Minimum="-99999" Maximum="99999"
+                                               Increment="1" FormatString="0" ValueChanged="PosBox_ValueChanged"/>
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button x:Name="CenterPosBtn" Content="恢复居中" Click="CenterPosBtn_Click"/>
+                                <TextBlock Text="把 X/Y 恢复为默认（水平居中、高度自动）" FontSize="11"
+                                           Foreground="{DynamicResource TextFillColorTertiaryBrush}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                            <!-- ⚠ 范围必须宽到"实际不可达"：NumericUpDown 加载时会静默夹取越界值，
+                                 随后 Apply 就把它落盘了 —— 等于悄悄改掉老师的设置 -->
+                            <Grid ColumnDefinitions="170,120,20,170,120">
+                                <TextBlock Text="水平偏移（负=左移）" FontSize="12" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                <NumericUpDown Grid.Column="1" x:Name="OffsetXBox" Minimum="-9999" Maximum="9999"
+                                               Increment="1" FormatString="0" ValueChanged="PosBox_ValueChanged"/>
+                                <TextBlock Grid.Column="3" Text="垂直偏移（负=上移）" FontSize="12" VerticalAlignment="Center"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                <NumericUpDown Grid.Column="4" x:Name="OffsetYBox" Minimum="-9999" Maximum="9999"
+                                               Increment="1" FormatString="0" ValueChanged="PosBox_ValueChanged"/>
+                            </Grid>
+                        </StackPanel>
+                    </Expander>
                 </StackPanel>
             </Border>
 
@@ -63,15 +80,15 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="窗口层级" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="AlwaysOnTopCheck" Content="始终置顶（覆盖在其他窗口上方）" IsChecked="True"/>
+                    <CheckBox x:Name="AlwaysOnTopCheck" Content="始终置顶（覆盖在其他窗口上方）" IsChecked="True" IsCheckedChanged="MarkDirty_Changed"/>
                     <TextBlock Text="关闭后窗口位于桌面壁纸上方、其他窗口下方"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
-                    <CheckBox x:Name="CompactTopmostCheck" Content="上课进度条置顶" Margin="0,10,0,0"/>
+                    <CheckBox x:Name="CompactTopmostCheck" Content="上课进度条置顶" Margin="0,10,0,0" IsCheckedChanged="MarkDirty_Changed"/>
                     <TextBlock Text="上课收起为进度条时也置顶显示（不影响完整视图的「始终置顶」）"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
-                    <CheckBox x:Name="ClickThroughCheck" Content="点击穿透（鼠标点击穿过窗口）" Margin="0,10,0,0"/>
+                    <CheckBox x:Name="ClickThroughCheck" Content="点击穿透（鼠标点击穿过窗口）" Margin="0,10,0,0" IsCheckedChanged="MarkDirty_Changed"/>
                     <TextBlock Text="开启后鼠标点击不会落在顶栏上；自定义坐标模式始终可交互。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
@@ -82,15 +99,15 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="🚀  系统" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="AutoStartCheck" Content="开机自动启动"/>
+                    <CheckBox x:Name="AutoStartCheck" Content="开机自动启动" IsCheckedChanged="MarkDirty_Changed"/>
                     <TextBlock Text="写入当前用户注册表 Run 键，无需管理员权限。&#10;若程序路径发生变化（如移动文件夹），请重新勾选一次。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,8" TextWrapping="Wrap"/>
-                    <CheckBox x:Name="HideWhenMaximizedCheck" Content="有其他窗口时自动隐藏（桌面同一层）" Margin="0,6,0,0"/>
+                    <CheckBox x:Name="HideWhenMaximizedCheck" Content="有其他窗口时自动隐藏（桌面同一层）" Margin="0,6,0,0" IsCheckedChanged="MarkDirty_Changed"/>
                     <TextBlock Text="桌面有应用窗口时自动隐藏倒计时，回到纯桌面时重新显示。&#10;开启「始终置顶」后此隐藏不生效。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,4" TextWrapping="Wrap"/>
-                    <CheckBox x:Name="HideDuringClassCheck" Content="上课时收起为进度条" Margin="0,8,0,0"/>
+                    <CheckBox x:Name="HideDuringClassCheck" Content="上课时收起为进度条" Margin="0,8,0,0" IsCheckedChanged="MarkDirty_Changed"/>
                     <TextBlock Text="上课期间整栏收起，只保留一条进度条和当前课进度；下课后自动展开。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>

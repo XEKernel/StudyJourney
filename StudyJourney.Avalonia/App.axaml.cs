@@ -1448,6 +1448,76 @@ public partial class App : Application
             Check(!Views.ColorSwatch.TryParse("红色", out _), "非 hex 文本 → 非法");
             Check(!Views.ColorSwatch.TryParse("#GGGGGG", out _), "非法字符 → 非法");
 
+            // ── E. 魔法值 0 → 显式开关（v2.21.0 规划 2.7 P1）────────────
+            // 错在这里不会报错：开了开关却存 0 → 老师以为开了、其实永远不刷新（或反之，静默跑起来）。
+            var off = Helpers.IntervalSwitch.ToUi(0, fallback: 30, min: 5, max: 120);
+            Check(!off.On && off.Slider == 30, "存 0（关）→ 开关关 + 滑条给默认值 30");
+            var on = Helpers.IntervalSwitch.ToUi(45, fallback: 30, min: 5, max: 120);
+            Check(on.On && on.Slider == 45, "存 45 → 开关开 + 滑条 45");
+            var low = Helpers.IntervalSwitch.ToUi(1, fallback: 30, min: 5, max: 120);
+            Check(low.On && low.Slider == 5, "存 1（低于下限）→ 开关开 + 夹到下限 5");
+            // ⚠ 下限必须是 5：旧滑条 tick=5 且 min=0 → 5 是既有的合法值，下限设更大就会**静默改掉**它
+            Check(Helpers.IntervalSwitch.ToUi(5, fallback: 30, min: 5, max: 120).Slider == 5,
+                "存 5（旧配置合法的 5 秒）→ 原样保留，不被抬高");
+            var hi = Helpers.IntervalSwitch.ToUi(500, fallback: 30, min: 5, max: 120);
+            Check(hi.On && hi.Slider == 120, "存 500 → 夹到上限 120");
+            Check(Helpers.IntervalSwitch.FromUi(false, 45, 5, 120) == 0, "开关关 → 落盘 0（旧格式兼容）");
+            Check(Helpers.IntervalSwitch.FromUi(true, 45, 5, 120) == 45, "开关开 → 落盘滑条值");
+            Check(Helpers.IntervalSwitch.FromUi(true, 3, 5, 120) == 5, "开关开 + 滑条被夹过 → 落盘不低于下限");
+            Check(Helpers.IntervalSwitch.FromUi(true, 30, 5, 120) == 30, "天气默认 30 分钟往返一致");
+            // 往返闭合：只要有开过（>0），ToUi→FromUi 不应改成更小的值
+            Check(Helpers.IntervalSwitch.FromUi(
+                    Helpers.IntervalSwitch.ToUi(60, 30, 5, 120).On,
+                    Helpers.IntervalSwitch.ToUi(60, 30, 5, 120).Slider, 5, 120) == 60,
+                "60 秒往返闭合（不会因开关往返被改小）");
+
+            // ── F. 设置页实例化 + 控件往返（v2.21.0）────────────────────
+            // ⚠ 这两页的 XAML 改动**没有任何其它测试会碰到** —— 自检不实例化它们，
+            //    写错（处理器名拼错 / 控件名写错 / 属性不支持）只会在老师打开设置页时炸。
+            //    实例化 + Load/Apply 往返正好把 XAML 解析和 decimal↔double 语义一起钉住。
+            {
+                var src = new Models.AppSettings
+                {
+                    CustomPositionX = 123, CustomPositionY = -1,
+                    PositionOffsetX = -25, PositionOffsetY = 7,
+                    PositionPreset = Models.PositionPresetValues.Custom
+                };
+                var posPage = new Views.Settings.PositionPage();
+                posPage.Load(src);
+                Check(!posPage.IsDirty, "位置页 Load 后不应是「未保存」状态");
+                posPage.CustomXBox.Value = 5;                        // 模拟老师改了一个数字框
+                Check(posPage.IsDirty, "位置页改了坐标 → 标记未保存（否则切页静默丢改动）");
+                posPage.CenterPosBtn.RaiseEvent(new global::Avalonia.Interactivity.RoutedEventArgs(global::Avalonia.Controls.Button.ClickEvent));
+                Check(posPage.CustomXBox.Value == -1 && posPage.CustomYBox.Value == -1,
+                    "「恢复居中」把 X/Y 置为 -1（= 水平居中/高度自动）");
+
+                var dst = new Models.AppSettings();
+                posPage.Load(src);
+                posPage.Apply(dst);
+                Check(dst.CustomPositionX == 123 && dst.CustomPositionY == -1,
+                    "位置页坐标往返（NumericUpDown 的 decimal? ↔ 设置项 double）");
+                Check(dst.PositionOffsetX == -25 && dst.PositionOffsetY == 7, "位置页偏移往返（含负值）");
+
+                var apiSrc = new Models.AppSettings
+                {
+                    QuoteAutoRefreshInterval = 45,     // 开
+                    WeatherRefreshInterval = 0         // 关
+                };
+                var apiPage = new Views.Settings.ApiPage();
+                apiPage.Load(apiSrc);
+                Check(apiPage.QuoteAutoRefreshCheck.IsChecked == true &&
+                      (int)apiPage.QuoteRefreshIntervalSlider.Value == 45, "一言：存 45 秒 → 开关开 + 滑条 45");
+                Check(apiPage.WeatherAutoRefreshCheck.IsChecked == false, "天气：存 0 → 开关关");
+                Check(apiPage.QuoteRefreshIntervalSlider.IsEnabled &&
+                      !apiPage.WeatherRefreshIntervalSlider.IsEnabled,
+                    "间隔滑条启用状态跟开关走（关掉的滑条不该还能拖）");
+
+                var apiDst = new Models.AppSettings { QuoteAutoRefreshInterval = 45, WeatherRefreshInterval = 30 };
+                apiPage.Apply(apiDst);
+                Check(apiDst.QuoteAutoRefreshInterval == 45, "API 页：开关开 → 落盘保持 45");
+                Check(apiDst.WeatherRefreshInterval == 0, "API 页：开关关 → 落盘 0（不是滑条上的 30）");
+            }
+
             sb.AppendLine("[SJTEST] 结论：PASS");
         }
         catch (Exception ex)

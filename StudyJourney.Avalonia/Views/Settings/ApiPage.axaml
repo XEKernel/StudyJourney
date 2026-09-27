@@ -12,7 +12,7 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="每日一言开关" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="ShowDailyQuoteCheck" Content="在倒计时窗口底部显示每日一言" IsChecked="True"/>
+                    <CheckBox x:Name="ShowDailyQuoteCheck" Content="在倒计时窗口底部显示每日一言" IsChecked="True" IsCheckedChanged="DirtyCheck_Changed"/>
                     <TextBlock Text="每日随机展示一条名言/诗词，点击可手动刷新"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
@@ -31,13 +31,28 @@
                         <TextBlock Text="文字颜色" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <v:ColorSwatch x:Name="QuoteForegroundSwatch" Grid.Column="1" MinWidth="240"/>
                     </Grid>
-                    <CheckBox x:Name="QuoteItalicCheck" Content="斜体" IsChecked="True"/>
+                    <CheckBox x:Name="QuoteItalicCheck" Content="斜体" IsChecked="True" IsCheckedChanged="DirtyCheck_Changed"/>
                 </StackPanel>
             </Border>
 
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="数据来源" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                    <TextBlock Text="自动切换" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
+                    <!-- v2.21.0：原滑条 0 = 不自动切换（魔法值，老师看不懂）→ 显式开关 + 滑条（下限 5 秒） -->
+                    <CheckBox x:Name="QuoteAutoRefreshCheck" Content="自动切换（每隔一段时间换一条新的一言）"
+                              IsCheckedChanged="QuoteAutoRefreshCheck_Changed"/>
+                    <Grid ColumnDefinitions="70,*,80" Margin="0,6,0,6">
+                        <TextBlock Text="切换间隔" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Slider x:Name="QuoteRefreshIntervalSlider" ValueChanged="QuoteRefreshIntervalSlider_ValueChanged" Grid.Column="1" Minimum="5" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                        <TextBlock x:Name="QuoteRefreshIntervalText" Grid.Column="2" Text="30秒" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+
+            <!-- v2.21.0：API 地址 / 文本字段名对老师毫无意义，收进高级折叠区（一般不用改） -->
+            <Expander Header="高级设置（一般不用改 —— 更换一言数据来源时才需要）"
+                      FontSize="13" IsExpanded="False">
+                <StackPanel Spacing="4" Margin="0,8,0,4">
                     <Grid ColumnDefinitions="70,*" Margin="0,2,0,6">
                         <TextBlock Text="API 地址" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <TextBox x:Name="QuoteApiUrlBox" Grid.Column="1" Text="https://uapis.cn/api/v1/saying"/>
@@ -49,16 +64,8 @@
                         <TextBlock Text="文本字段" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <TextBox x:Name="QuoteTextFieldNameBox" Grid.Column="1" Text="text"/>
                     </Grid>
-                    <Grid ColumnDefinitions="70,*,80" Margin="0,10,0,6">
-                        <TextBlock Text="自动切换" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="QuoteRefreshIntervalSlider" ValueChanged="QuoteRefreshIntervalSlider_ValueChanged" Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
-                        <TextBlock x:Name="QuoteRefreshIntervalText" Grid.Column="2" Text="30秒" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
-                    </Grid>
-                    <TextBlock Text="0 = 不自动切换；设置后每隔 N 秒自动刷新一条新的一言"
-                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                               Margin="70,0,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
-            </Border>
+            </Expander>
 
             <!-- 分隔线 -->
             <Border Height="1" Background="#20FFFFFF" Margin="4,4,4,4"/>
@@ -74,15 +81,25 @@
                         <TextBlock Text="城市名称" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <TextBox x:Name="WeatherCityBox" Grid.Column="1" Text="北京"/>
                     </Grid>
-                    <Grid ColumnDefinitions="70,*" Margin="0,6,0,6">
+                    <TextBlock Text="填城市名即可，一般能自动匹配。匹配不准时再用下方高级设置里的行政区划代码。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Margin="0,0,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- v2.21.0：行政区划代码收进高级（老师看不懂 6 位代码，且城市名一般够用） -->
+            <Expander Header="高级设置（一般不用改 —— 城市名匹配不准时才需要）"
+                      FontSize="13" IsExpanded="False">
+                <StackPanel Spacing="4" Margin="0,8,0,4">
+                    <Grid ColumnDefinitions="70,*" Margin="0,2,0,6">
                         <TextBlock Text="行政区划代码" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                         <TextBox x:Name="WeatherAdcodeBox" Grid.Column="1" Text="110000" PlaceholderText="可选，留空自动匹配"/>
                     </Grid>
-                    <TextBlock Text="城市名必填；adcode 可选（6 位数字，如 110105=朝阳区）"
+                    <TextBlock Text="6 位数字，如 110105=朝阳区。填了就优先按代码查询。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="70,0,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
-            </Border>
+            </Expander>
 
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
@@ -111,14 +128,14 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="其他选项" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,10"/>
-                    <Grid ColumnDefinitions="70,*,80" Margin="0,2,0,6">
+                    <!-- v2.21.0：原滑条 0 = 不自动刷新（魔法值）→ 显式开关 + 滑条（下限 5 分钟） -->
+                    <CheckBox x:Name="WeatherAutoRefreshCheck" Content="自动刷新天气"
+                              IsCheckedChanged="WeatherAutoRefreshCheck_Changed"/>
+                    <Grid ColumnDefinitions="70,*,80" Margin="0,6,0,6">
                         <TextBlock Text="刷新间隔" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                        <Slider x:Name="WeatherRefreshIntervalSlider" ValueChanged="WeatherRefreshIntervalSlider_ValueChanged" Grid.Column="1" Minimum="0" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
+                        <Slider x:Name="WeatherRefreshIntervalSlider" ValueChanged="WeatherRefreshIntervalSlider_ValueChanged" Grid.Column="1" Minimum="5" Maximum="120" Value="30" TickFrequency="5" IsSnapToTickEnabled="True"/>
                         <TextBlock x:Name="WeatherRefreshIntervalText" Grid.Column="2" Text="30分" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                     </Grid>
-                    <TextBlock Text="0 = 不自动刷新；单位：分钟"
-                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
-                               Margin="70,0,0,0" TextWrapping="Wrap"/>
                     <TextBlock Text="天气详细度" FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}" Margin="0,12,0,4"/>
                     <ComboBox x:Name="WeatherDetailLevelCombo" Width="180" HorizontalAlignment="Left">
                         <ComboBoxItem Content="简洁（图标 + 温度）"/>

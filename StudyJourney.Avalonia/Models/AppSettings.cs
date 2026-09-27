@@ -144,13 +144,13 @@ namespace StudyJourney.Avalonia.Models
         public string QuoteForegroundHex        { get; set; } = "#AAAAAA";
         public bool   QuoteItalic               { get; set; } = true;
         public string QuoteApiUrl               { get; set; } = "https://uapis.cn/api/v1/saying";
-        public int    QuoteAutoRefreshInterval   { get; set; } = 0;  // 秒，0=不自动切换
+        public int    QuoteAutoRefreshInterval   { get; set; } = 0;  // 秒，0=不自动切换（UI 是显式开关，见 Helpers/IntervalSwitch.cs）
         public string QuoteTextFieldName         { get; set; } = "text";  // API 返回 JSON 中携带文本的字段名
 
         // ── 天气 ──────────────────────────────────────────
         public string WeatherCity            { get; set; } = "北京";
         public string WeatherAdcode          { get; set; } = "";
-        public int    WeatherRefreshInterval { get; set; } = 0;   // 分钟，0=不自动刷新
+        public int    WeatherRefreshInterval { get; set; } = 0;   // 分钟，0=不自动刷新（UI 是显式开关，见 Helpers/IntervalSwitch.cs）
         public double WeatherFontSize        { get; set; } = 14;   // 文本字号
         // 天气文字颜色
         public string WeatherCityColor        { get; set; } = "#FFFFFFFF";  // 城市名
