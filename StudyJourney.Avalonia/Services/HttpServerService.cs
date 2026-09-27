@@ -322,7 +322,8 @@ public static class HttpServerService
                 if (EnableIpWhitelist && !IsAllowedIp(ctx.Connection.RemoteIpAddress))
                 {
                     ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    await ctx.Response.WriteAsJsonAsync(new { error = "ip not allowed" });
+                    await ctx.Response.WriteAsJsonAsync(new ApiError { Error = "ip not allowed" },
+                        ApiJsonContext.Default.ApiError);
                     return;
                 }
 
@@ -336,7 +337,8 @@ public static class HttpServerService
                     if (!IsTokenValid(ExtractToken(ctx.Request)))
                     {
                         ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                        await ctx.Response.WriteAsJsonAsync(new { error = "unauthorized" });
+                        await ctx.Response.WriteAsJsonAsync(new ApiError { Error = "unauthorized" },
+                        ApiJsonContext.Default.ApiError);
                         return;
                     }
                 }
@@ -352,9 +354,10 @@ public static class HttpServerService
             app.MapGet("/api/teachers", () =>
             {
                 var list = (App.Settings.Teachers?.Count > 0 ? App.Settings.Teachers.AsEnumerable() : FallbackTeachers.AsEnumerable())
-                    .Select(t => new { displayName = t.DisplayName, subject = t.Subject })
+                    .Select(t => new ApiTeacherItem { DisplayName = t.DisplayName, Subject = t.Subject })
                     .ToList();
-                return Results.Json(new { ok = true, count = list.Count, teachers = list });
+                return Results.Json(new ApiTeachers { Ok = true, Count = list.Count, Teachers = list },
+                    ApiJsonContext.Default.ApiTeachers);
             });
 
             // ── 登录：POST /api/login → { ok, token, displayName, ... } ──
@@ -368,7 +371,7 @@ public static class HttpServerService
                         statusCode: StatusCodes.Status403Forbidden);
 
                 LoginRequest? req = null;
-                try { req = await request.ReadFromJsonAsync<LoginRequest>(); }
+                try { req = await request.ReadFromJsonAsync(ApiJsonContext.Default.LoginRequest); }
                 catch { /* 非法 JSON 走下面的空校验 */ }
 
                 var account = FindTeacherForLogin(req?.Username);
@@ -403,15 +406,15 @@ public static class HttpServerService
                 if (req.RememberMe) SaveTokens();   // 仅"记住我"持久化，重启电脑后免登录
 
                 Logger.Log($"[{account.DisplayName}] 登录成功");
-                return Results.Json(new
+                return Results.Json(new ApiLogin
                 {
-                    ok = true,
-                    token,
-                    username = account.Username,
-                    displayName = account.DisplayName,
-                    rememberMe = req.RememberMe,
-                    expiresAt = expire,
-                });
+                    Ok = true,
+                    Token = token,
+                    Username = account.Username,
+                    DisplayName = account.DisplayName,
+                    RememberMe = req.RememberMe,
+                    ExpiresAt = expire,
+                }, ApiJsonContext.Default.ApiLogin);
             });
 
             // ── 登出/踢下线：POST /api/logout → 移除内存 + tokens.json ──
@@ -433,13 +436,13 @@ public static class HttpServerService
             {
                 var today = DateTime.Now.Date;
                 var data = ScheduleData.Load();
-                return Results.Json(new
+                return Results.Json(new ApiScheduleDay
                 {
-                    ok = true,
-                    date = today.ToString("yyyy-MM-dd"),
-                    weekday = ((int)today.DayOfWeek + 6) % 7 + 1,   // 1=周一 … 7=周日
-                    schedule = data,
-                });
+                    Ok = true,
+                    Date = today.ToString("yyyy-MM-dd"),
+                    Weekday = ((int)today.DayOfWeek + 6) % 7 + 1,   // 1=周一 … 7=周日
+                    Schedule = data,
+                }, ApiJsonContext.Default.ApiScheduleDay);
             });
 
             // ── 课表修改：PUT /api/schedule（需有效 Token）──
@@ -449,7 +452,7 @@ public static class HttpServerService
                 ScheduleData? schedule = null;
                 try
                 {
-                    schedule = await request.ReadFromJsonAsync<ScheduleData>();
+                    schedule = await request.ReadFromJsonAsync(Models.AppJsonContext.Default.ScheduleData);
                 }
                 catch (JsonException)
                 {
@@ -522,16 +525,16 @@ public static class HttpServerService
                 }
                 catch { /* 读取上传目录失败忽略 */ }
 
-                return Results.Json(new
+                return Results.Json(new ApiHealth
                 {
-                    ok = true,
-                    serverTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
-                    ip = GetLocalIPv4Addresses().FirstOrDefault() ?? "127.0.0.1",
-                    osVersion = Environment.OSVersion.VersionString,
-                    uptimeMinutes = (int)(DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).TotalMinutes,
-                    disk = new { freeBytes, totalBytes, text = diskInfo },
-                    recentUploads,
-                });
+                    Ok = true,
+                    ServerTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                    Ip = GetLocalIPv4Addresses().FirstOrDefault() ?? "127.0.0.1",
+                    OsVersion = Environment.OSVersion.VersionString,
+                    UptimeMinutes = (int)(DateTime.Now - System.Diagnostics.Process.GetCurrentProcess().StartTime).TotalMinutes,
+                    Disk = new ApiDisk { FreeBytes = freeBytes, TotalBytes = totalBytes, Text = diskInfo },
+                    RecentUploads = recentUploads,
+                }, ApiJsonContext.Default.ApiHealth);
             });
 
             // ── 操作日志：GET /api/logs（需有效 Token）──
@@ -539,7 +542,10 @@ public static class HttpServerService
             app.MapGet("/api/logs", () =>
             {
                 var lines = Logger.ReadRecent(100);
-                return Results.Json(new { ok = true, logDirectory = Logger.LogDirectory, count = lines.Count, lines });
+                return Results.Json(new ApiLogs
+                {
+                    Ok = true, LogDirectory = Logger.LogDirectory, Count = lines.Count, Lines = lines
+                }, ApiJsonContext.Default.ApiLogs);
             });
 
             // ── 上传目录：GET /api/upload-dir（需有效 Token）──
@@ -547,9 +553,12 @@ public static class HttpServerService
             app.MapGet("/api/upload-dir", () =>
             {
                 var presets = GetUploadDirPresets()
-                    .Select(p => new { label = p.Label, path = p.Path })
+                    .Select(p => new ApiUploadDirItem { Label = p.Label, Path = p.Path })
                     .ToList();
-                return Results.Json(new { ok = true, current = UploadRootPath, defaultPath = DefaultUploadRootPath, presets });
+                return Results.Json(new ApiUploadDir
+                {
+                    Ok = true, Current = UploadRootPath, DefaultPath = DefaultUploadRootPath, Presets = presets
+                }, ApiJsonContext.Default.ApiUploadDir);
             });
 
             // ── 上传目录：PUT /api/upload-dir（需有效 Token）──
@@ -557,7 +566,7 @@ public static class HttpServerService
             app.MapPut("/api/upload-dir", async (HttpRequest request) =>
             {
                 UploadDirRequest? req = null;
-                try { req = await request.ReadFromJsonAsync<UploadDirRequest>(); }
+                try { req = await request.ReadFromJsonAsync(ApiJsonContext.Default.UploadDirRequest); }
                 catch { /* 非法 JSON 走空值校验 */ }
 
                 var path = req?.Path?.Trim() ?? "";
@@ -584,7 +593,7 @@ public static class HttpServerService
             // 返回：可选课件（按科目分组，带完整路径）+ 常用软件 + 当前已有指定
             app.MapGet("/api/open-targets", () =>
             {
-                var subjects = new List<object>();
+                var subjects = new List<ApiSubjectGroup>();
                 try
                 {
                     var root = Path.Combine(UploadRootPath, "课件");
@@ -593,10 +602,10 @@ public static class HttpServerService
                         foreach (var dir in Directory.GetDirectories(root).OrderBy(d => d, StringComparer.Ordinal))
                         {
                             var files = Helpers.FileSequence.ListCandidates(dir)
-                                .Select(f => new { name = Path.GetFileName(f), path = f })
+                                .Select(f => new ApiFileItem { Name = Path.GetFileName(f), Path = f })
                                 .ToList();
                             if (files.Count > 0)
-                                subjects.Add(new { subject = Path.GetFileName(dir), files });
+                                subjects.Add(new ApiSubjectGroup { Subject = Path.GetFileName(dir), Files = files });
                         }
                     }
                     // 回退：若还没建科目子文件夹，把上传目录根下的文件列成「未分科目」，
@@ -604,48 +613,48 @@ public static class HttpServerService
                     if (subjects.Count == 0)
                     {
                         var loose = Helpers.FileSequence.ListCandidates(UploadRootPath)
-                            .Select(f => new { name = Path.GetFileName(f), path = f })
+                            .Select(f => new ApiFileItem { Name = Path.GetFileName(f), Path = f })
                             .ToList();
-                        if (loose.Count > 0) subjects.Add(new { subject = "（未分科目）", files = loose });
+                        if (loose.Count > 0) subjects.Add(new ApiSubjectGroup { Subject = "（未分科目）", Files = loose });
                     }
                 }
                 catch (Exception ex) { Helpers.AppLogger.Warn($"枚举课件目录失败: {ex.Message}"); }
 
                 // 常用软件 = 老师以前指定/打开过的 + 当前正在运行且有路径的
-                var apps = new List<object>();
+                var apps = new List<ApiFileItem>();
                 var seenPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var a in OpenStateStore.GetKnownApps())
                 {
                     if (string.IsNullOrWhiteSpace(a.Path) || !seenPaths.Add(a.Path)) continue;
-                    apps.Add(new { name = a.Name, path = a.Path });
+                    apps.Add(new ApiFileItem { Name = a.Name, Path = a.Path });
                 }
                 try
                 {
                     foreach (var (exe, _, full) in Helpers.WindowEnumerator.RunningApps())
                     {
                         if (string.IsNullOrWhiteSpace(full) || !seenPaths.Add(full)) continue;
-                        apps.Add(new { name = Path.GetFileNameWithoutExtension(exe) + "（正在运行）", path = full });
+                        apps.Add(new ApiFileItem { Name = Path.GetFileNameWithoutExtension(exe) + "（正在运行）", Path = full });
                     }
                 }
                 catch { /* 枚举失败不影响其它字段 */ }
 
                 var pending = OpenStateStore.GetPending();
-                return Results.Json(new
+                return Results.Json(new ApiOpenTargets
                 {
-                    ok = true,
-                    coursewareRoot = Path.Combine(UploadRootPath, "课件"),
-                    subjects,
-                    apps,
-                    pending = pending == null ? null : new
+                    Ok = true,
+                    CoursewareRoot = Path.Combine(UploadRootPath, "课件"),
+                    Subjects = subjects,
+                    Apps = apps,
+                    Pending = pending == null ? null : new ApiPendingOpen
                     {
-                        kind = pending.Kind,
-                        path = pending.Path,
-                        subject = pending.Subject,
-                        note = pending.Note,
-                        setBy = pending.SetBy,
-                        setAt = pending.SetAt,
+                        Kind = pending.Kind,
+                        Path = pending.Path,
+                        Subject = pending.Subject,
+                        Note = pending.Note,
+                        SetBy = pending.SetBy,
+                        SetAt = pending.SetAt,
                     },
-                });
+                }, ApiJsonContext.Default.ApiOpenTargets);
             });
 
             // ── 指定下节课打开的内容：POST /api/pending-open（2.5.9B）──
@@ -654,7 +663,7 @@ public static class HttpServerService
             app.MapPost("/api/pending-open", async (HttpRequest request) =>
             {
                 PendingOpenRequest? req = null;
-                try { req = await request.ReadFromJsonAsync<PendingOpenRequest>(); }
+                try { req = await request.ReadFromJsonAsync(ApiJsonContext.Default.PendingOpenRequest); }
                 catch { /* 非法 JSON 走空值校验 */ }
 
                 var path = req?.Path?.Trim() ?? "";
@@ -711,21 +720,21 @@ public static class HttpServerService
 
             // ── 班级信息：GET /api/config（需有效 Token）──
             // 返回班级名称 / 当前登录老师显示名 / 登录账号 / 可选科目，供页面顶部与状态页显示
-            app.MapGet("/api/config", (HttpRequest request) => Results.Json(new
+            app.MapGet("/api/config", (HttpRequest request) => Results.Json(new ApiConfig
             {
-                ok = true,
-                className = App.Settings.ClassName,
-                teacherName = GetCurrentDisplayName(request),
-                loginUsername = GetCurrentUsername(request) ?? "",
-                subjects = App.Settings.Subjects ?? new(),
-            }));
+                Ok = true,
+                ClassName = App.Settings.ClassName,
+                TeacherName = GetCurrentDisplayName(request),
+                LoginUsername = GetCurrentUsername(request) ?? "",
+                Subjects = App.Settings.Subjects ?? new(),
+            }, ApiJsonContext.Default.ApiConfig));
 
             // ── 班级信息：PUT /api/config（需有效 Token）──
             // body: { "className": "高三（2）班 智慧黑板", "teacherName": "张老师" }（字段可省略，空=回退默认）
             app.MapPut("/api/config", async (HttpRequest request) =>
             {
                 ConfigRequest? req = null;
-                try { req = await request.ReadFromJsonAsync<ConfigRequest>(); }
+                try { req = await request.ReadFromJsonAsync(ApiJsonContext.Default.ConfigRequest); }
                 catch { /* 非法 JSON 走空值校验 */ }
 
                 try
@@ -765,13 +774,13 @@ public static class HttpServerService
                     App.SaveSettings();
 
                     Logger.Log($"[{GetCurrentDisplayName(request)}] 修改班级信息（{App.Settings.ClassName}）");
-                    return Results.Json(new
+                    return Results.Json(new ApiConfigSaved
                     {
-                        success = true,
-                        message = "已保存",
-                        className = App.Settings.ClassName,
-                        teacherName = GetCurrentDisplayName(request),
-                    });
+                        Success = true,
+                        Message = "已保存",
+                        ClassName = App.Settings.ClassName,
+                        TeacherName = GetCurrentDisplayName(request),
+                    }, ApiJsonContext.Default.ApiConfigSaved);
                 }
                 catch (Exception ex)
                 {
@@ -853,7 +862,13 @@ public static class HttpServerService
 
                     Helpers.AppLogger.Info($"收到课件上传: {fileName} ({file.Length / 1024.0 / 1024.0:F1} MB)");
                     Logger.Log($"[{GetCurrentDisplayName(request)}] 上传了 {fileName}");
-                    return Results.Json(new { success = true, fileName, path = fullPath, openWarning });
+                    return Results.Json(new ApiUploadResult
+                    {
+                        Success = true,
+                        FileName = fileName,
+                        Path = fullPath,
+                        OpenWarning = openWarning,
+                    }, ApiJsonContext.Default.ApiUploadResult);
                 }
                 catch (Exception ex)
                 {
@@ -1107,37 +1122,9 @@ public static class HttpServerService
         }
     }
 
-    /// <summary>POST /api/login 请求体（System.Text.Json 反序列化，属性名大小写不敏感）</summary>
-    private sealed class LoginRequest
-    {
-        public string? Username { get; set; }
-        public string? Password { get; set; }
-        public bool RememberMe { get; set; }
-    }
-
-    /// <summary>PUT /api/upload-dir 请求体：path = 完整目录（空 = 恢复默认）</summary>
-    private sealed class UploadDirRequest
-    {
-        public string? Path { get; set; }
-    }
-
-    /// <summary>PUT /api/config 请求体：班级名称 / 老师显示名（字段可省略）</summary>
-    private sealed class ConfigRequest
-    {
-        public string? ClassName { get; set; }
-        public string? TeacherName { get; set; }
-    }
-
-    /// <summary>POST /api/pending-open 请求体：指定下节课打开的文件或软件（2.5.9B）</summary>
-    private sealed class PendingOpenRequest
-    {
-        /// <summary>"file" = 打开文件（课件）/ "app" = 启动软件</summary>
-        public string? Kind { get; set; }
-        public string? Path { get; set; }
-        /// <summary>限定科目（可空 = 不限）</summary>
-        public string? Subject { get; set; }
-        public string? Note { get; set; }
-    }
+    // 请求体 DTO（LoginRequest / UploadDirRequest / ConfigRequest / PendingOpenRequest）
+    // 已移到 Services/ApiResponses.cs 并注册进源生成上下文 —— 它们原来是私有嵌套类型，
+    // 源生成器引用不到；而且改用它之后**大小写不再不敏感**，故那边逐字段写了 [JsonPropertyName]。
 
     /// <summary>把"进程名/相对名"解析成可执行文件完整路径（优先已在运行的进程，其次原样判断文件是否存在）</summary>
     private static string? ResolveAppPath(string input)

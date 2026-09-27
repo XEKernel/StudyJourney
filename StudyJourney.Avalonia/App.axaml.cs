@@ -1655,6 +1655,16 @@ public partial class App : Application
                 Check(!svPage.IsDirty, "服务器页重新 Load 后复位为「未保存 = 否」");
             }
 
+            // ── I. 课表编辑器冒烟（2026-09-27 AOT：XAML 反射绑定 → 编译绑定）────
+            // 该文件的 DataGrid 列原来用 `{Binding Xxx}`（反射绑定，IL2026/IL3050）→ 改成编译绑定 + x:DataType。
+            // 编译绑定写错通常是**编译错误**（能拦住），但"行渲染成空白"这类只在运行时暴露 → 这里实例化一次兜底。
+            {
+                var schWin = new Views.ScheduleEditorWindow();
+                Check(schWin.EntryGrid != null && schWin.EntryGrid.Columns.Count >= 6,
+                    $"课表编辑器可实例化且 DataGrid 列就位（实际 {schWin.EntryGrid?.Columns.Count} 列）");
+                schWin.Close();
+            }
+
             sb.AppendLine("[SJTEST] 结论：PASS");
         }
         catch (Exception ex)
@@ -1761,6 +1771,13 @@ public partial class App : Application
             static string Norm(string expected)
                 => string.Join(",", expected.Split(',').Select(s => s.Trim()).OrderBy(x => x));
 
+            // 本自检专用的断言（其它自检的 Check 是各自方法里的局部函数）
+            void Check(bool ok, string desc)
+            {
+                sb.AppendLine($"[APITEST]   {(ok ? "ok" : "✗")} {desc}");
+                if (!ok) throw new Exception($"断言失败：{desc}");
+            }
+
             // (描述, 实际键集合, 期望键集合 —— 期望值取自改造前匿名类型的成员名)
             var cases = new (string Desc, string Got, string Want)[]
             {
@@ -1769,6 +1786,20 @@ public partial class App : Application
                 ("ApiOkOnly",     KeysOf(new Services.ApiOkOnly(),     Services.ApiJsonContext.Default.ApiOkOnly),     "ok"),
                 ("ApiStatus",     KeysOf(new Services.ApiStatus(),     Services.ApiJsonContext.Default.ApiStatus),     "status"),
                 ("ApiMsgPath",    KeysOf(new Services.ApiMsgPath(),    Services.ApiJsonContext.Default.ApiMsgPath),    "success,message,path"),
+                // 2026-09-27 AOT 收尾：以下 13 个是最后一批匿名类型（含嵌套与列表）
+                ("ApiError",      KeysOf(new Services.ApiError(),      Services.ApiJsonContext.Default.ApiError),      "error"),
+                ("ApiTeacherItem", KeysOf(new Services.ApiTeacherItem(), Services.ApiJsonContext.Default.ApiTeacherItem), "displayName,subject"),
+                ("ApiTeachers",   KeysOf(new Services.ApiTeachers(),   Services.ApiJsonContext.Default.ApiTeachers),   "ok,count,teachers"),
+                ("ApiDisk",       KeysOf(new Services.ApiDisk(),       Services.ApiJsonContext.Default.ApiDisk),       "freeBytes,totalBytes,text"),
+                ("ApiHealth",     KeysOf(new Services.ApiHealth(),     Services.ApiJsonContext.Default.ApiHealth),     "ok,serverTime,ip,osVersion,uptimeMinutes,disk,recentUploads"),
+                ("ApiLogs",       KeysOf(new Services.ApiLogs(),       Services.ApiJsonContext.Default.ApiLogs),       "ok,logDirectory,count,lines"),
+                ("ApiUploadDirItem", KeysOf(new Services.ApiUploadDirItem(), Services.ApiJsonContext.Default.ApiUploadDirItem), "label,path"),
+                ("ApiUploadDir",  KeysOf(new Services.ApiUploadDir(),  Services.ApiJsonContext.Default.ApiUploadDir),  "ok,current,defaultPath,presets"),
+                ("ApiFileItem",   KeysOf(new Services.ApiFileItem(),   Services.ApiJsonContext.Default.ApiFileItem),   "name,path"),
+                ("ApiSubjectGroup", KeysOf(new Services.ApiSubjectGroup(), Services.ApiJsonContext.Default.ApiSubjectGroup), "subject,files"),
+                ("ApiPendingOpen", KeysOf(new Services.ApiPendingOpen(), Services.ApiJsonContext.Default.ApiPendingOpen), "kind,path,subject,note,setBy,setAt"),
+                ("ApiOpenTargets", KeysOf(new Services.ApiOpenTargets(), Services.ApiJsonContext.Default.ApiOpenTargets), "ok,coursewareRoot,subjects,apps,pending"),
+                ("ApiUploadResult", KeysOf(new Services.ApiUploadResult(), Services.ApiJsonContext.Default.ApiUploadResult), "success,fileName,path,openWarning"),
             };
 
             foreach (var (desc, got, want) in cases)
@@ -1777,6 +1808,95 @@ public partial class App : Application
                 sb.AppendLine($"[APITEST]   {(ok ? "ok" : "✗")} {desc,-14} 实际 [{got}]  期望 [{Norm(want)}]");
                 if (!ok)
                     throw new Exception($"DTO 字段名不符：{desc} 实际 [{got}] 期望 [{Norm(want)}] —— 老师端网页会取值失败");
+            }
+
+            // ── 嵌套形状与 null 语义 ─────────────────────────────
+            // 上面只比了**顶层键名**，嵌套对象改名照样会漏过去；而网页端深度取值
+            // （`x.subject` / `hit.files` / `f.path` / `p.kind`）—— 改错就是"选项框空白"。
+            {
+                var probe = new Services.ApiOpenTargets
+                {
+                    Ok = true,
+                    CoursewareRoot = @"D:\课件",
+                    Subjects = { new Services.ApiSubjectGroup { Subject = "语文",
+                        Files = { new Services.ApiFileItem { Name = "a.pptx", Path = @"D:\课件\语文\a.pptx" } } } },
+                    Apps = { new Services.ApiFileItem { Name = "PPT", Path = @"C:\ppt.exe" } },
+                    Pending = new Services.ApiPendingOpen
+                    {
+                        Kind = "file", Path = @"D:\课件\语文\a.pptx", Subject = "语文",
+                        Note = "", SetBy = "王老师", SetAt = "2026-09-27 10:00"
+                    },
+                };
+                string json = JsonSerializer.Serialize(probe, Services.ApiJsonContext.Default.ApiOpenTargets);
+                // ⚠ 结构断言只用 ASCII 值：STJ 默认把中文转义成 \uXXXX（改造前后一致，网页端 JSON.parse 后无恙），
+                //   所以不能拿中文字面量去 Contains；中文用下面的"反序列化往返"来验。
+                Check(json.Contains("\"subjects\":[{\"subject\":") && json.Contains("\"files\":[{\"name\":\"a.pptx\",\"path\":"),
+                    "open-targets 嵌套形状：subjects[].subject/files[].name/path（网页端按这些取值）");
+                Check(json.Contains("\"apps\":[{\"name\":\"PPT\",\"path\":"),
+                    "open-targets 嵌套形状：apps[].name/path");
+                Check(json.Contains("\"pending\":{\"kind\":\"file\",\"path\":") &&
+                      json.Contains("\"setBy\":") && json.Contains("\"setAt\":\"2026-09-27 10:00\""),
+                    "open-targets 嵌套形状：pending.kind/path/setBy/setAt");
+
+                // 中文/路径往返无损（网页端 JSON.parse 后取到的就是原文）
+                var back = JsonSerializer.Deserialize(json, Services.ApiJsonContext.Default.ApiOpenTargets)!;
+                Check(back.Subjects.Count == 1 && back.Subjects[0].Subject == "语文" &&
+                      back.Subjects[0].Files.Count == 1 && back.Subjects[0].Files[0].Name == "a.pptx" &&
+                      back.Subjects[0].Files[0].Path == @"D:\课件\语文\a.pptx",
+                    "中文科目名与中文路径往返无损");
+                Check(back.Pending is { Kind: "file", Subject: "语文", SetBy: "王老师", SetAt: "2026-09-27 10:00" },
+                    "pending 中文字段往返无损");
+
+                // ⚠ 无指定时必须输出 `"pending":null`（网页端据此显示"将按上次用过的课件自动打开"）；
+                //   若哪天加了"忽略 null"的序列化选项，这里立刻失败
+                string noPending = JsonSerializer.Serialize(new Services.ApiOpenTargets { Ok = true },
+                    Services.ApiJsonContext.Default.ApiOpenTargets);
+                Check(noPending.Contains("\"pending\":null"), "无指定时 pending 必须输出 null（不是省略）");
+
+                // 上传结果：openWarning 为空时也要保留键（网页端 `if(j.openWarning)` 取值）
+                string upJson = JsonSerializer.Serialize(new Services.ApiUploadResult { Success = true, FileName = "a.pptx" },
+                    Services.ApiJsonContext.Default.ApiUploadResult);
+                Check(upJson.Contains("\"openWarning\":null"), "上传结果 openWarning 为空时仍输出键（值为 null）");
+
+                // 老师账号项**绝不能**出现 username（防账号名被枚举爆破）
+                string tJson = JsonSerializer.Serialize(
+                    new Services.ApiTeacherItem { DisplayName = "王老师", Subject = "语文" },
+                    Services.ApiJsonContext.Default.ApiTeacherItem);
+                Check(!tJson.Contains("username"), "老师账号项不含 username（防枚举）");
+            }
+
+            // ── 请求体（反序列化）─────────────────────────────────
+            // ⚠ 本轮最容易翻车的地方：这些原来走 `ReadFromJsonAsync<T>()`，ASP.NET 给的是
+            //   **Web 默认选项（大小写不敏感）**，所以网页端发小写字段名能绑上；改成源生成上下文后
+            //   **不再大小写不敏感** → 漏写/写错 [JsonPropertyName] 会让"登录/改配置/指定打开"
+            //   **静默不生效**（登录永远提示用户名或密码错误），而编译器一声不吭。
+            {
+                var lr = JsonSerializer.Deserialize(
+                    """{"username":"teacher01","password":"p@ss","rememberMe":true}""",
+                    Services.ApiJsonContext.Default.LoginRequest);
+                Check(lr is { Username: "teacher01", Password: "p@ss", RememberMe: true },
+                    "登录请求体：网页端小写字段名可反序列化");
+
+                var ur = JsonSerializer.Deserialize("""{"path":"D:\\课件"}""",
+                    Services.ApiJsonContext.Default.UploadDirRequest);
+                Check(ur?.Path == @"D:\课件", "上传目录请求体：path");
+
+                var cr = JsonSerializer.Deserialize("""{"className":"高三（1）班","teacherName":"王老师"}""",
+                    Services.ApiJsonContext.Default.ConfigRequest);
+                Check(cr is { ClassName: "高三（1）班", TeacherName: "王老师" },
+                    "班级配置请求体：className / teacherName");
+
+                var pr = JsonSerializer.Deserialize(
+                    """{"kind":"file","path":"a.pptx","subject":"语文","note":""}""",
+                    Services.ApiJsonContext.Default.PendingOpenRequest);
+                Check(pr is { Kind: "file", Path: "a.pptx", Subject: "语文" },
+                    "待打开请求体：kind / path / subject");
+
+                // PUT /api/schedule 的 body 就是 GET 回来那份 schedule 对象 → 必须原样往返
+                string dayJson = JsonSerializer.Serialize(new Models.ScheduleData(),
+                    Models.AppJsonContext.Default.ScheduleData);
+                Check(JsonSerializer.Deserialize(dayJson, Models.AppJsonContext.Default.ScheduleData) != null,
+                    "课表 ScheduleData 往返成功（PUT /api/schedule 收到的是 GET 的原样对象）");
             }
 
             sb.AppendLine("[APITEST] 结论：PASS");

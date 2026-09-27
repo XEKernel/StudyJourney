@@ -3,12 +3,14 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:dg="using:Avalonia.Controls"
         xmlns:local="using:StudyJourney.Avalonia.Views"
+        xmlns:m="using:StudyJourney.Avalonia.Models"
         Title="编辑课表 / 考试"
         Width="1040" Height="740"
         WindowStartupLocation="CenterOwner"
         TransparencyLevelHint="Mica"
         Background="Transparent"
-        x:CompileBindings="False">
+        x:CompileBindings="True">   <!-- 2026-09-27 AOT：改编译绑定，去掉本文件最后一处反射绑定
+                                         （原为 x:CompileBindings="False" → IL2026/IL3050） -->
 
     <Window.Resources>
         <local:PeriodTypeConverter x:Key="PeriodTypeConverter"/>
@@ -32,12 +34,13 @@
                                  AutoGenerateColumns="False" GridLinesVisibility="Horizontal"
                                  SelectionMode="Single">
                         <dg:DataGrid.Columns>
-                            <dg:DataGridTextColumn Header="星期" Width="72" Binding="{Binding DayOfWeek}"/>
-                            <dg:DataGridTextColumn Header="节次" Width="62" Binding="{Binding Period}"/>
-                            <dg:DataGridTextColumn Header="科目" Width="*" Binding="{Binding Subject}"/>
-                            <dg:DataGridTextColumn Header="开始" Width="85" Binding="{Binding StartTimeStr}"/>
-                            <dg:DataGridTextColumn Header="结束" Width="85" Binding="{Binding EndTimeStr}"/>
-                            <dg:DataGridTextColumn Header="类型" Width="105" Binding="{Binding Type, Converter={StaticResource PeriodTypeConverter}}"/>
+                            <dg:DataGridTextColumn Header="星期" Width="72" Binding="{Binding DayOfWeek}" x:DataType="m:ScheduleEntry"/>
+                            <dg:DataGridTextColumn Header="节次" Width="62" Binding="{Binding Period}" x:DataType="m:ScheduleEntry"/>
+                            <dg:DataGridTextColumn Header="科目" Width="*" Binding="{Binding Subject}" x:DataType="m:ScheduleEntry"/>
+                            <dg:DataGridTextColumn Header="开始" Width="85" Binding="{Binding StartTimeStr}" x:DataType="m:ScheduleEntry"/>
+                            <dg:DataGridTextColumn Header="结束" Width="85" Binding="{Binding EndTimeStr}" x:DataType="m:ScheduleEntry"/>
+                            <dg:DataGridTextColumn Header="类型" Width="105" x:DataType="m:ScheduleEntry"
+                                              Binding="{Binding Type, Converter={StaticResource PeriodTypeConverter}}"/>
                         </dg:DataGrid.Columns>
                     </dg:DataGrid>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
