@@ -152,14 +152,9 @@ public partial class SchedulePage : UserControl, ISettingsPage
         }
     }
 
-    /// <summary>打开课表编辑窗口（自定义课表）</summary>
+    /// <summary>打开课表编辑窗口（自定义课表；2026-09-27 改为走全局单例入口）</summary>
     private void EditScheduleBtn_Click(object? sender, RoutedEventArgs e)
-    {
-        var win = new Views.ScheduleEditorWindow();
-        var owner = TopLevel.GetTopLevel(this) as Window;
-        if (owner != null) win.Show(owner);
-        else win.Show();
-    }
+        => App.OpenScheduleEditorGlobal();
 
     /// <summary>浏览选择提醒音 wav 文件（对齐 WPF BrowseReminderSound_Click）</summary>
     private async void BrowseReminderSound_Click(object? sender, RoutedEventArgs e)

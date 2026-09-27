@@ -87,7 +87,8 @@ public partial class App : Application
     private const int HotKeyExamMode   = 3;   // Ctrl+Shift+E
     private const int HotKeyAnnotation = 4;   // Ctrl+Alt+D（屏幕批注，PLANNING 2.3/2.7#7）
     private const int HotKeyPdfReader  = 5;   // Ctrl+Shift+P（PDF 阅读器，PLANNING 2.1）
-    private const uint VK_H = 0x48, VK_E = 0x45, VK_W = 0x57, VK_D = 0x44, VK_P = 0x50;
+    private const int HotKeySchedule   = 6;   // Ctrl+Shift+K（课表编辑，规划 2.7 P3「课表入口深」）
+    private const uint VK_H = 0x48, VK_E = 0x45, VK_W = 0x57, VK_D = 0x44, VK_P = 0x50, VK_K = 0x4B;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -631,6 +632,11 @@ public partial class App : Application
         if (!GlobalHotKeyManager.Register(HotKeyPdfReader, VK_P, true, true, false,
                 () => Dispatcher.UIThread.Post(() => OpenPdfReaderGlobal())))
             Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+P 注册失败（可能被其他程序占用）");
+
+        // Ctrl+Shift+K 编辑课表（规划 2.7 P3：原来要点 设置→课表→编辑课表数据 三层；临时调课最需要）
+        if (!GlobalHotKeyManager.Register(HotKeySchedule, VK_K, true, true, false,
+                () => Dispatcher.UIThread.Post(OpenScheduleEditorGlobal)))
+            Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+K 注册失败（可能被其他程序占用）");
     }
 
     /// <summary>统一入口：进入考试模式（托盘/快捷键/设置页共用）</summary>
@@ -650,6 +656,31 @@ public partial class App : Application
     {
         if (Current is App app && app._mainWindow is MainWindow mw) mw.OpenSettings();
         else new SettingsWindow().Show();
+    }
+
+    // ── 课表编辑（2026-09-27 规划 2.7 P3「课表入口深」）────────────
+    // 原来只有 Settings → 课表 → 「编辑课表数据…」一条路，老师要点三层；
+    // 现在托盘 / 主窗口右键菜单都能直达（老师最常改的就是课表）。
+    // ⚠ 单例：ScheduleEditorWindow 是 IUnsavedWork（有未保存改动会挡住更新重启），
+    //   开出多个副本的话"未保存"状态会分散在多个窗口里，容易漏。
+    private static Views.ScheduleEditorWindow? _scheduleEditor;
+
+    /// <summary>统一入口：打开课表编辑器（托盘 / 主窗口菜单 / 设置页共用）</summary>
+    public static void OpenScheduleEditorGlobal()
+    {
+        if (_scheduleEditor is { IsVisible: true })
+        {
+            if (_scheduleEditor.WindowState == WindowState.Minimized)
+                _scheduleEditor.WindowState = WindowState.Normal;
+            _scheduleEditor.Activate();
+            return;
+        }
+
+        _scheduleEditor = new Views.ScheduleEditorWindow();
+        _scheduleEditor.Closed += (_, _) => _scheduleEditor = null;
+        // 有主窗口就挂在它下面（保持任务栏只有一个图标、跟随主窗最小化）
+        if (Current is App app && app._mainWindow is { IsVisible: true } mw) _scheduleEditor.Show(mw);
+        else _scheduleEditor.Show();
     }
 
     // ── 白板（PLANNING 2.4）──────────────────────────────────
@@ -2220,6 +2251,9 @@ public partial class App : Application
             var settingsItem = new NativeMenuItem("打开设置");
             settingsItem.Click += (_, _) => OpenSettingsGlobal();
 
+            var scheduleItem = new NativeMenuItem("编辑课表");
+            scheduleItem.Click += (_, _) => OpenScheduleEditorGlobal();
+
             var exitItem = new NativeMenuItem("退出");
             exitItem.Click += (_, _) => ExitApplication();
 
@@ -2229,6 +2263,7 @@ public partial class App : Application
             menu.Add(boardItem);
             menu.Add(annotItem);
             menu.Add(pdfItem);
+            menu.Add(scheduleItem);
             menu.Add(settingsItem);
             menu.Add(new NativeMenuItemSeparator());
             menu.Add(exitItem);

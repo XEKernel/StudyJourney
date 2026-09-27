@@ -16,7 +16,7 @@ using StudyJourney.Avalonia.Views.Settings;
 
 namespace StudyJourney.Avalonia.Views;
 
-/// <summary>WinUI 3 风格设置窗口：Mica + NavigationView 导航 + 6 Tab（对齐学程原版）+ 保存到 settings.json</summary>
+/// <summary>WinUI 3 风格设置窗口：Mica + NavigationView 导航 + 8 个 Tab + 保存到 settings.json</summary>
 public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow, IUnsavedWork
 {
     private Control? _currentPage;

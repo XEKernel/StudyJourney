@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using StudyJourney.Avalonia.Models;
 using StudyJourney.Avalonia.Services;
@@ -260,6 +261,33 @@ public partial class ServerPage : UserControl, ISettingsPage
         if (UploadDirPreviewTb == null) return;
         if (UploadDirCombo.SelectedIndex == CustomIndex)
             UpdateDirPreview();
+    }
+
+    /// <summary>浏览选择自定义存放目录（v2.23.0，2.7 P3：原来只能手打完整路径，与"老师零门槛"矛盾）</summary>
+    private async void BrowseCustomDir_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var top = TopLevel.GetTopLevel(this);
+            if (top == null) return;
+            var folders = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "选择课件存放文件夹",
+                AllowMultiple = false
+            });
+            if (folders.Count == 0) return;
+            var path = folders[0].TryGetLocalPath();
+            if (string.IsNullOrEmpty(path)) return;
+
+            // 选中「自定义路径…」后再回填，否则填了也不算数（ResolveUploadDir 会走预设分支）
+            if (UploadDirCombo.SelectedIndex != CustomIndex) UploadDirCombo.SelectedIndex = CustomIndex;
+            CustomDirBox.Text = path;
+            UpdateDirPreview();
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Error("[服务器页] 选择自定义目录失败", ex);
+        }
     }
 
     /// <summary>预览文本：告诉老师课件最终存到哪（傻瓜化提示）</summary>

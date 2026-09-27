@@ -36,14 +36,19 @@
                         <ComboBoxItem Content="桌面\课件"/>
                         <ComboBoxItem Content="文档"/>
                         <ComboBoxItem Content="下载"/>
-                        <ComboBoxItem Content="自定义路径…（高级）"/>
+                        <ComboBoxItem Content="自定义路径…"/>
                     </ComboBox>
                     <StackPanel x:Name="CustomDirPanel" IsVisible="False" Margin="0,8,0,0" Spacing="4">
-                        <TextBlock Text="自定义完整路径（高级用户）" FontSize="12"
+                        <!-- v2.23.0（2.7 P3）：原来只让"手打完整路径（高级用户）"，与"老师零门槛"矛盾 →
+                             给「浏览…」按钮选文件夹（也可以直接粘贴路径） -->
+                        <TextBlock Text="自定义目录（点「浏览…」选文件夹，或直接粘贴路径）" FontSize="12"
                                    Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                        <TextBox x:Name="CustomDirBox"
-                                 PlaceholderText="输入完整路径，如 D:\课件 或 D:\XX课件"
-                                 FontSize="13" TextChanged="CustomDirBox_TextChanged"/>
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <TextBox x:Name="CustomDirBox"
+                                     PlaceholderText="如 D:\课件 或 D:\XX课件"
+                                     FontSize="13" TextChanged="CustomDirBox_TextChanged"/>
+                            <Button Grid.Column="1" Content="浏览…" Click="BrowseCustomDir_Click"/>
+                        </Grid>
                     </StackPanel>
                     <TextBlock x:Name="UploadDirPreviewTb" FontSize="11"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
