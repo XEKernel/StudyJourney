@@ -8,14 +8,26 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="提醒" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="RemindClassStartCheck" Content="预备铃（提前 2 分钟）" IsChecked="True"/>
-                    <CheckBox x:Name="RemindClassMidCheck" Content="上课提醒" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox x:Name="RemindNextClassSoonCheck" Content="课间提醒（距下一节课）" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox x:Name="RemindClassEndSoon10Check" Content="距离下课 10 分钟提醒" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox x:Name="RemindClassEndSoonCheck" Content="距离下课 1 分钟提醒" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox x:Name="RemindClassEndCheck" Content="下课提醒" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox x:Name="RemindDayEndCheck" Content="一天结束提醒" IsChecked="True" Margin="0,6,0,0"/>
-                    <CheckBox x:Name="RemindSpecialPeriodCheck" Content="特殊时段提醒（早自习/晚自习等）" Margin="0,6,0,0"/>
+                    <!-- 快捷档（v2.22.0，规划 2.7 P2）：原来 8 个开关平铺、出厂默认还分散 → 先给档位 -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ComboBox x:Name="ReminderPresetCombo" Width="220"/>
+                        <Button x:Name="ApplyReminderPresetBtn" Content="套用" Click="ApplyReminderPresetBtn_Click"/>
+                    </StackPanel>
+                    <TextBlock Text="选一档直接套用；想单独开关某项，展开下面的「逐项开关」。改完按「保存设置」生效。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap" Margin="0,6,0,0"/>
+                    <Expander Header="逐项开关（高级）" FontSize="12" IsExpanded="False" Margin="0,6,0,0">
+                        <StackPanel Spacing="4" Margin="0,6,0,0">
+                            <CheckBox x:Name="RemindClassStartCheck" Content="预备铃（提前 2 分钟）" IsChecked="True"/>
+                            <CheckBox x:Name="RemindClassMidCheck" Content="上课提醒" IsChecked="True"/>
+                            <CheckBox x:Name="RemindNextClassSoonCheck" Content="课间提醒（距下一节课）" IsChecked="True"/>
+                            <CheckBox x:Name="RemindClassEndSoon10Check" Content="距离下课 10 分钟提醒" IsChecked="True"/>
+                            <CheckBox x:Name="RemindClassEndSoonCheck" Content="距离下课 1 分钟提醒" IsChecked="True"/>
+                            <CheckBox x:Name="RemindClassEndCheck" Content="下课提醒" IsChecked="True"/>
+                            <CheckBox x:Name="RemindDayEndCheck" Content="一天结束提醒" IsChecked="True"/>
+                            <CheckBox x:Name="RemindSpecialPeriodCheck" Content="特殊时段提醒（早自习/晚自习等）"/>
+                        </StackPanel>
+                    </Expander>
 
                     <CheckBox x:Name="EnableReminderSoundCheck" Content="启用提醒提示音" Margin="0,10,0,0"/>
                     <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">

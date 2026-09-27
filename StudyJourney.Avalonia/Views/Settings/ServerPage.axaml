@@ -118,10 +118,10 @@
                 </StackPanel>
             </Border>
 
-            <!-- 操作日志 -->
-            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
+            <!-- 操作日志（v2.22.0，规划 2.7 P2：6 个分区平铺过载 → 排查用的日志收进折叠区） -->
+            <Expander Header="📋 操作日志（排查用 —— 一般不用看）" FontSize="13" IsExpanded="False">
+                <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16" Margin="0,8,0,0">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="📋 操作日志" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="最近 30 条远程操作（登录 / 修改课表 / 上传课件）"
                                    FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
@@ -138,7 +138,8 @@
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap"/>
                 </StackPanel>
-            </Border>
+                </Border>
+            </Expander>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

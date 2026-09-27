@@ -2,6 +2,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Media;   // FontManager
+using StudyJourney.Avalonia.Helpers;
 using StudyJourney.Avalonia.Models;
 using StudyJourney.Avalonia.Views;
 
@@ -11,8 +12,35 @@ public partial class ExamPage : UserControl, ISettingsPage
 {
     public ExamPage()
     {
+        // ⚠ _loading 初值为 true：InitializeComponent 里 XAML 自带的 Value/IsChecked 会触发
+        // 各控件的 Changed 事件，不挡掉就会在"刚 new 出来"时就被判定成"老师改过"。
         InitializeComponent();
+
+        // 一键方案（v2.22.0）：把 9 字号 + 14 色的组合收敛成 4 套现成方案
+        foreach (var p in ExamPresets.All) ExamPresetCombo.Items.Add(p.Name);
+        if (ExamPresetCombo.ItemCount > 0) ExamPresetCombo.SelectedIndex = 0;
+
+        // 14 个色板：老师通过色板改色时标记未保存（Load 回填不会触发这个事件）
+        foreach (var sw in new[]
+                 {
+                     ExamSubjectSwatch, ExamNameSwatch, ExamCountdownNormalSwatch,
+                     ExamCountdownWarningSwatch, ExamCountdownCriticalSwatch, ExamDistanceSwatch,
+                     ExamInfoSwatch, ExamInfoDimSwatch, ExamProgressBarSwatch, ExamProgressBarBgSwatch,
+                     ExamNextSubjectSwatch, ExamWarningSwatch, ExamProgressPctSwatch, ExamBackgroundSwatch
+                 })
+            sw.ValueChanged += (_, _) => MarkDirty();
+
+        ExamCountdownFontFamilyBox.SelectionChanged += (_, _) => MarkDirty();
+
+        _loading = false;
+        _dirty = false;
     }
+
+    /// <summary>#8：未保存修改标记（与位置页/API 页同一套做法）</summary>
+    private bool _dirty;
+    private bool _loading = true;
+    public bool IsDirty => _dirty;
+    private void MarkDirty() { if (!_loading) _dirty = true; }
 
     /// <summary>立即进入考试模式（统一入口）</summary>
     private void EnterExamModeBtn_Click(object? sender, RoutedEventArgs e)
@@ -26,25 +54,62 @@ public partial class ExamPage : UserControl, ISettingsPage
         App.ExitExamModeGlobal();
     }
 
-    // ── 滑条联动 ────────────────────────────────────────────
+    // ── 一键方案 ────────────────────────────────────────────
+    /// <summary>套用整套「字号 + 颜色」到各控件（不直接落盘 —— 由「保存设置」统一 Apply）</summary>
+    private void ApplyExamPresetBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        int idx = ExamPresetCombo.SelectedIndex;
+        if (idx < 0 || idx >= ExamPresets.All.Count) return;
+        var p = ExamPresets.All[idx];
+
+        ExamModeFontSizeSlider.Value = p.WindowFontSize;
+        ExamSubjectFontSizeSlider.Value = p.SubjectFontSize;
+        ExamCountdownFontSizeSlider.Value = p.CountdownFontSize;
+        ExamNameFontSizeSlider.Value = p.NameFontSize;
+        ExamTimeInfoFontSizeSlider.Value = p.TimeInfoFontSize;
+        ExamNextSubjectFontSizeSlider.Value = p.NextSubjectFontSize;
+        ExamWarningFontSizeSlider.Value = p.WarningFontSize;
+        ExamEscHintFontSizeSlider.Value = p.EscHintFontSize;
+        ExamProgressBarHeightSlider.Value = p.ProgressBarHeight;
+
+        ExamSubjectSwatch.Value = p.SubjectColor;
+        ExamNameSwatch.Value = p.NameColor;
+        ExamCountdownNormalSwatch.Value = p.CountdownNormalColor;
+        ExamCountdownWarningSwatch.Value = p.CountdownWarningColor;
+        ExamCountdownCriticalSwatch.Value = p.CountdownCriticalColor;
+        ExamDistanceSwatch.Value = p.DistanceColor;
+        ExamInfoSwatch.Value = p.InfoColor;
+        ExamInfoDimSwatch.Value = p.InfoDimColor;
+        ExamProgressBarSwatch.Value = p.ProgressBarColor;
+        ExamProgressBarBgSwatch.Value = p.ProgressBarBgColor;
+        ExamNextSubjectSwatch.Value = p.NextSubjectColor;
+        ExamWarningSwatch.Value = p.WarningColor;
+        ExamProgressPctSwatch.Value = p.ProgressPctColor;
+        ExamBackgroundSwatch.Value = p.BackgroundColor;
+
+        // 色板赋值不触发 ValueChanged（Load 回填也是同一条路径）→ 这里显式标脏
+        MarkDirty();
+    }
+
+    // ── 滑条联动（顺带标脏）────────────────────────────────
     private void ExamModeFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        => UpdateLabel(ExamModeFontSizeText, e.NewValue);
+    { UpdateLabel(ExamModeFontSizeText, e.NewValue); MarkDirty(); }
     private void ExamSubjectFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        => UpdateLabel(ExamSubjectFontSizeText, e.NewValue);
+    { UpdateLabel(ExamSubjectFontSizeText, e.NewValue); MarkDirty(); }
     private void ExamCountdownFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        => UpdateLabel(ExamCountdownFontSizeText, e.NewValue);
+    { UpdateLabel(ExamCountdownFontSizeText, e.NewValue); MarkDirty(); }
     private void ExamNameFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        => UpdateLabel(ExamNameFontSizeText, e.NewValue);
+    { UpdateLabel(ExamNameFontSizeText, e.NewValue); MarkDirty(); }
     private void ExamTimeInfoFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        => UpdateLabel(ExamTimeInfoFontSizeText, e.NewValue);
+    { UpdateLabel(ExamTimeInfoFontSizeText, e.NewValue); MarkDirty(); }
     private void ExamNextSubjectFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        => UpdateLabel(ExamNextSubjectFontSizeText, e.NewValue);
+    { UpdateLabel(ExamNextSubjectFontSizeText, e.NewValue); MarkDirty(); }
     private void ExamWarningFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        => UpdateLabel(ExamWarningFontSizeText, e.NewValue);
+    { UpdateLabel(ExamWarningFontSizeText, e.NewValue); MarkDirty(); }
     private void ExamEscHintFontSizeSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        => UpdateLabel(ExamEscHintFontSizeText, e.NewValue);
+    { UpdateLabel(ExamEscHintFontSizeText, e.NewValue); MarkDirty(); }
     private void ExamProgressBarHeightSlider_ValueChanged(object? sender, RangeBaseValueChangedEventArgs e)
-        => UpdateLabel(ExamProgressBarHeightText, e.NewValue);
+    { UpdateLabel(ExamProgressBarHeightText, e.NewValue); MarkDirty(); }
 
     private static void UpdateLabel(TextBlock? tb, double value)
     {
@@ -62,41 +127,47 @@ public partial class ExamPage : UserControl, ISettingsPage
     // ── Load / Apply ────────────────────────────────────────
     public void Load(AppSettings s)
     {
-        EnableExamModeCheck.IsChecked = s.EnableExamMode;
-        AutoEnterExamModeCheck.IsChecked = s.AutoEnterExamMode;
-        ExamModeFontSizeSlider.Value = s.ExamModeFontSize;
-        ExamSubjectFontSizeSlider.Value = s.ExamSubjectFontSize;
-        ExamCountdownFontSizeSlider.Value = s.ExamCountdownFontSize;
-        ExamNameFontSizeSlider.Value = s.ExamNameFontSize;
-        ExamTimeInfoFontSizeSlider.Value = s.ExamTimeInfoFontSize;
-        ExamNextSubjectFontSizeSlider.Value = s.ExamNextSubjectFontSize;
-        ExamWarningFontSizeSlider.Value = s.ExamWarningFontSize;
-        ExamEscHintFontSizeSlider.Value = s.ExamEscHintFontSize;
-        ExamProgressBarHeightSlider.Value = s.ExamProgressBarHeight;
-
-        // 颜色（14 项）
-        ExamSubjectSwatch.Value = s.ExamSubjectColor;
-        ExamNameSwatch.Value = s.ExamNameColor;
-        ExamCountdownNormalSwatch.Value = s.ExamCountdownNormalColor;
-        ExamCountdownWarningSwatch.Value = s.ExamCountdownWarningColor;
-        ExamCountdownCriticalSwatch.Value = s.ExamCountdownCriticalColor;
-        ExamDistanceSwatch.Value = s.ExamDistanceColor;
-        ExamInfoSwatch.Value = s.ExamInfoColor;
-        ExamInfoDimSwatch.Value = s.ExamInfoDimColor;
-        ExamProgressBarSwatch.Value = s.ExamProgressBarColor;
-        ExamProgressBarBgSwatch.Value = s.ExamProgressBarBgColor;
-        ExamNextSubjectSwatch.Value = s.ExamNextSubjectColor;
-        ExamWarningSwatch.Value = s.ExamWarningColor;
-        ExamProgressPctSwatch.Value = s.ExamProgressPctColor;
-        ExamBackgroundSwatch.Value = s.ExamBackgroundColor;
-
-        // 倒计时字体族（系统字体）
-        if (ExamCountdownFontFamilyBox.Items.Count == 0)
+        _loading = true;
+        try
         {
-            foreach (var ff in FontManager.Current.SystemFonts)
-                ExamCountdownFontFamilyBox.Items.Add(ff.Name);
+            EnableExamModeCheck.IsChecked = s.EnableExamMode;
+            AutoEnterExamModeCheck.IsChecked = s.AutoEnterExamMode;
+            ExamModeFontSizeSlider.Value = s.ExamModeFontSize;
+            ExamSubjectFontSizeSlider.Value = s.ExamSubjectFontSize;
+            ExamCountdownFontSizeSlider.Value = s.ExamCountdownFontSize;
+            ExamNameFontSizeSlider.Value = s.ExamNameFontSize;
+            ExamTimeInfoFontSizeSlider.Value = s.ExamTimeInfoFontSize;
+            ExamNextSubjectFontSizeSlider.Value = s.ExamNextSubjectFontSize;
+            ExamWarningFontSizeSlider.Value = s.ExamWarningFontSize;
+            ExamEscHintFontSizeSlider.Value = s.ExamEscHintFontSize;
+            ExamProgressBarHeightSlider.Value = s.ExamProgressBarHeight;
+
+            // 颜色（14 项）
+            ExamSubjectSwatch.Value = s.ExamSubjectColor;
+            ExamNameSwatch.Value = s.ExamNameColor;
+            ExamCountdownNormalSwatch.Value = s.ExamCountdownNormalColor;
+            ExamCountdownWarningSwatch.Value = s.ExamCountdownWarningColor;
+            ExamCountdownCriticalSwatch.Value = s.ExamCountdownCriticalColor;
+            ExamDistanceSwatch.Value = s.ExamDistanceColor;
+            ExamInfoSwatch.Value = s.ExamInfoColor;
+            ExamInfoDimSwatch.Value = s.ExamInfoDimColor;
+            ExamProgressBarSwatch.Value = s.ExamProgressBarColor;
+            ExamProgressBarBgSwatch.Value = s.ExamProgressBarBgColor;
+            ExamNextSubjectSwatch.Value = s.ExamNextSubjectColor;
+            ExamWarningSwatch.Value = s.ExamWarningColor;
+            ExamProgressPctSwatch.Value = s.ExamProgressPctColor;
+            ExamBackgroundSwatch.Value = s.ExamBackgroundColor;
+
+            // 倒计时字体族（系统字体）
+            if (ExamCountdownFontFamilyBox.Items.Count == 0)
+            {
+                foreach (var ff in FontManager.Current.SystemFonts)
+                    ExamCountdownFontFamilyBox.Items.Add(ff.Name);
+            }
+            ExamCountdownFontFamilyBox.SelectedItem = s.ExamCountdownFontFamily;
         }
-        ExamCountdownFontFamilyBox.SelectedItem = s.ExamCountdownFontFamily;
+        finally { _loading = false; }
+        _dirty = false;
     }
 
     public void Apply(AppSettings s)

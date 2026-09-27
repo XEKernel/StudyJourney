@@ -1518,6 +1518,112 @@ public partial class App : Application
                 Check(apiDst.WeatherRefreshInterval == 0, "API 页：开关关 → 落盘 0（不是滑条上的 30）");
             }
 
+            // ── G. 一键方案（v2.22.0 规划 2.7 P2：考试页 23 控件 / 提醒页 8 开关）────
+            // 错在这里不会报错：色值写错 → 老师点了"套用"却看不出变化；字号越界 → 被 Slider 静默夹取，
+            // 套用结果与方案描述不符；开关顺序写岔 → 勾"预备铃"结果开了"特殊时段"。
+            foreach (var preset in Helpers.ExamPresets.All)
+            {
+                foreach (var (label, hex) in preset.Colors())
+                    Check(Views.ColorSwatch.TryParse(hex, out _),
+                        $"考试方案「{preset.Name}」的{label}是合法色值（{hex}）");
+                foreach (var (label, value, min, max) in preset.Sizes())
+                    Check(value >= min && value <= max,
+                        $"考试方案「{preset.Name}」的{label} = {value} 在其滑条区间 {min}~{max} 内");
+                Check(preset.Colors().Count() == 14 && preset.Sizes().Count() == 9,
+                    $"考试方案「{preset.Name}」覆盖 14 色 + 9 尺寸");
+            }
+            Check(Helpers.ExamPresets.All.Count >= 3, "考试方案至少 3 套");
+            Check(Helpers.ExamPresets.All.Select(p => p.Name).Distinct().Count() == Helpers.ExamPresets.All.Count,
+                "考试方案名称不重复（下拉框里能分辨）");
+
+            foreach (var rp in Helpers.ReminderPresets.All)
+                Check(rp.Toggles.Length == 8, $"提醒档位「{rp.Name}」正好 8 个开关（顺序表长度）");
+            Check(Helpers.ReminderPresets.All.Count >= 3, "提醒档位至少 3 档");
+            Check(Helpers.ReminderPresets.All.Select(p => p.Name).Distinct().Count() == Helpers.ReminderPresets.All.Count,
+                "提醒档位名称不重复");
+
+            {
+                // 考试页：套用「高对比」→ Apply 后设置值必须与方案完全一致
+                // （若某值越界被 Slider 夹取，这里就会不等）
+                var ep = new Views.Settings.ExamPage();
+                Check(!ep.IsDirty, "考试页 Load 前构造完不应是「未保存」");
+                var pr = Helpers.ExamPresets.All[1];
+                ep.ExamPresetCombo.SelectedIndex = 1;
+                ep.ApplyExamPresetBtn.RaiseEvent(
+                    new global::Avalonia.Interactivity.RoutedEventArgs(global::Avalonia.Controls.Button.ClickEvent));
+                Check(ep.IsDirty, "套用考试方案 → 标记未保存（否则切页静默丢改动）");
+                var eo = new Models.AppSettings();
+                ep.Apply(eo);
+                Check(eo.ExamModeFontSize == pr.WindowFontSize && eo.ExamSubjectFontSize == pr.SubjectFontSize &&
+                      eo.ExamCountdownFontSize == pr.CountdownFontSize && eo.ExamProgressBarHeight == pr.ProgressBarHeight,
+                    $"套用「{pr.Name}」→ 4 个字号原样落到设置（越界会被夹取，夹了就失败）");
+                Check(string.Equals(eo.ExamBackgroundColor, pr.BackgroundColor, StringComparison.OrdinalIgnoreCase) &&
+                      string.Equals(eo.ExamCountdownWarningColor, pr.CountdownWarningColor, StringComparison.OrdinalIgnoreCase) &&
+                      string.Equals(eo.ExamProgressPctColor, pr.ProgressPctColor, StringComparison.OrdinalIgnoreCase),
+                    "套用方案 → 背景/警告色/百分比色原样落到设置");
+
+                // 提醒页：8 开关的 Load/Apply 一一对应 + 档位顺序映射正确
+                var sp2 = new Views.Settings.SchedulePage();
+                var rsrc = new Models.AppSettings
+                {
+                    RemindClassStart = true, RemindClassMid = false, RemindNextClassSoon = true,
+                    RemindClassEndSoon10 = false, RemindClassEndSoon = true, RemindClassEnd = false,
+                    RemindDayEnd = true, RemindSpecialPeriod = false
+                };
+                sp2.Load(rsrc);
+                Check(!sp2.IsDirty, "提醒页 Load 后不应是「未保存」");
+                var rout = new Models.AppSettings();
+                sp2.Apply(rout);
+                Check(rout.RemindClassStart && !rout.RemindClassMid && rout.RemindNextClassSoon &&
+                      !rout.RemindClassEndSoon10 && rout.RemindClassEndSoon && !rout.RemindClassEnd &&
+                      rout.RemindDayEnd && !rout.RemindSpecialPeriod,
+                    "提醒页 8 开关 Load/Apply 一一对应（顺序写岔会在这里暴露）");
+
+                sp2.ReminderPresetCombo.SelectedIndex = 3;      // 全部关闭
+                sp2.ApplyReminderPresetBtn.RaiseEvent(
+                    new global::Avalonia.Interactivity.RoutedEventArgs(global::Avalonia.Controls.Button.ClickEvent));
+                Check(sp2.IsDirty, "套用提醒档位 → 标记未保存");
+                var rall = new Models.AppSettings
+                {
+                    RemindClassStart = true, RemindClassMid = true, RemindClassEnd = true,
+                    RemindDayEnd = true, RemindSpecialPeriod = true
+                };
+                sp2.Apply(rall);
+                Check(!rall.RemindClassStart && !rall.RemindClassMid && !rall.RemindClassEnd &&
+                      !rall.RemindDayEnd && !rall.RemindSpecialPeriod,
+                    "「全部关闭」→ 8 项全落 false");
+
+                sp2.ReminderPresetCombo.SelectedIndex = 0;      // 标准（推荐）
+                sp2.ApplyReminderPresetBtn.RaiseEvent(
+                    new global::Avalonia.Interactivity.RoutedEventArgs(global::Avalonia.Controls.Button.ClickEvent));
+                var rstd = new Models.AppSettings();
+                sp2.Apply(rstd);
+                Check(rstd.RemindClassStart && rstd.RemindClassMid && rstd.RemindNextClassSoon &&
+                      rstd.RemindClassEndSoon10 && rstd.RemindClassEndSoon && rstd.RemindClassEnd &&
+                      rstd.RemindDayEnd && !rstd.RemindSpecialPeriod,
+                    "「标准」档位顺序映射正确（前 7 项开、特殊时段关）");
+            }
+
+            // ── H. 服务器页未保存检测（v2.22.0）────────────────────
+            // ⚠ 本页账号/科目改的是**内存副本**、只在 Apply 时写回，而设置窗口的兜底快照
+            //   比的是 App.Settings —— 看不出这些改动 → 不加 IsDirty 就会切页静默丢账号。
+            {
+                var svs = new Models.AppSettings
+                {
+                    ClassName = "高三（1）班",
+                    TeacherName = "王老师",
+                    AutoStartHttpServer = true,
+                    Subjects = new List<string> { "语文", "数学" }
+                };
+                var svPage = new Views.Settings.ServerPage();
+                svPage.Load(svs);
+                Check(!svPage.IsDirty, "服务器页 Load 后不应是「未保存」");
+                svPage.ClassNameBox.Text = "高三（9）班";
+                Check(svPage.IsDirty, "服务器页改了班级名称 → 标记未保存（否则切页静默丢改动）");
+                svPage.Load(svs);                       // 重新载入 → 复位
+                Check(!svPage.IsDirty, "服务器页重新 Load 后复位为「未保存 = 否」");
+            }
+
             sb.AppendLine("[SJTEST] 结论：PASS");
         }
         catch (Exception ex)

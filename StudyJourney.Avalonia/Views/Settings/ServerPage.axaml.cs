@@ -88,6 +88,42 @@ public partial class ServerPage : UserControl, ISettingsPage
         LogPathTb.Text = "日志文件：软件目录\\logs\\operations-*.log";
         UpdateStatus();
         RefreshLogs();
+
+        _baseline = Snapshot();   // #8：记录载入时的状态，供 IsDirty 比对
+    }
+
+    // ── #8 未保存修改检测（v2.22.0）────────────────────────────
+    // ⚠ 本页**只在 Apply 时才写回设置**（账号/科目改的是内存副本 `_teachers`/`_subjects`），
+    //   而设置窗口的兜底 `HasUnsavedSettings()` 比的是 `App.Settings` 的快照 ——
+    //   它根本看不出这些改动 → 编辑账号后切页会**静默丢失**。
+    //   所以这里按「载入快照 vs 当前界面」按需比对（不必给每个控件挂事件）。
+    private (string ClassName, string TeacherName, bool AutoStart, string UploadDir,
+             List<(string U, string Dp, string Sj, string H)> Teachers,
+             List<string> Subjects)? _baseline;
+
+    private (string ClassName, string TeacherName, bool AutoStart, string UploadDir,
+             List<(string U, string Dp, string Sj, string H)> Teachers,
+             List<string> Subjects) Snapshot()
+        => (ClassNameBox.Text ?? "",
+            TeacherNameBox.Text ?? "",
+            AutoStartServerCheck.IsChecked == true,
+            ResolveUploadDir(),
+            _teachers.Select(t => (t.Username, t.DisplayName, t.Subject, t.PasswordHash)).ToList(),
+            _subjects.ToList());
+
+    public bool IsDirty
+    {
+        get
+        {
+            if (_baseline is not { } b) return false;
+            var now = Snapshot();
+            return now.ClassName != b.ClassName
+                || now.TeacherName != b.TeacherName
+                || now.AutoStart != b.AutoStart
+                || !string.Equals(now.UploadDir, b.UploadDir, StringComparison.OrdinalIgnoreCase)
+                || !now.Subjects.SequenceEqual(b.Subjects)
+                || !now.Teachers.SequenceEqual(b.Teachers);
+        }
     }
 
     /// <summary>保存设置：控件写回设置（服务重启后生效的项在页面提示中说明）</summary>

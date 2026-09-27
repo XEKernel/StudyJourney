@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using StudyJourney.Avalonia.Helpers;
 using StudyJourney.Avalonia.Models;
 
 namespace StudyJourney.Avalonia.Views.Settings;
@@ -11,7 +12,21 @@ public partial class SchedulePage : UserControl, ISettingsPage
 {
     public SchedulePage()
     {
+        // ⚠ _loading 初值 true：XAML 自带的 IsChecked 会触发 Changed 事件，不挡掉会误判成"老师改过"
         InitializeComponent();
+
+        // ── 提醒快捷档（v2.22.0，规划 2.7 P2）──────────────────
+        foreach (var p in ReminderPresets.All) ReminderPresetCombo.Items.Add(p.Name);
+        if (ReminderPresetCombo.ItemCount > 0) ReminderPresetCombo.SelectedIndex = 0;
+
+        foreach (var cb in ToggleCheckBoxes)
+            cb.IsCheckedChanged += (_, _) => MarkDirty();
+        EnableReminderSoundCheck.IsCheckedChanged += (_, _) => MarkDirty();
+        ReminderStyleCapsule.IsCheckedChanged += (_, _) => MarkDirty();
+        ReminderSoundPathBox.TextChanged += (_, _) => MarkDirty();
+
+        _loading = false;
+        _dirty = false;
 
         // ── 调休（补课日）初始化 ──────────────────────────────
         // 数据存在 schedule.json（ScheduleData.MakeupDays），不是 settings.json ——
@@ -22,6 +37,36 @@ public partial class SchedulePage : UserControl, ISettingsPage
         MakeupDayCombo.SelectedIndex = 4;              // 默认"周五"，最常见的补课目标
         MakeupDatePicker.SelectedDate = DateTimeOffset.Now;
         ReloadMakeupList();
+    }
+
+    /// <summary>#8：未保存修改标记（与位置页/API 页/考试页同一套做法）</summary>
+    private bool _dirty;
+    private bool _loading = true;
+    public bool IsDirty => _dirty;
+    private void MarkDirty() { if (!_loading) _dirty = true; }
+
+    /// <summary>
+    /// 8 个提醒开关，**顺序必须与 `ReminderPreset.Toggles` 一致**
+    /// （预备铃 / 上课 / 课间 / 距下课 10 分钟 / 距下课 1 分钟 / 下课 / 一天结束 / 特殊时段）。
+    /// 套用档位与 Load/Apply 都走这个数组，避免两处顺序写岔。
+    /// </summary>
+    private CheckBox[] ToggleCheckBoxes => new[]
+    {
+        RemindClassStartCheck, RemindClassMidCheck, RemindNextClassSoonCheck,
+        RemindClassEndSoon10Check, RemindClassEndSoonCheck, RemindClassEndCheck,
+        RemindDayEndCheck, RemindSpecialPeriodCheck
+    };
+
+    /// <summary>套用提醒档位（只改界面，等待「保存设置」落盘）</summary>
+    private void ApplyReminderPresetBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        int idx = ReminderPresetCombo.SelectedIndex;
+        if (idx < 0 || idx >= ReminderPresets.All.Count) return;
+        var toggles = ReminderPresets.All[idx].Toggles;
+        var boxes = ToggleCheckBoxes;
+        if (toggles.Length != boxes.Length) return;      // 防呆：顺序表对不上就什么都不做
+        for (int i = 0; i < boxes.Length; i++) boxes[i].IsChecked = toggles[i];
+        MarkDirty();
     }
 
     /// <summary>按当前 MakeupDays 重建列表（行内含删除按钮）</summary>
@@ -143,32 +188,39 @@ public partial class SchedulePage : UserControl, ISettingsPage
 
     public void Load(AppSettings s)
     {
-        EnableReminderSoundCheck.IsChecked = s.EnableReminderSound;
-        ReminderSoundPathBox.Text = s.ReminderSoundPath;
-        RemindClassStartCheck.IsChecked = s.RemindClassStart;
-        RemindClassMidCheck.IsChecked = s.RemindClassMid;
-        RemindClassEndSoon10Check.IsChecked = s.RemindClassEndSoon10;
-        RemindClassEndSoonCheck.IsChecked = s.RemindClassEndSoon;
-        RemindClassEndCheck.IsChecked = s.RemindClassEnd;
-        RemindNextClassSoonCheck.IsChecked = s.RemindNextClassSoon;
-        RemindDayEndCheck.IsChecked = s.RemindDayEnd;
-        RemindSpecialPeriodCheck.IsChecked = s.RemindSpecialPeriod;
-        ReminderStyleCapsule.IsChecked = s.ReminderStyle != 1;
-        ReminderStyleToast.IsChecked = s.ReminderStyle == 1;
+        _loading = true;
+        try
+        {
+            EnableReminderSoundCheck.IsChecked = s.EnableReminderSound;
+            ReminderSoundPathBox.Text = s.ReminderSoundPath;
+            var boxes = ToggleCheckBoxes;
+            bool[] values = { s.RemindClassStart, s.RemindClassMid, s.RemindNextClassSoon,
+                              s.RemindClassEndSoon10, s.RemindClassEndSoon, s.RemindClassEnd,
+                              s.RemindDayEnd, s.RemindSpecialPeriod };
+            for (int i = 0; i < boxes.Length && i < values.Length; i++) boxes[i].IsChecked = values[i];
+            ReminderStyleCapsule.IsChecked = s.ReminderStyle != 1;
+            ReminderStyleToast.IsChecked = s.ReminderStyle == 1;
+        }
+        finally { _loading = false; }
+        _dirty = false;
     }
 
     public void Apply(AppSettings s)
     {
         s.EnableReminderSound = EnableReminderSoundCheck.IsChecked == true;
         s.ReminderSoundPath = ReminderSoundPathBox.Text ?? "";
-        s.RemindClassStart = RemindClassStartCheck.IsChecked == true;
-        s.RemindClassMid = RemindClassMidCheck.IsChecked == true;
-        s.RemindClassEndSoon10 = RemindClassEndSoon10Check.IsChecked == true;
-        s.RemindClassEndSoon = RemindClassEndSoonCheck.IsChecked == true;
-        s.RemindClassEnd = RemindClassEndCheck.IsChecked == true;
-        s.RemindNextClassSoon = RemindNextClassSoonCheck.IsChecked == true;
-        s.RemindDayEnd = RemindDayEndCheck.IsChecked == true;
-        s.RemindSpecialPeriod = RemindSpecialPeriodCheck.IsChecked == true;
+        var boxes = ToggleCheckBoxes;
+        if (boxes.Length == 8)
+        {
+            s.RemindClassStart = boxes[0].IsChecked == true;
+            s.RemindClassMid = boxes[1].IsChecked == true;
+            s.RemindNextClassSoon = boxes[2].IsChecked == true;
+            s.RemindClassEndSoon10 = boxes[3].IsChecked == true;
+            s.RemindClassEndSoon = boxes[4].IsChecked == true;
+            s.RemindClassEnd = boxes[5].IsChecked == true;
+            s.RemindDayEnd = boxes[6].IsChecked == true;
+            s.RemindSpecialPeriod = boxes[7].IsChecked == true;
+        }
         s.ReminderStyle = ReminderStyleToast.IsChecked == true ? 1 : 0;
     }
 }

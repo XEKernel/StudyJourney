@@ -76,20 +76,29 @@
                 </StackPanel>
             </Border>
 
-            <!-- 窗口层级 -->
+            <!-- 窗口行为（v2.22.0：原来叫「窗口层级」，两个置顶开关的文案看不出"管的是两个不同状态"） -->
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
-                    <TextBlock Text="窗口层级" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="AlwaysOnTopCheck" Content="始终置顶（覆盖在其他窗口上方）" IsChecked="True" IsCheckedChanged="MarkDirty_Changed"/>
-                    <TextBlock Text="关闭后窗口位于桌面壁纸上方、其他窗口下方"
+                    <TextBlock Text="窗口行为" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock Text="下面两项互不影响：一项管「完整视图」，一项只管「上课时的进度条」。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap" Margin="0,0,0,4"/>
+
+                    <CheckBox x:Name="AlwaysOnTopCheck" Content="完整视图：压在其他窗口上方"
+                              IsChecked="True" IsCheckedChanged="MarkDirty_Changed"/>
+                    <TextBlock Text="关掉它，倒计时就贴在桌面壁纸上方、会被其他窗口盖住（上课时看不到，下课回到桌面才露出）。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
-                    <CheckBox x:Name="CompactTopmostCheck" Content="上课进度条置顶" Margin="0,10,0,0" IsCheckedChanged="MarkDirty_Changed"/>
-                    <TextBlock Text="上课收起为进度条时也置顶显示（不影响完整视图的「始终置顶」）"
+
+                    <CheckBox x:Name="CompactTopmostCheck" Content="上课收起成进度条时：也压在窗口上方"
+                              Margin="0,10,0,0" IsCheckedChanged="MarkDirty_Changed"/>
+                    <TextBlock Text="只影响上课期间那条细进度条（此时完整视图本来就不显示）。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
-                    <CheckBox x:Name="ClickThroughCheck" Content="点击穿透（鼠标点击穿过窗口）" Margin="0,10,0,0" IsCheckedChanged="MarkDirty_Changed"/>
-                    <TextBlock Text="开启后鼠标点击不会落在顶栏上；自定义坐标模式始终可交互。"
+
+                    <CheckBox x:Name="ClickThroughCheck" Content="点击穿透（鼠标点不到窗口上）"
+                              Margin="0,10,0,0" IsCheckedChanged="MarkDirty_Changed"/>
+                    <TextBlock Text="开启后点窗口会点到后面的程序；自定义坐标模式下窗口始终可以拖动，不受此项影响。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
