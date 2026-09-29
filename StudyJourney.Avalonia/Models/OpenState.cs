@@ -53,6 +53,21 @@ public class KnownApp
     public string LastUsedAt { get; set; } = "";
 }
 
+/// <summary>
+/// 由本软件启动过的**软件**：记住它真实的进程名（2026-09-29，v2.25.0）。
+/// 为什么要记：`.lnk` / `.bat` 这类 shell 目标是"打开一个快捷方式"，我们**无法静态推断**
+/// 它最终会跑起哪个进程（解析 .lnk 要 COM / 私有格式，会破坏 AOT）。
+/// 所以启动成功后把 `Process.GetProcesses` 里的真实进程名记下来，下次判断
+/// 「这软件是不是已经开着」就有据可依 —— 否则每次触发都会再启动一遍。
+/// </summary>
+public class AppLaunch
+{
+    public string Path { get; set; } = "";
+    /// <summary>真实进程名（不含 .exe），如 POWERPNT</summary>
+    public string ProcessName { get; set; } = "";
+    public string LastAt { get; set; } = "";
+}
+
 public class OpenStateData
 {
     public Dictionary<string, RuleOpenState> Rules { get; set; } = new();
@@ -61,6 +76,9 @@ public class OpenStateData
 
     /// <summary>常用软件（教师端指定过 / 打开过的软件，最多保留 20 条）</summary>
     public List<KnownApp> KnownApps { get; set; } = new();
+
+    /// <summary>启动过的软件 → 真实进程名（去重判断用，最多 20 条）</summary>
+    public List<AppLaunch> AppLaunches { get; set; } = new();
 }
 
 /// <summary>
@@ -96,6 +114,7 @@ public static class OpenStateStore
                     d.Rules ??= new Dictionary<string, RuleOpenState>();
                     d.Opened ??= new List<TrackedOpen>();
                     d.KnownApps ??= new List<KnownApp>();
+                    d.AppLaunches ??= new List<AppLaunch>();
                     return d;
                 }
             }
@@ -278,5 +297,50 @@ public static class OpenStateStore
                 _data.KnownApps.RemoveRange(20, _data.KnownApps.Count - 20);
             SaveLocked();
         }
+    }
+
+    // ── 软件 → 真实进程名（2026-09-29，v2.25.0「打开软件去重」）──────
+
+    /// <summary>启动软件成功后记下它的真实进程名（.lnk/.bat 静态推不出来，只能靠记）</summary>
+    public static void RememberAppProcess(string path, string processName)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return;
+        var name = (processName ?? "").Trim();
+        if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            name = name[..^4];
+        if (name.Length == 0) return;
+
+        lock (Gate)
+        {
+            var hit = _data.AppLaunches.FirstOrDefault(a =>
+                string.Equals(a.Path, path, StringComparison.OrdinalIgnoreCase));
+            if (hit == null)
+            {
+                _data.AppLaunches.Insert(0, new AppLaunch
+                {
+                    Path = path,
+                    ProcessName = name,
+                    LastAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                });
+            }
+            else
+            {
+                if (string.Equals(hit.ProcessName, name, StringComparison.OrdinalIgnoreCase)) return;
+                hit.ProcessName = name;
+                hit.LastAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            }
+            if (_data.AppLaunches.Count > 20)
+                _data.AppLaunches.RemoveRange(20, _data.AppLaunches.Count - 20);
+            SaveLocked();
+        }
+    }
+
+    /// <summary>取该软件上次启动时记下的真实进程名（没记过返回空串）</summary>
+    public static string GetAppProcess(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return "";
+        lock (Gate)
+            return _data.AppLaunches.FirstOrDefault(a =>
+                string.Equals(a.Path, path, StringComparison.OrdinalIgnoreCase))?.ProcessName ?? "";
     }
 }

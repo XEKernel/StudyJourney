@@ -54,7 +54,16 @@
                                         <CheckBox IsChecked="{Binding Enabled}" ToolTip.Tip="启用 / 暂停此规则"
                                                   IsCheckedChanged="RuleEnabled_Toggled" VerticalAlignment="Center"/>
                                         <StackPanel Grid.Column="1" Margin="10,0,6,0">
-                                            <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold"/>
+                                                <!-- 临时任务标记（v2.25.0）：一眼分辨"跑完就没了"的规则 -->
+                                                <Border IsVisible="{Binding DeleteAfterRun}"
+                                                        Background="#33FF8844" BorderBrush="#66FF8844"
+                                                        BorderThickness="1" CornerRadius="3" Padding="5,0"
+                                                        VerticalAlignment="Center">
+                                                    <TextBlock Text="临时" FontSize="10" Foreground="#FFD0A0"/>
+                                                </Border>
+                                            </StackPanel>
                                             <TextBlock Text="{Binding Summary}" FontSize="11"
                                                        Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                        TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
@@ -82,6 +91,14 @@
                     <TextBlock Text="🧩 拼图编辑器" FontSize="16" FontWeight="SemiBold"/>
                     <TextBox x:Name="NameBox" PlaceholderText="规则名称（如：放学自动关机）" FontSize="13"
                              TextChanged="NameBox_TextChanged"/>
+
+                    <!-- 临时任务（v2.25.0）：规则级开关，紧挨规则名，一眼能看到 -->
+                    <CheckBox x:Name="OneShotCheck"
+                              Content="临时任务：成功执行一次后自动删除"
+                              IsCheckedChanged="OneShotCheck_Toggled"/>
+                    <TextBlock Text="适合「就这一次」的事（如今天 15:00 打开公开课课件）。执行成功后这条规则会自己消失；执行失败则保留，方便你改好再试。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               Margin="24,0,0,0" TextWrapping="Wrap"/>
 
                     <Grid ColumnDefinitions="*,44,*">
                         <!-- ── 触发拼块 ── -->

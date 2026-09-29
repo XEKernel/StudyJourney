@@ -67,6 +67,15 @@ public class AutomationService : IDisposable
     private DateTime _lastShutdownAt = DateTime.MinValue;
     private DateTime _lastClearDay = DateTime.Today;
 
+    // 临时任务（v2.25.0）：本会话内已"执行完自动删除"消费掉的规则 Id。
+    // 为什么要在内存里留一份：设置页是「克隆 → 编辑 → 整表写回」—— 页面开着时某条临时任务
+    // 跑完自删，老师随后按「保存设置」就会把克隆里那条**又写回去**，于是明天再跑一次。
+    // 页面 Apply 时用 WasConsumed() 剪掉这些 Id（只影响本会话；重启后磁盘上本就没有它们）。
+    private readonly HashSet<string> _consumedOneShots = new();
+
+    /// <summary>临时任务失败只提示一次（闲置类触发会反复命中，不能每次都弹窗）</summary>
+    private readonly HashSet<string> _oneShotWarned = new();
+
     /// <summary>2.5.8：上次扫描"老师手动打开了哪个文件"的时刻（窗口标题枚举较重，5 秒一次即可）</summary>
     private DateTime _lastManualScan = DateTime.MinValue;
     private const int ManualScanSeconds = 5;
@@ -79,6 +88,9 @@ public class AutomationService : IDisposable
     public event Action? DataChanged;
 
     public AutomationSettings Data => _data;
+
+    /// <summary>这条临时任务本次运行是否已被"执行完自动删除"消费掉（供设置页 Apply 剪枝）</summary>
+    public bool WasConsumed(string ruleId) => _consumedOneShots.Contains(ruleId);
 
     public AutomationService(ScheduleManager manager)
     {
@@ -281,7 +293,42 @@ public class AutomationService : IDisposable
     {
         _firedKeys.Add($"{rule.Id}:{key}");
         Helpers.AppLogger.Info($"自动化触发「{rule.Name}」：{rule.Summary}");
-        Dispatcher.UIThread.Post(() => Execute(rule, subject));
+        Dispatcher.UIThread.Post(() =>
+        {
+            bool executed = Execute(rule, subject);
+            if (rule.DeleteAfterRun) HandleOneShot(rule, executed);
+        });
+    }
+
+    /// <summary>
+    /// 临时任务（v2.25.0，规则上的 DeleteAfterRun）：**成功执行一次后自动删除**。
+    /// 失败则保留 —— 否则老师会遇到"任务不见了、想办的事也没办成"且无从查起；
+    /// 提示只弹一次（闲置类触发会反复命中，不能每次都弹）。
+    /// </summary>
+    private void HandleOneShot(AutomationRule rule, bool executed)
+    {
+        if (!executed)
+        {
+            Helpers.AppLogger.Warn($"自动化「{rule.Name}」：临时任务本次未执行成功，保留规则以便修好后重试");
+            if (_oneShotWarned.Add(rule.Id))
+            {
+                _ = App.ShowMessageAsync("自动化任务",
+                    $@"「{rule.Name}」这次没有执行成功，所以**没有**删除这条临时任务。
+
+请检查设置（文件 / 软件是否还在原来的位置、路径是否写对）后等它下次触发；
+确认不再需要时，可在「设置 → 自动化任务」里手动删掉它。");
+            }
+            return;
+        }
+
+        if (!_data.RemoveRule(rule.Id)) return;
+
+        AutomationStore.Save(_data);          // 立即落盘 —— 否则重启后规则又回来了
+        OpenStateStore.RemoveRule(rule.Id);   // 顺手清掉它的顺序记忆指针
+        _consumedOneShots.Add(rule.Id);       // 供设置页 Apply 剪枝（防页面里的克隆又把它写回去）
+        _firedKeys.RemoveWhere(k => k.StartsWith(rule.Id + ":", StringComparison.Ordinal));
+        Helpers.AppLogger.Info($"自动化「{rule.Name}」：临时任务已执行，规则已自动删除（剩 {_data.Rules.Count} 条）");
+        DataChanged?.Invoke();
     }
 
     private bool RuleFired(AutomationRule rule, string key) => _firedKeys.Contains($"{rule.Id}:{key}");
@@ -305,8 +352,10 @@ public class AutomationService : IDisposable
     /// <summary>
     /// 执行动作。subject = 触发时刻的当堂科目（课表事件触发才有；"打开课件目录"用它定位科目文件夹）。
     /// 全部动作失败兜底：写日志 + 弹提示，不崩溃。
+    /// 返回值 = 本次是否**真的执行了**（v2.25.0）：临时任务（DeleteAfterRun）据此决定删不删规则 ——
+    /// 失败时保留，老师改好还能再触发一次，不会"任务没了、事也没办成"。
     /// </summary>
-    private void Execute(AutomationRule rule, string? subject)
+    private bool Execute(AutomationRule rule, string? subject)
     {
         try
         {
@@ -316,8 +365,7 @@ public class AutomationService : IDisposable
                 case AutomationActionKind.OpenFile:
                 case AutomationActionKind.PlayAudio:
                 case AutomationActionKind.OpenCourseware:
-                    OpenResolved(rule, subject);
-                    break;
+                    return OpenResolved(rule, subject);
 
                 case AutomationActionKind.ScreenOff:
                     // 2.5.7c：闲置触发的熄屏先弹可取消的倒计时提示（防放 PPT 时被突然黑屏）；
@@ -329,7 +377,7 @@ public class AutomationService : IDisposable
                         ScreenOff();
                         Helpers.AppLogger.Info($"自动化「{rule.Name}」：已熄屏");
                     }
-                    break;
+                    return true;
 
                 case AutomationActionKind.Shutdown:
                 case AutomationActionKind.Restart:
@@ -337,20 +385,19 @@ public class AutomationService : IDisposable
                     if ((DateTime.Now - _lastShutdownAt).TotalSeconds < 10)
                     {
                         Helpers.AppLogger.Warn($"自动化「{rule.Name}」：10 秒内已有一次关机/重启，跳过重复执行");
-                        break;
+                        return false;      // 没执行 → 临时任务不删除
                     }
                     _lastShutdownAt = DateTime.Now;
                     SystemShutdown(rule);
-                    break;
+                    return true;
 
                 case AutomationActionKind.ShowMessage:
                     _ = App.ShowMessageAsync(rule.Name,
                         string.IsNullOrWhiteSpace(rule.ActionMessage) ? rule.Name : rule.ActionMessage);
-                    break;
+                    return true;
 
                 case AutomationActionKind.CloseApp:
-                    CloseApp(rule);
-                    break;
+                    return CloseApp(rule);
 
                 case AutomationActionKind.OpenWhiteboard:
                     // 打开白板板书（2026-09-15 新增）。开窗必须回 UI 线程 ——
@@ -367,13 +414,15 @@ public class AutomationService : IDisposable
                             Helpers.AppLogger.Error($"自动化「{rule.Name}」打开白板失败", ex);
                         }
                     });
-                    break;
+                    return true;
             }
         }
         catch (Exception ex)
         {
             Helpers.AppLogger.Error($"自动化动作「{rule.Name}」执行失败: {ex.Message}", ex);
+            return false;
         }
+        return false;
     }
 
     // ── 打开类动作：顺序记忆（2.5.8）+ 连堂幂等（2.5.9A）────────────
@@ -523,16 +572,14 @@ public class AutomationService : IDisposable
         };
     }
 
-    private void OpenResolved(AutomationRule rule, string? subject)
+    /// <summary>解析并打开目标。返回是否"确实执行了"（没目标 / 打开失败 = false，供临时任务判定）。</summary>
+    private bool OpenResolved(AutomationRule rule, string? subject)
     {
         // ① 教师端网页指定优先（一次性消费）：软件 → 直接启动；文件 → 作为本次目标
         var pending = OpenStateStore.ConsumePending(subject);
         string? target = null;
         if (pending != null && string.Equals(pending.Kind, "app", StringComparison.OrdinalIgnoreCase))
-        {
-            LaunchPendingApp(rule, pending);
-            return;
-        }
+            return LaunchPendingApp(rule, pending);
         if (pending != null && File.Exists(pending.Path))
         {
             target = pending.Path;
@@ -564,15 +611,21 @@ public class AutomationService : IDisposable
             Helpers.AppLogger.Warn($"自动化「{rule.Name}」：没有可打开的文件（目录 {dir}）");
             _ = App.ShowMessageAsync("自动化任务",
                 $"「{rule.Name}」没有可打开的文件。\n目录：{dir}\n\n请先把课件投递到该文件夹。");
-            return;
+            return false;
         }
 
-        // ④ 连堂幂等：已经开着就不再打开（老师下节课继续用同一份课件，不该弹第二个窗口）
+        // ④ 已打开就不再打开：下一节课继续用同一份课件、或软件本来就开着，都不该再来一次。
+        //    v2.25.0：软件看进程、文件看窗口标题（见 IsAlreadyOpen）。
         if (IsAlreadyOpen(target))
         {
+            bool isSoftware = Helpers.OpenTarget.IsSoftware(target);
             if (rule.ActivateIfOpen)
             {
-                bool ok = Helpers.WindowEnumerator.TryActivateWindow(target);
+                string appName = isSoftware ? Helpers.OpenTarget.ProcessNameFromPath(target) : "";
+                if (isSoftware && appName.Length == 0) appName = OpenStateStore.GetAppProcess(target);
+                bool ok = isSoftware && appName.Length > 0
+                    ? Helpers.WindowEnumerator.TryActivateAppWindow(appName)
+                    : Helpers.WindowEnumerator.TryActivateWindow(target);
                 Helpers.AppLogger.Info($"自动化「{rule.Name}」：{Path.GetFileName(target)} 已打开，已尝试激活窗口（{ok}）");
             }
             else
@@ -580,7 +633,7 @@ public class AutomationService : IDisposable
                 Helpers.AppLogger.Info($"自动化「{rule.Name}」：{Path.GetFileName(target)} 已打开，跳过重复打开");
             }
             OpenStateStore.SetPointer(rule.Id, target);
-            return;
+            return true;
         }
 
         // ⑤ 真正打开
@@ -594,17 +647,23 @@ public class AutomationService : IDisposable
                 OpenStateStore.SetPointer(rule.Id, target);
                 ActivityRecorder.RecordOpen("auto", target, subject ?? rule.TriggerSubject ?? "", rule.Name);
                 Helpers.AppLogger.Info($"自动化「{rule.Name}」：用内置阅读器打开 {target}");
-                return;
+                return true;
             }
 
             var proc = Process.Start(new ProcessStartInfo { FileName = target, UseShellExecute = true });
             if (proc != null)
             {
                 try { OpenStateStore.TrackOpen(target, proc.Id); } catch { }
+                // v2.25.0：软件记下真实进程名 —— .lnk/.bat 静态推不出来，下次"已打开"判断只能靠它
+                if (Helpers.OpenTarget.IsSoftware(target))
+                {
+                    try { OpenStateStore.RememberAppProcess(target, proc.ProcessName); } catch { }
+                }
             }
             OpenStateStore.SetPointer(rule.Id, target);   // 顺序记忆：记下"这次用的是哪份"
             ActivityRecorder.RecordOpen("auto", target, subject ?? rule.TriggerSubject ?? "", rule.Name);
             Helpers.AppLogger.Info($"自动化「{rule.Name}」：打开 {target}");
+            return true;
         }
         catch (Exception ex)
         {
@@ -612,14 +671,51 @@ public class AutomationService : IDisposable
             Helpers.AppLogger.Error($"自动化「{rule.Name}」：打开失败 {target}: {ex.Message}", ex);
             _ = App.ShowMessageAsync("自动化任务",
                 $"「{rule.Name}」无法打开文件：\n{target}\n\n{ex.Message}\n\n请检查系统里是否有能打开此类型文件的程序。");
+            return false;
         }
     }
 
-    /// <summary>目标是否已经打开：先看"我们开的那个进程还活着"，再兜底按窗口标题匹配（覆盖老师自己双击打开的）</summary>
+    /// <summary>
+    /// 目标是否已经打开。
+    /// ⚠ 判据分两类（v2.25.0）：**软件**看进程是否在运行，**文件**才看窗口标题 ——
+    /// 原来一律用"窗口标题含文件名"，对软件几乎必然失效（"POWERPNT.exe" 不会出现在窗口标题里），
+    /// 于是"打开软件"的自动化每次触发都会再启动一个实例。
+    /// </summary>
     private static bool IsAlreadyOpen(string path)
     {
         if (OpenStateStore.TryGetAlivePid(path, out _)) return true;
+        if (Helpers.OpenTarget.IsSoftware(path)) return IsSoftwareRunning(path);
         return Helpers.WindowEnumerator.IsFileOpenInWindow(path, out _);
+    }
+
+    /// <summary>
+    /// 软件是否已经在运行（三级判据，任一命中即"别再开了"）：
+    ///   ① 进程名 —— `.exe` 由路径直接推断（最可靠，也能覆盖老师自己双击打开的）
+    ///   ② 进程名 —— `.lnk/.bat` 静态推不出来，用**上次我们启动它时记下的真实进程名**
+    ///   ③ 兜底   —— 窗口标题里出现软件显示名（我们从没启动过它、也没有 exe 路径的情况）
+    /// internal 供自检调用。
+    /// </summary>
+    internal static bool IsSoftwareRunning(string path)
+    {
+        var name = Helpers.OpenTarget.ProcessNameFromPath(path);
+        if (name.Length == 0) name = OpenStateStore.GetAppProcess(path);
+        if (name.Length > 0 && IsProcessNameRunning(name)) return true;
+
+        var display = Helpers.OpenTarget.DisplayName(path);
+        return display.Length > 0 && Helpers.WindowEnumerator.IsAnyWindowTitleContains(display);
+    }
+
+    /// <summary>该进程名是否有存活实例（取完即释放句柄，避免句柄泄漏）</summary>
+    private static bool IsProcessNameRunning(string name)
+    {
+        try
+        {
+            var list = Process.GetProcessesByName(name);
+            bool any = list.Length > 0;
+            foreach (var p in list) { try { p.Dispose(); } catch { } }
+            return any;
+        }
+        catch { return false; }
     }
 
     /// <summary>
@@ -681,25 +777,41 @@ public class AutomationService : IDisposable
     }
 
     /// <summary>按教师端指定启动软件（2.5.9B 的"软件"分支）：直接拉起，不参与顺序记忆</summary>
-    private static void LaunchPendingApp(AutomationRule rule, PendingOpen pending)
+    /// <summary>教师端指定的"启动软件"。返回是否真的执行了（已开着也算完成）。</summary>
+    private static bool LaunchPendingApp(AutomationRule rule, PendingOpen pending)
     {
         var path = pending.Path?.Trim() ?? "";
         if (path.Length == 0)
         {
             Helpers.AppLogger.Warn($"自动化「{rule.Name}」：教师指定的软件路径为空");
-            return;
+            return false;
         }
+
+        // v2.25.0：本来就开着 → 不再启动第二个实例（老师在控制台点"打开"，不该越点越多）
+        if (IsSoftwareRunning(path))
+        {
+            Helpers.AppLogger.Info($"自动化「{rule.Name}」：{Helpers.OpenTarget.DisplayName(path)} 已在运行，跳过重复启动");
+            OpenStateStore.AddKnownApp(path, Helpers.OpenTarget.DisplayName(path));
+            return true;
+        }
+
         try
         {
-            Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+            var proc = Process.Start(new ProcessStartInfo { FileName = path, UseShellExecute = true });
+            if (proc != null)
+            {
+                try { OpenStateStore.RememberAppProcess(path, proc.ProcessName); } catch { }
+            }
             OpenStateStore.AddKnownApp(path, Path.GetFileNameWithoutExtension(path));
             Helpers.AppLogger.Info($"自动化「{rule.Name}」：按教师端指定启动软件 {path}");
+            return true;
         }
         catch (Exception ex)
         {
             Helpers.AppLogger.Error($"自动化「{rule.Name}」：启动指定软件失败 {path}: {ex.Message}", ex);
             _ = App.ShowMessageAsync("自动化任务",
                 $"「{rule.Name}」无法启动老师指定的软件：\n{path}\n\n{ex.Message}");
+            return false;
         }
     }
 
@@ -750,21 +862,22 @@ public class AutomationService : IDisposable
 
     /// <summary>关闭软件（2.5.7）：按进程名 taskkill。**不带 /F** —— 走 WM_CLOSE 让程序自己弹"是否保存"，
     /// 避免强杀导致 Office 未保存内容丢失；程序自身与资源管理器拒绝作为目标。</summary>
-    private static void CloseApp(AutomationRule rule)
+    /// <summary>请求关闭软件。返回是否真的发出了关闭请求（供临时任务判定）。</summary>
+    private static bool CloseApp(AutomationRule rule)
     {
         var name = (rule.CloseTarget ?? "").Trim();
         if (name.Length == 0)
         {
             Helpers.AppLogger.Warn($"自动化「{rule.Name}」：未指定要关闭的软件");
             _ = App.ShowMessageAsync("自动化任务", $"「{rule.Name}」还没选择要关闭的软件。");
-            return;
+            return false;
         }
         if (!name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) name += ".exe";
         if (name.Equals("StudyJourney.Avalonia.exe", StringComparison.OrdinalIgnoreCase) ||
             name.Equals("explorer.exe", StringComparison.OrdinalIgnoreCase))
         {
             Helpers.AppLogger.Warn($"自动化「{rule.Name}」：拒绝关闭受保护进程 {name}");
-            return;
+            return false;
         }
 
         var psi = new ProcessStartInfo
@@ -778,11 +891,13 @@ public class AutomationService : IDisposable
         {
             Process.Start(psi);
             Helpers.AppLogger.Info($"自动化「{rule.Name}」：已请求关闭 {name}");
+            return true;
         }
         catch (Exception ex)
         {
             Helpers.AppLogger.Error($"自动化「{rule.Name}」关闭 {name} 失败: {ex.Message}", ex);
             _ = App.ShowMessageAsync("自动化任务", $"「{rule.Name}」关闭 {name} 失败：{ex.Message}");
+            return false;
         }
     }
 

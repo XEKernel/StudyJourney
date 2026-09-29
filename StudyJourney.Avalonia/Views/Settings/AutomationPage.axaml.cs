@@ -94,14 +94,26 @@ public partial class AutomationPage : UserControl, ISettingsPage
         s.OpenPdfWithBuiltInReader = PdfOpenBuiltInRadio.IsChecked == true;
 
         CommitEditorToCurrent();
+
+        // v2.25.0：临时任务可能在"本页开着"的时候已经执行完并自删了 —— 那份克隆还留在 _rules 里，
+        // 直接整表写回会让它复活（明天再跑一次）。已被消费的 Id 在这里剪掉。
+        var keep = new List<AutomationRule>();
+        int consumed = 0;
+        foreach (var r in _rules)
+        {
+            if (App.Automation != null && App.Automation.WasConsumed(r.Id)) { consumed++; continue; }
+            keep.Add(r);
+        }
+
         AutomationStore.Save(new AutomationSettings
         {
             Enabled = _masterEnabled,
-            Rules = _rules.ToList()
+            Rules = keep
         });
         App.Automation?.Reload();
         _dirty = false;
-        Helpers.AppLogger.Info($"自动化规则已保存：{_rules.Count} 条，总开关={_masterEnabled}");
+        Helpers.AppLogger.Info($"自动化规则已保存：{keep.Count} 条，总开关={_masterEnabled}" +
+            (consumed > 0 ? $"（其中 {consumed} 条临时任务已执行完自删，未写回）" : ""));
     }
 
     // ── 工具 ────────────────────────────────────────────────
@@ -113,8 +125,13 @@ public partial class AutomationPage : UserControl, ISettingsPage
     /// 改成手写克隆：字段明确、无分配开销、源生成器也少一个负担。
     /// ⚠ 以后给 AutomationRule 加字段时，这里要同步补一行（漏了会导致克隆丢字段）。
     /// </summary>
-    private static AutomationRule CloneRule(AutomationRule r) => new()
+    internal static AutomationRule CloneRule(AutomationRule r) => new()
     {
+        // ⚠ 必须复制 Id（2026-09-29 修）：漏掉它时每条克隆都会 new 出**新的 Guid**，
+        //   于是老师每次「保存设置」都会把所有规则的 Id 换掉 —— 而 open-state.json 里
+        //   顺序记忆指针是**按规则 Id** 存的（SetPointer(rule.Id, …)），Id 一换指针全成孤儿，
+        //   表现为"保存过一次设置之后，「续用上次那份课件」失效、又回到编号第一份"。
+        Id = r.Id,
         Name = r.Name,
         Enabled = r.Enabled,
         TriggerKind = r.TriggerKind,
@@ -130,6 +147,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
         RememberLast = r.RememberLast,
         AutoAdvance = r.AutoAdvance,
         ActivateIfOpen = r.ActivateIfOpen,
+        DeleteAfterRun = r.DeleteAfterRun,   // ⚠ 加字段必须同步补这里（漏了 = 克隆丢字段）
     };
 
     private void MarkDirty() { if (_ready && !_loadingEditor && !_suppressDirty) _dirty = true; }
@@ -265,6 +283,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
             RememberLastCheck.IsChecked = r.RememberLast;
             AutoAdvanceCheck.IsChecked = r.AutoAdvance;
             ActivateIfOpenCheck.IsChecked = r.ActivateIfOpen;
+            OneShotCheck.IsChecked = r.DeleteAfterRun;
             _loadingCloseCombo = true;
             CloseAppCombo.SelectedIndex = 0;
             _loadingCloseCombo = false;
@@ -379,6 +398,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
         _current.RememberLast = RememberLastCheck.IsChecked == true;
         _current.AutoAdvance = AutoAdvanceCheck.IsChecked == true;
         _current.ActivateIfOpen = ActivateIfOpenCheck.IsChecked == true;
+        _current.DeleteAfterRun = OneShotCheck.IsChecked == true;
     }
 
     /// <summary>星期勾选 → TriggerDays（勾满 7 天或一个没勾 = 每天 = 空列表；取消「每天」却一个没勾则兜底周一）</summary>
@@ -522,6 +542,13 @@ public partial class AutomationPage : UserControl, ISettingsPage
     {
         if (!_ready) return;
         if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); RefreshPreviewOnly(); }
+    }
+
+    /// <summary>临时任务开关（v2.25.0）——结构性改动：摘要里会多一句「临时」，列表行标也要同步</summary>
+    private void OneShotCheck_Toggled(object? sender, RoutedEventArgs e)
+    {
+        if (!_ready) return;
+        if (!_loadingEditor) { CommitEditorToCurrent(); MarkDirty(); UpdatePreview(); }
     }
 
     private void OpenPathBox_TextChanged(object? sender, TextChangedEventArgs e)

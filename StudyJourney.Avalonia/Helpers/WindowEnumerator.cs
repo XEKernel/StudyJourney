@@ -154,6 +154,43 @@ public static class WindowEnumerator
         catch { return false; }
     }
 
+    /// <summary>
+    /// 任一可见窗口标题里是否出现该关键词（2026-09-29，v2.25.0 打开软件去重兜底）。
+    /// 用于"老师自己双击打开的软件"—— 我们没启动它、也就没有 PID 记录可查，
+    /// 只能靠它的名字出现在窗口标题里来判断（如「希沃白板」「WPS Office」）。
+    /// </summary>
+    public static bool IsAnyWindowTitleContains(string keyword)
+    {
+        if (string.IsNullOrWhiteSpace(keyword)) return false;
+        foreach (var w in TopLevelWindows())
+            if (w.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)) return true;
+        return false;
+    }
+
+    /// <summary>按进程名把该软件的主窗口切到前台（软件的「已打开 → 激活」；文件那条走 TryActivateWindow）</summary>
+    public static bool TryActivateAppWindow(string processName)
+    {
+        if (string.IsNullOrWhiteSpace(processName)) return false;
+        try
+        {
+            foreach (var p in Process.GetProcessesByName(processName))
+            {
+                var handle = IntPtr.Zero;
+                try { handle = p.MainWindowHandle; } catch { }
+                finally { try { p.Dispose(); } catch { } }
+                if (handle == IntPtr.Zero) continue;
+                try
+                {
+                    ShowWindow(handle, SW_RESTORE);
+                    return SetForegroundWindow(handle);
+                }
+                catch { }
+            }
+        }
+        catch { }
+        return false;
+    }
+
     /// <summary>有可见窗口的运行中程序（进程名去重）。供「关闭软件」动作下拉选择与教师端"指定启动软件"，
     /// Exe 为进程名（如 POWERPNT.exe），Path 为可执行文件完整路径（取不到时为空串，受权限限制）</summary>
     public static List<(string Exe, string Title, string Path)> RunningApps()

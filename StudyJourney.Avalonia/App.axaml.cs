@@ -1655,6 +1655,70 @@ public partial class App : Application
                 Check(!svPage.IsDirty, "服务器页重新 Load 后复位为「未保存 = 否」");
             }
 
+            // ── J. 自动化：软件去重判据 + 临时任务（v2.25.0）────────────────
+            // 这两条都属"错了不会报错"：分类判错 → 该打开的没打开 / 该跳过的又开一遍；
+            // DeleteAfterRun 漏进 JSON 源生成器 → 老师设了临时任务，重启后变常驻、天天再跑一次。
+            {
+                // ① 软件 / 文件分类（判据必须与课件序列判定的"软件类扩展名"口径一致）
+                Check(Helpers.OpenTarget.IsSoftware(@"D:\sw\POWERPNT.EXE"), ".exe → 软件（大小写不敏感）");
+                Check(Helpers.OpenTarget.IsSoftware(@"D:\sw\希沃白板.lnk"), ".lnk → 软件");
+                Check(Helpers.OpenTarget.IsSoftware("run.bat") && Helpers.OpenTarget.IsSoftware("run.cmd"),
+                    ".bat / .cmd → 软件");
+                Check(!Helpers.OpenTarget.IsSoftware(@"D:\课件\第1讲.pptx"), "课件 → 不是软件（走窗口标题判断）");
+                Check(!Helpers.OpenTarget.IsSoftware(@"D:\听力\Unit1.mp3"), "音频 → 不是软件");
+                Check(!Helpers.OpenTarget.IsSoftware("课件"), "没扩展名 → 不算软件（保守走标题匹配，不会误判成「已在运行」）");
+                Check(!Helpers.OpenTarget.IsSoftware("") && !Helpers.OpenTarget.IsSoftware(null), "空值不崩、不算软件");
+
+                // ② 进程名推断：.exe 能静态推出来；.lnk 推不出来 → 只能靠"启动后记下真实进程名"
+                Check(Helpers.OpenTarget.ProcessNameFromPath(@"D:\sw\POWERPNT.exe") == "POWERPNT",
+                    ".exe → 进程名 POWERPNT");
+                Check(Helpers.OpenTarget.ProcessNameFromPath(@"D:\sw\希沃白板.lnk") == "",
+                    ".lnk 静态推不出进程名（必须靠 OpenStateStore 记）");
+                Check(Helpers.OpenTarget.DisplayName(@"D:\sw\希沃白板.lnk") == "希沃白板",
+                    ".lnk 显示名 = 快捷方式名（也用作窗口标题兜底匹配）");
+
+                // ③ 临时任务：RemoveRule 是纯内存操作（不落盘），可在合成数据上断言
+                var ast = new Models.AutomationSettings();
+                var rr1 = new Models.AutomationRule { Name = "一次性" };
+                var rr2 = new Models.AutomationRule { Name = "常驻" };
+                ast.Rules.Add(rr1); ast.Rules.Add(rr2);
+                Check(ast.RemoveRule(rr1.Id), "RemoveRule 删存在的规则 → true");
+                Check(ast.Rules.Count == 1 && ast.Rules[0].Id == rr2.Id, "只删目标那条，其它规则不受影响");
+                Check(!ast.RemoveRule(rr1.Id), "重复删同一条 → false（不抛异常）");
+                Check(!ast.RemoveRule(""), "空 Id → false（不误删）");
+
+                // ④ DeleteAfterRun 必须被 JSON 源生成器带上
+                var oneShot = new Models.AutomationRule { Name = "临时任务", DeleteAfterRun = true };
+                string oj = JsonSerializer.Serialize(oneShot, Models.AppJsonContext.Default.AutomationRule);
+                var back = JsonSerializer.Deserialize(oj, Models.AppJsonContext.Default.AutomationRule);
+                Check(back?.DeleteAfterRun == true, "DeleteAfterRun 经 AppJsonContext 往返仍为 true");
+                Check(back != null && back.Summary.Contains("临时"), "摘要里带「临时」说明（老师看得见）");
+                Check(oneShot.OneShotBadge == "临时" && new Models.AutomationRule().OneShotBadge == "",
+                    "列表「临时」标记只对临时任务显示");
+
+                // ⑤ 设置页克隆：⚠ 必须连 Id 一起复制（2026-09-29 修的真 bug：漏 Id →
+                //    老师每保存一次设置，规则 Id 全换 → open-state.json 里的顺序记忆指针全成孤儿）
+                var csrc = new Models.AutomationRule
+                {
+                    Name = "克隆源", DeleteAfterRun = true, RememberLast = false,
+                    TriggerKind = Models.AutomationTriggerKind.Idle,
+                    ActionKind = Models.AutomationActionKind.OpenFile,
+                };
+                var cl = Views.Settings.AutomationPage.CloneRule(csrc);
+                Check(cl.Id == csrc.Id, "克隆保留原 Id（否则保存一次设置，顺序记忆全丢）");
+                Check(cl.DeleteAfterRun, "克隆保留 DeleteAfterRun（加字段漏改克隆 → 临时任务会变常驻）");
+                Check(cl.Name == csrc.Name && cl.TriggerKind == csrc.TriggerKind &&
+                      cl.ActionKind == csrc.ActionKind,
+                    "克隆保留名称 / 触发 / 动作");
+
+                // ⑥ 设置页实例化（XAML 校验 —— 处理器名或控件名写错只会在老师打开本页时炸）
+                //    ⚠ 只 Load、**不 Apply**：Apply 会真的写 automations.json，自检不能碰老师的规则文件。
+                var apn = new Views.Settings.AutomationPage();
+                apn.Load(new Models.AppSettings());
+                Check(!apn.IsDirty, "自动化页 Load 后不应是「未保存」");
+                Check(apn.OneShotCheck != null, "自动化页「临时任务」开关在位（XAML 绑定正确）");
+            }
+
             // ── I. 课表编辑器冒烟（2026-09-27 AOT：XAML 反射绑定 → 编译绑定）────
             // 该文件的 DataGrid 列原来用 `{Binding Xxx}`（反射绑定，IL2026/IL3050）→ 改成编译绑定 + x:DataType。
             // 编译绑定写错通常是**编译错误**（能拦住），但"行渲染成空白"这类只在运行时暴露 → 这里实例化一次兜底。

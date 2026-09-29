@@ -76,10 +76,22 @@ namespace StudyJourney.Avalonia.Models
         /// <summary>目标已打开时：true = 激活到前台，false = 直接跳过（连堂防重复打开，默认跳过）</summary>
         public bool ActivateIfOpen { get; set; } = false;
 
+        // ── 临时任务（v2.25.0）────────────────────────────────
+        /// <summary>
+        /// 临时任务：这条规则**成功执行一次后自动删除**（默认关）。
+        /// 用途：老师临时加一条"今天 15:00 打开公开课课件"，跑完自己消失，
+        /// 不用记得回来删 —— 否则第二天同一时间会再跑一次。
+        /// ⚠ 只有**执行成功**才删：失败（文件不在、软件没装）时保留，并在日志/弹窗里说明，
+        ///   否则老师会"任务没了、事也没办成"且无从排查。
+        /// </summary>
+        public bool DeleteAfterRun { get; set; } = false;
+
         // ── 人类可读摘要（列表/日志用）──────────────────
         public string TriggerText => DescribeTrigger();
         public string ActionText => DescribeAction();
-        public string Summary => $"{TriggerText} → {ActionText}";
+        public string Summary => $"{TriggerText} → {ActionText}" + (DeleteAfterRun ? "（临时：执行一次后自动删除）" : "");
+        /// <summary>列表里的「临时」小标（空串 = 不显示）</summary>
+        public string OneShotBadge => DeleteAfterRun ? "临时" : "";
 
         private static readonly string[] WeekNames = { "周一", "周二", "周三", "周四", "周五", "周六", "周日" };
 
@@ -161,6 +173,17 @@ namespace StudyJourney.Avalonia.Models
         /// <summary>全局总开关（默认关，用户在设置页显式开启才生效，避免新功能吓到老师）</summary>
         public bool Enabled { get; set; } = false;
         public List<AutomationRule> Rules { get; set; } = new();
+
+        /// <summary>
+        /// 按 Id 删一条规则，返回是否真删掉了。
+        /// **纯内存操作、不落盘** —— 一方面让调用方决定何时保存（临时任务：删完立刻 Save），
+        /// 另一方面自检可以在合成数据上断言，不必碰老师的 automations.json。
+        /// </summary>
+        public bool RemoveRule(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return false;
+            return Rules.RemoveAll(r => r.Id == id) > 0;
+        }
     }
 
     public static class AutomationStore
