@@ -79,6 +79,7 @@ public partial class MainWindow : Window
     // ── 隐藏状态跟踪 ─────────────────────────────────────────
     private bool _hiddenByMaximize;
     private bool _hiddenByScheduleOrExam;
+    private bool _hiddenBySubject;    // v2.26.0：按科目设置里配了「上课不显示」→ 整窗隐藏
     private bool _suppressAutoHide;   // 用户主动显示时豁免自动隐藏
 
     // ── 点击穿透 / 定位 ──────────────────────────────────────
@@ -644,6 +645,29 @@ public partial class MainWindow : Window
         var today = manager.GetTodayEntries(now.Date);
         var cur = manager.GetCurrentEntry(now);
         var next = manager.GetNextEntry(now);
+
+        // ── 按科目隐藏（v2.26.0「什么都没有」档）────────────────────────
+        // 老师给某节课配了「上课不显示」→ 那节课内**整个窗口藏起来**（不只是收起进度条）。
+        // 唤回方式：托盘图标右键 / Ctrl+Shift+H；主动唤回后本堂课不再自动隐藏（与 _suppressAutoHide 一致）。
+        bool hideBySubject = cur != null && Helpers.SubjectPresentationRules.IsHidden(
+            App.Settings.SubjectPresentations, cur.Subject);
+        if (hideBySubject && !_suppressAutoHide)
+        {
+            if (!_hiddenBySubject)
+            {
+                _hiddenBySubject = true;
+                Helpers.AppLogger.Info($"按科目设置：「{cur!.Subject}」上课中 → 窗口已隐藏");
+                Hide();
+            }
+            return;   // 藏起来时不必刷新视图内容（也省掉每秒的无谓更新）
+        }
+        if (_hiddenBySubject)
+        {
+            _hiddenBySubject = false;
+            Show();
+            ApplyWindowLayer();
+            Helpers.AppLogger.Info("按科目设置：该节课结束 → 窗口已恢复显示");
+        }
 
         // 上课收起：HideDuringClass 开启且正在上课 → 切到紧凑视图（只留进度条+上课进度）
         bool compact = App.Settings.HideDuringClass && cur != null;

@@ -25,6 +25,11 @@ public partial class SchedulePage : UserControl, ISettingsPage
         ReminderStyleCapsule.IsCheckedChanged += (_, _) => MarkDirty();
         ReminderSoundPathBox.TextChanged += (_, _) => MarkDirty();
 
+        // 按科目设置（v2.26.0）：两个下拉的选项是固定的，列表内容随数据重建
+        PresencePresetCombo.ItemsSource = Helpers.SubjectPresentationRules.PresetNames;
+        PresencePresetCombo.SelectedIndex = 0;
+        RebuildPresenceList();
+
         _loading = false;
         _dirty = false;
 
@@ -42,6 +47,9 @@ public partial class SchedulePage : UserControl, ISettingsPage
     /// <summary>#8：未保存修改标记（与位置页/API 页/考试页同一套做法）</summary>
     private bool _dirty;
     private bool _loading = true;
+
+    // 按科目设置（v2.26.0）的编辑副本（与 App.Settings 隔离，点保存才写回）
+    private readonly List<Models.SubjectPresentation> _presences = new();
     public bool IsDirty => _dirty;
     private void MarkDirty() { if (!_loading) _dirty = true; }
 
@@ -195,6 +203,16 @@ public partial class SchedulePage : UserControl, ISettingsPage
             for (int i = 0; i < boxes.Length && i < values.Length; i++) boxes[i].IsChecked = values[i];
             ReminderStyleCapsule.IsChecked = s.ReminderStyle != 1;
             ReminderStyleToast.IsChecked = s.ReminderStyle == 1;
+
+            // 按科目设置：从设置拷一份编辑副本（脱钩，点保存才写回）
+            _presences.Clear();
+            foreach (var p in s.SubjectPresentations ?? new List<Models.SubjectPresentation>())
+                _presences.Add(new Models.SubjectPresentation
+                {
+                    Subject = p.Subject, MuteSound = p.MuteSound, HideWindow = p.HideWindow,
+                });
+            LoadPresenceSubjects();
+            RebuildPresenceList();
         }
         finally { _loading = false; }
         _dirty = false;
@@ -217,5 +235,97 @@ public partial class SchedulePage : UserControl, ISettingsPage
             s.RemindSpecialPeriod = boxes[7].IsChecked == true;
         }
         s.ReminderStyle = ReminderStyleToast.IsChecked == true ? 1 : 0;
+        s.SubjectPresentations = _presences;   // v2.26.0 按科目设置
+    }
+
+    // ── 按科目设置（v2.26.0）────────────────────────────────
+
+    /// <summary>科目下拉：取「课表里实际出现过的科目」∪「已配过的科目」——
+    /// 老师不用手打科目名，也避免打错一个字就静默失效。课表为空时退化为只列已配项。</summary>
+    private void LoadPresenceSubjects()
+    {
+        var names = new List<string>();
+        try
+        {
+            var entries = App.Schedule.Data.Entries;
+            if (entries != null)
+                foreach (var e in entries)
+                {
+                    var sub = (e.Subject ?? "").Trim();
+                    if (sub.Length > 0 && !names.Contains(sub)) names.Add(sub);
+                }
+        }
+        catch { /* 课表未就绪 → 只列已配项 */ }
+
+        foreach (var p in _presences)
+        {
+            var sub = (p.Subject ?? "").Trim();
+            if (sub.Length > 0 && !names.Contains(sub)) names.Add(sub);
+        }
+
+        int keep = PresenceSubjectCombo.SelectedIndex;
+        PresenceSubjectCombo.ItemsSource = names;
+        PresenceSubjectCombo.SelectedIndex = keep >= 0 && keep < names.Count ? keep : (names.Count > 0 ? 0 : -1);
+    }
+
+    /// <summary>重建「已配科目」列表（每行：科目 + 档位 + 删除）</summary>
+    private void RebuildPresenceList()
+    {
+        if (PresenceList == null) return;
+        PresenceList.Children.Clear();
+
+        foreach (var p in _presences.ToList())
+        {
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,*,Auto") };
+
+            var name = new TextBlock
+            {
+                Text = p.Subject, FontSize = 12, VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
+            };
+            Grid.SetColumn(name, 0);
+
+            var preset = new TextBlock
+            {
+                Text = Helpers.SubjectPresentationRules.PresetNames[
+                    Helpers.SubjectPresentationRules.PresetIndexOf(p.MuteSound, p.HideWindow)],
+                FontSize = 11, VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center,
+                Foreground = new global::Avalonia.Media.SolidColorBrush(
+                    global::Avalonia.Media.Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
+            };
+            Grid.SetColumn(preset, 1);
+
+            var del = new Button { Content = "✕", FontSize = 11, Padding = new global::Avalonia.Thickness(9, 2) };
+            del.Click += (_, _) =>
+            {
+                _presences.Remove(p);
+                RebuildPresenceList();
+                MarkDirty();
+            };
+            Grid.SetColumn(del, 2);
+
+            row.Children.Add(name);
+            row.Children.Add(preset);
+            row.Children.Add(del);
+            PresenceList.Children.Add(row);
+        }
+
+        if (PresenceEmptyTb != null) PresenceEmptyTb.IsVisible = _presences.Count == 0;
+    }
+
+    private void PresenceAddBtn_Click(object? sender, RoutedEventArgs e)
+    {
+        var subject = PresenceSubjectCombo.SelectedItem as string;
+        if (string.IsNullOrWhiteSpace(subject))
+        {
+            PresenceEmptyTb.Text = "⚠ 课表里还没有科目可选 —— 先去「课表编辑」加几节课，或先用「＋ 新建规则」把课表填上";
+            PresenceEmptyTb.IsVisible = true;
+            return;
+        }
+        PresenceEmptyTb.Text = "（还没有按科目的设置）";
+
+        bool changed = Helpers.SubjectPresentationRules.Upsert(
+            _presences, subject, PresencePresetCombo.SelectedIndex);
+        RebuildPresenceList();
+        if (changed) MarkDirty();
     }
 }

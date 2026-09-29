@@ -43,6 +43,30 @@
                 </StackPanel>
             </Border>
 
+            <!-- 按科目设置（v2.26.0）：给指定科目单独设「提示音 / 上课显示」 -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="🎧  按科目设置（提示音 / 上课显示）" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="给某节课单独设表现，没配的科目按上面的全局开关走。例：听力课选「静音」（不出声，但仍显示进度条）；晚自习选「完全安静」（不出声，上课时整个窗口也不显示）。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap"/>
+
+                    <Grid ColumnDefinitions="*,*,Auto" Margin="0,4,0,0">
+                        <ComboBox x:Name="PresenceSubjectCombo" FontSize="12"/>
+                        <ComboBox x:Name="PresencePresetCombo" Grid.Column="1" Margin="8,0,0,0" FontSize="12"/>
+                        <Button Grid.Column="2" Content="＋ 添加 / 修改" Margin="8,0,0,0" Padding="12,4"
+                                FontSize="12" Click="PresenceAddBtn_Click"/>
+                    </Grid>
+
+                    <StackPanel x:Name="PresenceList" Spacing="4"/>
+                    <TextBlock x:Name="PresenceEmptyTb" Text="（还没有按科目的设置）" FontSize="11"
+                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="选「正常」等于不改这一项（会从列表里去掉）。改完按窗口下方「保存设置」生效。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
             <!-- 课表编辑 -->
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="8">

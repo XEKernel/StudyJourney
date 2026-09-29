@@ -201,12 +201,22 @@ public class ReminderService : IDisposable
             SuppressSpecialEnd: quietEnd);
     }
 
+    /// <summary>
+    /// 当前正在评估的课节科目（v2.26.0「按科目静音」的判据）。
+    /// 为什么用字段而不是给 15 个 TryFire 调用点各加一个参数：它们全在 CheckClassReminders 的
+    /// **同一作用域**里、科目恒为 entry.Subject —— 参数化只会让同一信息重复 15 遍。
+    /// 每个入口在开始评估时赋值一次；TryFire → FireReminder → PlaySound 全程**同步**（UI 线程），
+    /// 不存在"值被人改掉"的窗口。默认空串 → 匹配不到任何策略 → 照常出声（失败方向是安全的）。
+    /// </summary>
+    private string _subjectUnderReminder = "";
+
     private void CheckClassReminders(ScheduleEntry entry, DateTime now, List<ScheduleEntry> allEntries)
     {
         var startDt = entry.GetStartDateTime(now.Date);
         // 跨天课（EndTime < StartTime）的真实结束时刻在次日，否则下课/放学提醒永不触发
         var endDt = entry.GetEndDateTimeActual(now.Date);
         string prefix = $"{now:yyyyMMdd}_{entry.DayOfWeek}_{entry.Period}";
+        _subjectUnderReminder = entry.Subject;   // v2.26.0：本节的科目（按科目静音用）
 
         // 边界提醒的压制决策统一由 DecideGates 给出（见其注释：规则经用户两次反馈定稿）
         int idx = allEntries.IndexOf(entry);
@@ -286,6 +296,7 @@ public class ReminderService : IDisposable
         var cur = _manager.GetCurrentExamSubject(now);
         if (cur == null) return;
         var (exam, subject) = cur.Value;
+        _subjectUnderReminder = subject.Name;    // v2.26.0：考试科目也能配静音
         var endDt = now.Date + subject.EndTime;
         string key = $"exam_{now:yyyyMMdd}_{subject.Name}_endsoon";
         TryFire(key, now, endDt, TimeSpan.FromMinutes(-15),
@@ -338,6 +349,13 @@ public class ReminderService : IDisposable
     private void PlaySound()
     {
         if (!App.Settings.EnableReminderSound) return;
+
+        // v2.26.0（按科目设置）：这门课配了「不出声」→ 不播提示音。
+        // ⚠ 只静音，**提醒弹窗照常出现** —— 老师配的是"别吵"，不是"别提醒"。
+        if (Helpers.SubjectPresentationRules.IsMuted(
+                App.Settings.SubjectPresentations, _subjectUnderReminder))
+            return;
+
         try
         {
             var path = App.Settings.ReminderSoundPath;

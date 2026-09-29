@@ -104,6 +104,7 @@ public static class SettingsReset
         {
             "老师账号：重置为内置账号 teacher01~teacher06 + Teacher01（含各自初始密码，请立即修改）",
             "外观：字体 / 字号 / 透明度 / 胶囊样式与圆角 / 时间单位与进度条显示",
+            "按科目设置：提示音 / 上课显示的分科覆盖（会全部清空，恢复为按全局开关）",
             "位置：屏幕位置预设、自定义坐标、水平垂直偏移、置顶、点击穿透",
             "提醒：8 个提醒开关、提示音路径、提醒方式（胶囊弹窗 / 系统通知）",
             $"倒计时：目标日期 → {Show(defaults.GaokaoDateStr)}，起算日期 → {Show(defaults.StartDateStr)}，文字与强调色",

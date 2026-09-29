@@ -1719,6 +1719,89 @@ public partial class App : Application
                 Check(apn.OneShotCheck != null, "自动化页「临时任务」开关在位（XAML 绑定正确）");
             }
 
+            // ── K. 按科目设置：提示音 / 上课显示（v2.26.0）────────────────────
+            // 三条都属"错了不会报错"：档位映射错 → 老师选的档和实际执行的不一致；
+            // 科目匹配太松 → 没配的课也被静音；JSON 没跟上 → 配了、重启后全没了。
+            {
+                // ① 4 档映射必须与设置页下拉一致（索引即档位）
+                var (m0, h0) = Helpers.SubjectPresentationRules.Preset(0);
+                Check(!m0 && !h0, "档位「正常」→ 有提示音 + 上课显示");
+                var (m1, h1) = Helpers.SubjectPresentationRules.Preset(1);
+                Check(m1 && !h1, "档位「静音」→ 不出声 + 保留上课显示");
+                var (m2, h2) = Helpers.SubjectPresentationRules.Preset(2);
+                Check(!m2 && h2, "档位「只提示音」→ 有声音 + 上课不显示");
+                var (m3, h3) = Helpers.SubjectPresentationRules.Preset(3);
+                Check(m3 && h3, "档位「完全安静」→ 不出声 + 上课不显示");
+                for (int i = 0; i < 4; i++)
+                {
+                    var (mm, hh) = Helpers.SubjectPresentationRules.Preset(i);
+                    Check(Helpers.SubjectPresentationRules.PresetIndexOf(mm, hh) == i,
+                        $"档位 {i} 往返一致（下拉回显不会串档）");
+                }
+                Check(Helpers.SubjectPresentationRules.PresetNames.Length == 4,
+                    $"4 档名称齐全（UI 下拉 {Helpers.SubjectPresentationRules.PresetNames.Length} 项）");
+                Check(Helpers.SubjectPresentationRules.Preset(99) == (false, false),
+                    "越界档位按「正常」处理（宁可多响一声，也不静默消失）");
+
+                // ② 科目匹配：忽略首尾空白；没配的科目不受影响
+                var plist = new List<Models.SubjectPresentation>
+                {
+                    new() { Subject = "听力", MuteSound = true },
+                    new() { Subject = "晚自习", HideWindow = true },
+                };
+                Check(Helpers.SubjectPresentationRules.IsMuted(plist, "听力"), "「听力」命中静音");
+                Check(Helpers.SubjectPresentationRules.IsMuted(plist, "  听力  "), "科目名首尾空白不影响匹配");
+                Check(Helpers.SubjectPresentationRules.IsHidden(plist, "晚自习"), "「晚自习」命中上课隐藏");
+                Check(!Helpers.SubjectPresentationRules.IsMuted(plist, "数学"), "没配的科目照常出声");
+                Check(!Helpers.SubjectPresentationRules.IsHidden(plist, "数学"), "没配的科目照常显示");
+                Check(!Helpers.SubjectPresentationRules.IsHidden(plist, ""), "空科目名不命中（课表没填科目时照常显示）");
+                Check(!Helpers.SubjectPresentationRules.IsMuted(null, "听力"), "列表为空不崩、不静音");
+                Check(Helpers.SubjectPresentationRules.PresetOf(plist, "数学") == 0, "没配的科目回显为「正常」");
+
+                // ③ Upsert：同科目覆盖；选「正常」= 从列表里去掉（免得堆一堆没改动的项）
+                var pedit = new List<Models.SubjectPresentation>();
+                Check(Helpers.SubjectPresentationRules.Upsert(pedit, "听力", 1) && pedit.Count == 1,
+                    "新增「听力 = 静音」");
+                Check(!Helpers.SubjectPresentationRules.Upsert(pedit, "听力", 1),
+                    "重复写同样的档位 → 无变化（不误标「未保存」）");
+                Check(Helpers.SubjectPresentationRules.Upsert(pedit, "听力", 3) &&
+                      pedit.Count == 1 && pedit[0].MuteSound && pedit[0].HideWindow,
+                    "同科目改档位是覆盖、不会新增第二条");
+                Check(Helpers.SubjectPresentationRules.Upsert(pedit, "听力", 0) && pedit.Count == 0,
+                    "选「正常」→ 从列表里去掉");
+                Check(!Helpers.SubjectPresentationRules.Upsert(pedit, "  ", 1), "空科目名 → 不写入");
+                Check(Helpers.SubjectPresentationRules.PresetOf(pedit, "听力") == 0, "已去掉的科目回显为「正常」");
+
+                // ④ JSON 往返（漏进源生成器 = 老师配了、重启后全没了）
+                var withPresence = new Models.AppSettings();
+                withPresence.SubjectPresentations.Add(
+                    new Models.SubjectPresentation { Subject = "听力", MuteSound = true });
+                string pj = JsonSerializer.Serialize(withPresence, Models.AppJsonContext.Default.AppSettings);
+                var pBack = JsonSerializer.Deserialize(pj, Models.AppJsonContext.Default.AppSettings);
+                Check(pBack?.SubjectPresentations?.Count == 1 &&
+                      pBack.SubjectPresentations[0].Subject == "听力" &&
+                      pBack.SubjectPresentations[0].MuteSound &&
+                      !pBack.SubjectPresentations[0].HideWindow,
+                    "按科目设置经 AppJsonContext 往返无损");
+
+                // ⑤ 设置页实例化 + Load/Apply 往返（XAML 写错只会在老师真打开那页时炸）
+                var spPage = new Views.Settings.SchedulePage();
+                var pSrc = new Models.AppSettings();
+                pSrc.SubjectPresentations.Add(
+                    new Models.SubjectPresentation { Subject = "听力", MuteSound = true });
+                spPage.Load(pSrc);
+                Check(!spPage.IsDirty, "课表页 Load 后不应是「未保存」");
+                Check(spPage.PresenceList != null && spPage.PresenceList.Children.Count == 1,
+                    $"课表页按科目列表按已存设置回显（实际 {spPage.PresenceList?.Children.Count} 行）");
+                var pDst = new Models.AppSettings();
+                spPage.Apply(pDst);
+                Check(pDst.SubjectPresentations?.Count == 1 &&
+                      pDst.SubjectPresentations[0].Subject == "听力" &&
+                      pDst.SubjectPresentations[0].MuteSound &&
+                      !pDst.SubjectPresentations[0].HideWindow,
+                    "课表页 Apply 把按科目设置原样写回（档位不丢、不串）");
+            }
+
             // ── I. 课表编辑器冒烟（2026-09-27 AOT：XAML 反射绑定 → 编译绑定）────
             // 该文件的 DataGrid 列原来用 `{Binding Xxx}`（反射绑定，IL2026/IL3050）→ 改成编译绑定 + x:DataType。
             // 编译绑定写错通常是**编译错误**（能拦住），但"行渲染成空白"这类只在运行时暴露 → 这里实例化一次兜底。

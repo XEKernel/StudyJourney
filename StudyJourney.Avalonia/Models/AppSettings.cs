@@ -168,6 +168,13 @@ namespace StudyJourney.Avalonia.Models
         // 上课时收起为进度条（只留进度条+上课进度；false 则上课时保持完整显示）
         public bool HideDuringClass { get; set; } = true;
 
+        /// <summary>
+        /// 按科目的"课上表现"覆盖（v2.26.0，用户需求：指定课程下不要提示音但保留进度条 /
+        /// 不显示进度条只有声音 / 什么都没有）。
+        /// 未列出的科目一律按全局开关走；档位映射见 Helpers/SubjectPresentationRules。
+        /// </summary>
+        public List<SubjectPresentation> SubjectPresentations { get; set; } = new();
+
         // ── 提醒开关 ──────────────────────────────────────────
         public bool EnableReminderSound  { get; set; } = true;
         public string ReminderSoundPath  { get; set; } = string.Empty;  // 空=系统提示音
@@ -467,6 +474,21 @@ namespace StudyJourney.Avalonia.Models
                 Helpers.AppLogger.Error("保存设置失败", ex);
             }
         }
+    }
+
+    /// <summary>
+    /// 某一门课的"课上表现"覆盖（v2.26.0）。两个布尔覆盖 4 种组合（UI 上是 4 档下拉）：
+    ///   正常(否,否) / 静音(是,否 = 不出声但保留上课显示) / 只提示音(否,是 = 上课不显示) / 完全安静(是,是)。
+    /// ⚠ 只影响**这门课**，且**只影响上课时段**；下课后的提醒与日常显示不受影响。
+    /// </summary>
+    public class SubjectPresentation
+    {
+        /// <summary>科目名（与课表里的科目名一致，如「听力」「晚自习」；比较忽略首尾空白与大小写）</summary>
+        public string Subject { get; set; } = "";
+        /// <summary>上课时不播提示音（**提醒弹窗照常出现** —— 只是不出声，老师不会错过提醒）</summary>
+        public bool MuteSound { get; set; }
+        /// <summary>上课时整个窗口不显示（托盘图标 / Ctrl+Shift+H 仍可唤回）</summary>
+        public bool HideWindow { get; set; }
     }
 
     /// <summary>窗口位置预设常量（消除魔法数字；JSON 中保持 int 存储以兼容旧配置）</summary>
