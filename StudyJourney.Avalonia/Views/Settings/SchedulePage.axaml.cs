@@ -213,6 +213,7 @@ public partial class SchedulePage : UserControl, ISettingsPage
                 });
             LoadPresenceSubjects();
             RebuildPresenceList();
+            RefreshListeningUi();
         }
         finally { _loading = false; }
         _dirty = false;
@@ -310,6 +311,221 @@ public partial class SchedulePage : UserControl, ISettingsPage
         }
 
         if (PresenceEmptyTb != null) PresenceEmptyTb.IsVisible = _presences.Count == 0;
+    }
+
+    // ══ 听力播放器（v2.27.0，规划 2.9）══════════════════════════════════
+    // 与「调休」同一套路：改动**即时落盘**（存独立的 listening.json），不走 ISettingsPage 的
+    // dirty/Apply 流程 —— 它不是 settings.json 的一部分，「恢复默认设置」也不会碰它。
+
+    /// <summary>把听力数据回显到卡片（来源列表 / 例外日 / 自动关秒数 / 音量）</summary>
+    private void RefreshListeningUi()
+    {
+        var svc = App.Listening;
+        if (svc == null || ListeningSourceList == null) return;
+
+        var data = svc.Data;
+
+        // ① 来源列表
+        ListeningSourceList.Children.Clear();
+        foreach (var src in svc.Sources.ToList())
+        {
+            var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto,Auto") };
+
+            var info = new StackPanel { Spacing = 1 };
+            bool isActive = string.Equals(src.Id, data.ActiveSourceId, StringComparison.Ordinal);
+            info.Children.Add(new TextBlock
+            {
+                Text = (isActive ? "● " : "○ ") + src.Name + (src.Once ? "（临时）" : ""),
+                FontSize = 12,
+                FontWeight = isActive ? global::Avalonia.Media.FontWeight.SemiBold
+                                      : global::Avalonia.Media.FontWeight.Normal,
+            });
+            info.Children.Add(new TextBlock
+            {
+                Text = src.Directory + "　" + ListeningProgressOf(src),
+                FontSize = 10,
+                Foreground = new global::Avalonia.Media.SolidColorBrush(
+                    global::Avalonia.Media.Color.FromArgb(0xA0, 0xFF, 0xFF, 0xFF)),
+                TextWrapping = global::Avalonia.Media.TextWrapping.Wrap,
+            });
+            Grid.SetColumn(info, 0);
+            row.Children.Add(info);
+
+            var useBtn = new Button
+            {
+                Content = isActive ? "当前" : "设为当前",
+                FontSize = 11,
+                Padding = new global::Avalonia.Thickness(9, 2),
+                IsEnabled = !isActive,
+            };
+            useBtn.Click += (_, _) => { App.Listening?.SetActive(src.Id); RefreshListeningUi(); };
+            Grid.SetColumn(useBtn, 1);
+            row.Children.Add(useBtn);
+
+            var delBtn = new Button { Content = "✕", FontSize = 11, Padding = new global::Avalonia.Thickness(9, 2) };
+            delBtn.Click += (_, _) =>
+            {
+                App.Listening?.RemoveSource(src.Id);
+                RefreshListeningUi();
+            };
+            Grid.SetColumn(delBtn, 2);
+            row.Children.Add(delBtn);
+
+            ListeningSourceList.Children.Add(row);
+        }
+        ListeningEmptyTb.IsVisible = svc.Sources.Count == 0;
+
+        // ② 例外日（每个可单独删除）
+        ListeningSkipList.Children.Clear();
+        foreach (var d in (data.SkipDates ?? new List<string>()).OrderBy(x => x).ToList())
+        {
+            var b = new Button
+            {
+                Content = d + " ✕",
+                FontSize = 10,
+                Padding = new global::Avalonia.Thickness(7, 2),
+                Margin = new global::Avalonia.Thickness(0, 0, 4, 4),
+            };
+            var key = d;
+            b.Click += (_, _) =>
+            {
+                App.Listening?.Data.SkipDates.RemoveAll(x => string.Equals((x ?? "").Trim(), key, StringComparison.Ordinal));
+                App.Listening?.Save();
+                RefreshListeningUi();
+            };
+            ListeningSkipList.Children.Add(b);
+        }
+
+        // ③ 播放行为
+        ListeningSkipIfExamCheck.IsChecked = data.SkipIfExam;
+        ListeningAutoCloseBox.Value = Math.Clamp(data.AutoCloseSeconds, -1, 60);
+        ListeningVolumeSlider.Value = Math.Clamp(data.Volume, 0, 100);
+    }
+
+    /// <summary>来源的进度文本（上次播到哪一份 / 是否听完）</summary>
+    private static string ListeningProgressOf(Models.ListeningSource src)
+    {
+        var cands = Helpers.ListeningRules.CandidatesOf(src);
+        if (cands.Count == 0) return "（目录里没有音频）";
+        if (Helpers.ListeningRules.IsAtEnd(src, cands)) return $"已听完（{cands.Count} 份）";
+        var last = (src.LastFile ?? "").Trim();
+        if (last.Length == 0) return $"未开始（共 {cands.Count} 份）";
+        var (idx, total) = Helpers.ListeningRules.PositionOf(last, cands);
+        string name = System.IO.Path.GetFileName(last);
+        return src.Finished
+            ? $"上次听完 {idx}/{total}「{name}」→ 下次播下一份"
+            : $"上次听到 {idx}/{total}「{name}」（未听完，下次续播）";
+    }
+
+    private async void ListeningBrowseDir_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            // UserControl 上没有现成的 StorageProvider，要经 TopLevel 拿（且全名 Avalonia.Platform.* 会被相对解析）
+            var top = TopLevel.GetTopLevel(this);
+            if (top == null) return;
+            var dirs = await top.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "选择听力录音所在的文件夹",
+                AllowMultiple = false,
+            });
+            var dir = dirs?.Count > 0 ? dirs[0].TryGetLocalPath() : null;
+            if (!string.IsNullOrEmpty(dir)) ListeningDirBox.Text = dir;
+        }
+        catch (Exception ex) { Helpers.AppLogger.Error("听力：选目录失败", ex); }
+    }
+
+    private void ListeningAddSource_Click(object? sender, RoutedEventArgs e)
+    {
+        var dir = (ListeningDirBox.Text ?? "").Trim();
+        if (dir.Length == 0 || !System.IO.Directory.Exists(dir))
+        {
+            ListeningHintTb.Text = "⚠ 先选一个存在的文件夹";
+            return;
+        }
+        var name = (ListeningNameBox.Text ?? "").Trim();
+        var src = App.Listening?.AddSource(name, dir, ListeningOnceCheck.IsChecked == true);
+        if (src == null) { ListeningHintTb.Text = "⚠ 听力服务未启动"; return; }
+
+        var cands = Helpers.ListeningRules.CandidatesOf(src);
+        ListeningHintTb.Text = cands.Count == 0
+            ? "已添加，但这个文件夹里没找到音频文件"
+            : $"已添加：{cands.Count} 份录音";
+        ListeningNameBox.Text = "";
+        ListeningDirBox.Text = "";
+        RefreshListeningUi();
+    }
+
+    private void ListeningAddSkipDate_Click(object? sender, RoutedEventArgs e)
+    {
+        var svc = App.Listening;
+        if (svc == null) return;
+        if (ListeningSkipDate.SelectedDate is not { } sel)
+        {
+            ListeningHintTb.Text = "⚠ 先选一个日期";
+            return;
+        }
+        string key = sel.Date.ToString("yyyy-MM-dd");
+        svc.Data.SkipDates ??= new List<string>();
+        if (!svc.Data.SkipDates.Any(x => string.Equals((x ?? "").Trim(), key, StringComparison.Ordinal)))
+        {
+            svc.Data.SkipDates.Add(key);
+            svc.Save();
+            ListeningHintTb.Text = $"{key} 已加为例外日（那天不自动播、进度不动）";
+        }
+        RefreshListeningUi();
+    }
+
+    private void ListeningClearSkipDates_Click(object? sender, RoutedEventArgs e)
+    {
+        var svc = App.Listening;
+        if (svc == null) return;
+        svc.Data.SkipDates?.Clear();
+        svc.Save();
+        ListeningHintTb.Text = "已清空例外日";
+        RefreshListeningUi();
+    }
+
+    private void ListeningAutoClose_Changed(object? sender, NumericUpDownValueChangedEventArgs e)
+    {
+        if (_loading) return;
+        var svc = App.Listening;
+        if (svc == null) return;
+        svc.Data.AutoCloseSeconds = (int)Math.Clamp(ListeningAutoCloseBox.Value ?? 3, -1, 60);
+        svc.Save();
+    }
+
+    private void ListeningVolume_Changed(object? sender, RangeBaseValueChangedEventArgs e)
+    {
+        if (_loading) return;
+        var svc = App.Listening;
+        if (svc == null) return;
+        svc.Data.Volume = (int)Math.Clamp(ListeningVolumeSlider.Value, 0, 100);
+        svc.Save();
+    }
+
+    private void ListeningPlayNow_Click(object? sender, RoutedEventArgs e)
+        => ListeningPlayNow();
+
+    private void ListeningOpenPlayer_Click(object? sender, RoutedEventArgs e)
+        => App.OpenListeningPlayerGlobal();
+
+    /// <summary>「现在听一次」：按当前活跃来源解析该播哪一份并直接播（等于手动触发一次，但不改任何日程）</summary>
+    private void ListeningPlayNow()
+    {
+        var svc = App.Listening;
+        if (svc == null) { ListeningHintTb.Text = "⚠ 听力服务未启动"; return; }
+
+        var file = svc.ResolveAuto(DateTime.Now, out var reason);
+        if (file == null)
+        {
+            ListeningHintTb.Text = "⚠ " + reason;
+            return;
+        }
+        var src = svc.ActiveSource;
+        Views.ListeningPlayerWindow.PlayFile(file, src?.Id ?? "");
+        ListeningHintTb.Text = $"正在播：{System.IO.Path.GetFileName(file)}";
+        RefreshListeningUi();
     }
 
     private void PresenceAddBtn_Click(object? sender, RoutedEventArgs e)

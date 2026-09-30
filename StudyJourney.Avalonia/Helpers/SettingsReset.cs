@@ -129,6 +129,7 @@ public static class SettingsReset
         "自动化任务规则 automations.json",
         "远程登录状态 tokens.json、PDF 续读进度 pdf-state.json",
         "课件打开顺序 open-state.json、已记录的上课活动 records/",
+        "听力来源与进度 listening.json（含例外日配置）",
     };
 
     /// <summary>组装成确认框正文。备份路径为空时不提备份那一段。</summary>

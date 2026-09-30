@@ -19,6 +19,7 @@ namespace StudyJourney.Avalonia.Models
         Idle,             // 4 闲置 N 分钟无操作
         AppStarted,       // 5 软件启动后 N 分钟（本次运行一次）
         AtMorningDayEnd,  // 6 上午放学（上午最后一节下课，后接长间隔；2.8，追加于末尾）
+        AtListeningPeriod, // 7 课表里「听力」节次开始（规划 2.9，追加于末尾）
     }
 
     /// <summary>动作拼块类型。
@@ -35,6 +36,7 @@ namespace StudyJourney.Avalonia.Models
         ShowMessage,     // 6 弹出提醒
         CloseApp,        // 7 关闭软件（按进程名结束；2.5.7，追加于末尾）
         OpenWhiteboard,  // 8 打开白板（板书；2026-09-15，追加于末尾）
+        PlayListening,   // 9 播放听力录音（内置播放器，播完自动关；规划 2.9，追加于末尾）
     }
 
     /// <summary>
@@ -127,6 +129,10 @@ namespace StudyJourney.Avalonia.Models
                     return $"闲置 {Math.Max(TriggerMinutes, 0)} 分钟无操作";
                 case AutomationTriggerKind.AppStarted:
                     return TriggerMinutes > 0 ? $"软件启动 {TriggerMinutes} 分钟后" : "软件启动时";
+                case AutomationTriggerKind.AtListeningPeriod:
+                    return TriggerMinutes > 0
+                        ? $"课表「听力」节次前 {TriggerMinutes} 分钟"
+                        : "课表「听力」节次开始时";
                 default:
                     return "";
             }
@@ -156,6 +162,8 @@ namespace StudyJourney.Avalonia.Models
                     return string.IsNullOrWhiteSpace(CloseTarget) ? "关闭软件（未选目标）" : $"关闭软件 {CloseTarget}";
                 case AutomationActionKind.OpenWhiteboard:
                     return "打开白板（板书）";
+                case AutomationActionKind.PlayListening:
+                    return "播放听力录音（内置播放器，播完自动关）";
                 default:
                     return "";
             }

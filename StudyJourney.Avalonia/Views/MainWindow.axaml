@@ -26,6 +26,7 @@
                     <MenuItem Header="屏幕批注（Ctrl+Alt+D）" Click="AnnotationMenuItem_Click"/>
                     <MenuItem Header="PDF 阅读（Ctrl+Shift+P）" Click="PdfReaderMenuItem_Click"/>
                     <MenuItem Header="进入考试模式" Click="ExamModeMenuItem_Click"/>
+                    <MenuItem Header="听力播放器（Ctrl+Shift+L）" Click="OpenListeningMenuItem_Click"/>
                     <MenuItem Header="编辑课表数据…" Click="EditScheduleMenuItem_Click"/>
                     <MenuItem Header="打开设置" Click="OpenSettingsMenuItem_Click"/>
                     <Separator/>
@@ -158,6 +159,7 @@
                     <MenuItem Header="屏幕批注（Ctrl+Alt+D）" Click="AnnotationMenuItem_Click"/>
                     <MenuItem Header="PDF 阅读（Ctrl+Shift+P）" Click="PdfReaderMenuItem_Click"/>
                     <MenuItem Header="进入考试模式" Click="ExamModeMenuItem_Click"/>
+                    <MenuItem Header="听力播放器（Ctrl+Shift+L）" Click="OpenListeningMenuItem_Click"/>
                     <MenuItem Header="编辑课表数据…" Click="EditScheduleMenuItem_Click"/>
                     <MenuItem Header="打开设置" Click="OpenSettingsMenuItem_Click"/>
                     <Separator/>

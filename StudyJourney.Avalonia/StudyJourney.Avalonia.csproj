@@ -8,8 +8,8 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 2.26.0：AssemblyVersion=2.26.0.0（由 <Version> 派生），InformationalVersion=2.26.0（更新检查解析用） -->
-    <Version>2.26.0</Version>
+    <!-- 2.27.0：AssemblyVersion=2.27.0.0（由 <Version> 派生），InformationalVersion=2.27.0（更新检查解析用） -->
+    <Version>2.27.0</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
@@ -25,6 +25,13 @@
          本机 api.nuget.org 被拦截 → 走仓库根的 local-nupkg 本地源（见该目录 README）；
          CI 网络正常，直接从 nuget.org 还原。 -->
     <PackageReference Include="Docnet.Core" Version="2.6.0" />
+    <!-- 听力播放器的音频内核（v2.27.0）。
+         ⚠ 刻意用 2.2.1 而不是 3.x：NAudio 3.x 的 net9.0 依赖组只带 Core+Midi，
+           Windows 播放部件（NAudio.WinMM，含 WaveOutEvent）只在 net9.0-windows7.0，
+           而本项目 TFM 是裸 net10.0 → 3.x 整包还原不上（NU1202）。
+           2.2.1 的 net6.0 组含 Core/Wasapi/WinMM（不含 WinForms），已验证：restore/build 0 警、
+           PublishAot 后 IL2026/IL3050 = 0。详见 PITFALLS §G。 -->
+    <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
   <!-- 远程管理：ASP.NET Core Minimal API（Kestrel 后台线程运行，不阻塞 UI 线程） -->

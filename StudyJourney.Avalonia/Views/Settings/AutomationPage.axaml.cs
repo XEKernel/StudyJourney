@@ -39,11 +39,13 @@ public partial class AutomationPage : UserControl, ISettingsPage
         // 顺序必须与枚举 AutomationTriggerKind / AutomationActionKind 一致（索引即枚举值）
         TriggerTypeCombo.ItemsSource = new[]
         {
-            "固定时间", "上课前", "下课时", "放学时", "闲置一段时间", "软件启动后", "上午放学"
+            "固定时间", "上课前", "下课时", "放学时", "闲置一段时间", "软件启动后", "上午放学",
+            "课表听力节次"          // v2.27.0（规划 2.9）——顺序必须与枚举 AutomationTriggerKind 一致
         };
         ActionTypeCombo.ItemsSource = new[]
         {
-            "打开文件", "打开科目课件", "播放音频", "关闭屏幕", "关机", "重启", "弹出提醒", "关闭软件", "打开白板"
+            "打开文件", "打开科目课件", "播放音频", "关闭屏幕", "关机", "重启", "弹出提醒", "关闭软件", "打开白板",
+            "播放听力（内置播放器）"   // v2.27.0（规划 2.9）——顺序必须与枚举 AutomationActionKind 一致
         };
 
         // 默认选中必须在 _ready 置位前（事件处理期间判空直接 return，再由下面手动刷新面板）
@@ -253,6 +255,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
             EndMinutesBox.Value = ClampInto(EndMinutesBox, r.TriggerMinutes, 0);
             IdleMinutesBox.Value = ClampInto(IdleMinutesBox, r.TriggerMinutes, 10);
             StartMinutesBox.Value = ClampInto(StartMinutesBox, r.TriggerMinutes, 0);
+            ListeningLeadBox.Value = ClampInto(ListeningLeadBox, r.TriggerMinutes, 0);
 
             // 星期：空/全 7 天 = 每天。视觉上把 7 个框都点亮，取消「每天」后老师直接在此基础上改勾选
             var days = r.TriggerDays ?? new List<int>();
@@ -344,8 +347,8 @@ public partial class AutomationPage : UserControl, ISettingsPage
         if (_current == null) return;
 
         _current.Name = NameBox.Text?.Trim() ?? "";
-        _current.TriggerKind = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 6);
-        _current.ActionKind = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 8);
+        _current.TriggerKind = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 7);
+        _current.ActionKind = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 9);
 
         switch (_current.TriggerKind)
         {
@@ -371,6 +374,9 @@ public partial class AutomationPage : UserControl, ISettingsPage
                 break;
             case AutomationTriggerKind.AppStarted:
                 _current.TriggerMinutes = Num(StartMinutesBox, 0);
+                break;
+            case AutomationTriggerKind.AtListeningPeriod:
+                _current.TriggerMinutes = Num(ListeningLeadBox, 0);
                 break;
         }
 
@@ -430,8 +436,8 @@ public partial class AutomationPage : UserControl, ISettingsPage
 
     private void RefreshPanels()
     {
-        var tk = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 6);
-        var ak = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 8);
+        var tk = (AutomationTriggerKind)Math.Clamp(TriggerTypeCombo.SelectedIndex, 0, 7);
+        var ak = (AutomationActionKind)Math.Clamp(ActionTypeCombo.SelectedIndex, 0, 9);
 
         FixedPanel.IsVisible = tk == AutomationTriggerKind.FixedTime;
         SubjectPanel.IsVisible = tk is AutomationTriggerKind.BeforeClassStart or AutomationTriggerKind.AtClassEnd;
@@ -444,6 +450,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
         IdlePanel.IsVisible = tk == AutomationTriggerKind.Idle;
         AppStartPanel.IsVisible = tk == AutomationTriggerKind.AppStarted;
         MorningDayEndPanel.IsVisible = tk == AutomationTriggerKind.AtMorningDayEnd;
+        ListeningPeriodPanel.IsVisible = tk == AutomationTriggerKind.AtListeningPeriod;
 
         OpenFilePanel.IsVisible = ak == AutomationActionKind.OpenFile;
         CoursewarePanel.IsVisible = ak == AutomationActionKind.OpenCourseware;
@@ -453,6 +460,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
         MsgPanel.IsVisible = ak == AutomationActionKind.ShowMessage;
         CloseAppPanel.IsVisible = ak == AutomationActionKind.CloseApp;
         WhiteboardPanel.IsVisible = ak == AutomationActionKind.OpenWhiteboard;
+        PlayListeningPanel.IsVisible = ak == AutomationActionKind.PlayListening;
         // 顺序记忆/连堂幂等只对三类"打开"动作有意义
         SequencePanel.IsVisible = ak is AutomationActionKind.OpenFile
                                      or AutomationActionKind.OpenCourseware

@@ -1437,6 +1437,9 @@ public partial class MainWindow : Window
     /// <summary>右键菜单 → 课表编辑（2026-09-27 规划 2.7 P3：课表入口原来要经设置页三层，太深）</summary>
     private void EditScheduleMenuItem_Click(object? sender, RoutedEventArgs e) => App.OpenScheduleEditorGlobal();
 
+    /// <summary>听力播放器（v2.27.0，规划 2.9）</summary>
+    private void OpenListeningMenuItem_Click(object? sender, RoutedEventArgs e) => App.OpenListeningPlayerGlobal();
+
     /// <summary>右键菜单「打开白板」（PLANNING 2.4；与托盘/快捷键共用同一入口）</summary>
     private void WhiteboardMenuItem_Click(object? sender, RoutedEventArgs e) => App.OpenWhiteboardGlobal();
 

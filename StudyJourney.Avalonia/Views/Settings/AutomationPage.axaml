@@ -204,6 +204,22 @@
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
+
+                                <!-- 课表听力节次（v2.27.0，规划 2.9）-->
+                                <StackPanel x:Name="ListeningPeriodPanel" Spacing="4">
+                                    <TextBlock Text="提前几分钟开始（0 = 准点开始）" FontSize="12"
+                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+                                    <NumericUpDown x:Name="ListeningLeadBox" Minimum="0" Maximum="30"
+                                                   Increment="1" FormatString="0" FontSize="13"
+                                                   HorizontalAlignment="Left" Width="120"
+                                                   ValueChanged="NumberBox_ValueChanged"/>
+                                    <TextBlock Text="课表里科目名含「听力」的节次开始时触发（你课表的周一/三/五第 6 节就是）。"
+                                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Text="想在周二/周四临时加听一次：在那天的课表里加一节听力（长期），或新建一条勾了「临时任务」的规则（一次性）。调休补课那天同样会自动触发。"
+                                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
@@ -326,6 +342,16 @@
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>
                                     <TextBlock Text="白板已打开时不会重复开窗，只会把已有窗口切到前台。"
+                                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- 播放听力（v2.27.0，规划 2.9）—— 无参数，仅说明 -->
+                                <StackPanel x:Name="PlayListeningPanel" Spacing="4">
+                                    <TextBlock Text="用内置播放器播听力录音，整份播完后自动关闭窗口"
+                                               FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                               TextWrapping="Wrap"/>
+                                    <TextBlock Text="来源与进度在「设置 → 课表 → 听力播放器」里配置。听一半关掉不会记成「听过」，下次续播同一份；英语周考（全校广播）那天会自动跳过、进度不动。"
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>

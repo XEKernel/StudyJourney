@@ -30,6 +30,9 @@ public partial class App : Application
     /// <summary>全局自动化任务服务（拼图式规则：触发 + 动作，automations.json）</summary>
     public static AutomationService? Automation { get; private set; }
 
+    /// <summary>听力播放服务（v2.27.0，规划 2.9）：来源 / 进度指针 / 例外日；播放由播放器窗口负责</summary>
+    public static ListeningService? Listening { get; private set; }
+
     /// <summary>设置被保存后触发（主窗口/悬浮栏等订阅并刷新）</summary>
     public static event Action? SettingsChanged;
 
@@ -88,7 +91,8 @@ public partial class App : Application
     private const int HotKeyAnnotation = 4;   // Ctrl+Alt+D（屏幕批注，PLANNING 2.3/2.7#7）
     private const int HotKeyPdfReader  = 5;   // Ctrl+Shift+P（PDF 阅读器，PLANNING 2.1）
     private const int HotKeySchedule   = 6;   // Ctrl+Shift+K（课表编辑，规划 2.7 P3「课表入口深」）
-    private const uint VK_H = 0x48, VK_E = 0x45, VK_W = 0x57, VK_D = 0x44, VK_P = 0x50, VK_K = 0x4B;
+    private const int HotKeyListening  = 7;   // Ctrl+Shift+L（听力播放器，规划 2.9）
+    private const uint VK_H = 0x48, VK_E = 0x45, VK_W = 0x57, VK_D = 0x44, VK_P = 0x50, VK_K = 0x4B, VK_L = 0x4C;
 
     public override void Initialize() => AvaloniaXamlLoader.Load(this);
 
@@ -154,7 +158,11 @@ public partial class App : Application
             // 注意：automations.json 独立于 settings.json（恢复默认设置不误删规则）
             Automation = new AutomationService(Schedule);
             Automation.Start();
-            Mark("提醒/自动化服务就绪");
+
+            // 听力播放服务：只持有 listening.json（来源 + 进度指针 + 例外日），不自己开线程。
+            // 触发交给自动化规则（「课表有听力节次时 → 播放听力」），播放交给播放器窗口。
+            Listening = new ListeningService();
+            Mark("提醒/自动化/听力服务就绪");
 
             // ── 自检模式（SJ_SELFTEST）────────────────────────────
             // 必须在建托盘/窗口之前判断：自检实例**不显示托盘图标、不显示主窗口**。
@@ -637,6 +645,11 @@ public partial class App : Application
         if (!GlobalHotKeyManager.Register(HotKeySchedule, VK_K, true, true, false,
                 () => Dispatcher.UIThread.Post(OpenScheduleEditorGlobal)))
             Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+K 注册失败（可能被其他程序占用）");
+
+        // Ctrl+Shift+L 打开听力播放器（规划 2.9：中午/听力课直接唤起，不改变正在播的内容）
+        if (!GlobalHotKeyManager.Register(HotKeyListening, VK_L, true, true, false,
+                () => Dispatcher.UIThread.Post(OpenListeningPlayerGlobal)))
+            Helpers.AppLogger.Warn("全局快捷键 Ctrl+Shift+L 注册失败（可能被其他程序占用）");
     }
 
     /// <summary>统一入口：进入考试模式（托盘/快捷键/设置页共用）</summary>
@@ -649,6 +662,25 @@ public partial class App : Application
     public static void ExitExamModeGlobal()
     {
         if (Current is App app && app._mainWindow is MainWindow mw) mw.ExitExamMode();
+    }
+
+    /// <summary>统一入口：打开听力播放器（托盘 / 快捷键 / 右键菜单共用；单例）</summary>
+    public static void OpenListeningPlayerGlobal() => Views.ListeningPlayerWindow.ShowOrActivate();
+
+    /// <summary>
+    /// 统一入口：**自动播放听力**（自动化「播放听力」动作调用）。
+    /// 会先查例外日（英语周考全校广播那天不播、也不推进进度），再按活跃来源解析"该播哪一份"。
+    /// 返回 false 时 reason 说明原因（供日志/临时任务判定）。
+    /// </summary>
+    public static bool PlayListeningAutoGlobal(out string reason)
+    {
+        reason = "";
+        if (Listening == null) { reason = "听力服务未启动"; return false; }
+        if (Current is not App) { reason = "应用未就绪"; return false; }
+
+        bool ok = Views.ListeningPlayerWindow.PlayAuto(DateTime.Now, out reason);
+        if (!ok) Helpers.AppLogger.Warn($"听力自动播放跳过：{reason}");
+        return ok;
     }
 
     /// <summary>统一入口：打开设置（单例）</summary>
@@ -1802,6 +1834,150 @@ public partial class App : Application
                     "课表页 Apply 把按科目设置原样写回（档位不丢、不串）");
             }
 
+            // ── L. 听力播放器（v2.27.0，规划 2.9）────────────────────────────
+            // 四条最容易"错了不报错"的：①指针推进语义（听一半 vs 听完）②到末尾不循环
+            // ③枚举末尾追加的落盘契约 ④例外日（周考广播）判定过松/过紧
+            {
+                // ① 枚举值 = 落盘契约（重排会让老规则执行成别的动作/触发点）
+                Check((int)Models.AutomationActionKind.PlayListening == 9,
+                    $"「播放听力」枚举值 = 9（实际 {(int)Models.AutomationActionKind.PlayListening}）—— 只能末尾追加");
+                Check((int)Models.AutomationTriggerKind.AtListeningPeriod == 7,
+                    $"「课表听力节次」枚举值 = 7（实际 {(int)Models.AutomationTriggerKind.AtListeningPeriod}）—— 只能末尾追加");
+                Check(Enum.GetValues<Models.AutomationActionKind>().Length == 10 &&
+                      Enum.GetValues<Models.AutomationTriggerKind>().Length == 8,
+                    "两个枚举的数量与设置页下拉项数一致（漏加下拉项会让索引与枚举错位）");
+
+                // ② 听力节次识别
+                Check(Helpers.ListeningRules.IsListeningPeriod(new Models.ScheduleEntry { Subject = "听力" }),
+                    "科目名「听力」→ 听力节次");
+                Check(Helpers.ListeningRules.IsListeningPeriod(new Models.ScheduleEntry { Subject = "英语听力" }),
+                    "「英语听力」也算（用包含匹配，兼容叫法）");
+                Check(!Helpers.ListeningRules.IsListeningPeriod(new Models.ScheduleEntry { Subject = "数学" }),
+                    "「数学」→ 不是听力节次");
+                Check(!Helpers.ListeningRules.IsListeningPeriod(new Models.ScheduleEntry { Subject = "  " }) &&
+                      !Helpers.ListeningRules.IsListeningPeriod(null),
+                    "空科目名 / null 不崩、不算听力节次");
+
+                // ③ 例外日（英语周考全校广播那天不播、也不推进进度）
+                var ld0 = new Models.ListeningData { SkipDates = new List<string> { "2026-10-01" } };
+                Check(Helpers.ListeningRules.ShouldSkipToday(ld0, new DateTime(2026, 10, 1), false),
+                    "例外日命中 → 跳过");
+                Check(!Helpers.ListeningRules.ShouldSkipToday(ld0, new DateTime(2026, 10, 2), false),
+                    "非例外日不跳过");
+                ld0.SkipIfExam = true;
+                Check(Helpers.ListeningRules.ShouldSkipToday(ld0, new DateTime(2026, 10, 2), true),
+                    "SkipIfExam + 当天有英语考试 → 跳过");
+                Check(!Helpers.ListeningRules.ShouldSkipToday(ld0, new DateTime(2026, 10, 2), false),
+                    "SkipIfExam 但当天没考试 → 不跳过");
+                Check(!Helpers.ListeningRules.ShouldSkipToday(null, DateTime.Today, true),
+                    "data 为 null 不崩、不跳过");
+                var dirtySkip = new Models.ListeningData { SkipDates = new List<string> { "", "  ", "2026/10/01" } };
+                Check(!Helpers.ListeningRules.ShouldSkipToday(dirtySkip, new DateTime(2026, 10, 1), false),
+                    "脏值（空串 / 斜杠格式）不会误命中例外日（否则会静默整周不播）");
+
+                // ④ 指针推进语义：**只有整份播完才推进**（用真实临时目录，走真的文件枚举）
+                var ldir = Path.Combine(Path.GetTempPath(), "sj-listen-" + Guid.NewGuid().ToString("N")[..8]);
+                Directory.CreateDirectory(ldir);
+                try
+                {
+                    var lf1 = Path.Combine(ldir, "unit01.mp3");
+                    var lf2 = Path.Combine(ldir, "unit02.mp3");
+                    var lf3 = Path.Combine(ldir, "unit03.mp3");
+                    File.WriteAllText(lf1, "x"); File.WriteAllText(lf2, "x"); File.WriteAllText(lf3, "x");
+                    File.WriteAllText(Path.Combine(ldir, "cover.jpg"), "x");      // 非音频，应被过滤
+                    File.WriteAllText(Path.Combine(ldir, "~$tmp.mp3"), "x");     // Office 临时文件，应被排除
+
+                    var lsrc = new Models.ListeningSource { Directory = ldir };
+                    var lcands = Helpers.ListeningRules.CandidatesOf(lsrc);
+                    Check(lcands.Count == 3, $"只认音频文件（实际 {lcands.Count} 份，封面图与 ~$ 临时文件被排除）");
+                    Check(Helpers.ListeningRules.CurrentToPlay(lsrc, lcands) == lf1,
+                        "还没播过 → 从第一份开始");
+
+                    lsrc.LastFile = lf1; lsrc.Finished = false;
+                    Check(Helpers.ListeningRules.CurrentToPlay(lsrc, lcands) == lf1,
+                        "★ 听了一半（未播完）→ 下次**续听同一份**（不推进）");
+
+                    lsrc.Finished = true;
+                    Check(Helpers.ListeningRules.CurrentToPlay(lsrc, lcands) == lf2,
+                        "★ 整份播完 → 下次播序列下一份");
+
+                    lsrc.LastFile = lf3; lsrc.Finished = true;
+                    Check(Helpers.ListeningRules.CurrentToPlay(lsrc, lcands) == null,
+                        "★ 最后一份播完 → 到末尾返回 null（**不循环回第一份** —— FileSequence.Next 是循环的，这里刻意没用它）");
+                    Check(Helpers.ListeningRules.IsAtEnd(lsrc, lcands), "到末尾 → IsAtEnd 为真（设置页显示「已听完」）");
+
+                    lsrc.LastFile = lf2; lsrc.Finished = true;
+                    Check(!Helpers.ListeningRules.IsAtEnd(lsrc, lcands), "第二份播完 → 不算听完");
+                    Check(Helpers.ListeningRules.HasNext(lf2, lcands) && !Helpers.ListeningRules.HasNext(lf3, lcands),
+                        "「下一首」按钮可用性：中间有、最后一份没有");
+                    Check(Helpers.ListeningRules.PreviousStrict(lf3, lcands) == lf2 &&
+                          Helpers.ListeningRules.PreviousStrict(lf1, lcands) == null,
+                        "「上一首」按列表位置倒推（第一份没有上一份）");
+
+                    // 文件被删（换了整套资料）→ 从第一份开始，不卡死
+                    lsrc.LastFile = Path.Combine(ldir, "gone.mp3"); lsrc.Finished = true;
+                    Check(Helpers.ListeningRules.CurrentToPlay(lsrc, lcands) == lf1,
+                        "指针指向的文件已不在 → 从第一份重新开始（不卡死）");
+
+                    Check(Helpers.ListeningRules.IsAudioFile("a.m4a") && Helpers.ListeningRules.IsAudioFile("a.MP3") &&
+                          !Helpers.ListeningRules.IsAudioFile("a.docx") && !Helpers.ListeningRules.IsAudioFile(""),
+                        "音频扩展名判定（含大小写；空值不算）");
+
+                    var (li, lt) = Helpers.ListeningRules.PositionOf(lf2, lcands);
+                    Check(li == 2 && lt == 3, $"进度显示「第 2/3 份」（实际 {li}/{lt}）");
+                }
+                finally
+                {
+                    try { Directory.Delete(ldir, true); } catch { }
+                }
+
+                // ⑤ listening.json 经源生成器往返（漏了 = 老师配好来源、重启后全没了）
+                var lj0 = new Models.ListeningData { AutoCloseSeconds = 5, Volume = 70 };
+                lj0.Sources.Add(new Models.ListeningSource
+                {
+                    Name = "资料A", Directory = @"D:\听力\资料A", LastFile = "unit03.mp3",
+                    Finished = true, PlayedCount = 2,
+                });
+                lj0.SkipDates.Add("2026-10-01");
+                string lj = JsonSerializer.Serialize(lj0, Models.AppJsonContext.Default.ListeningData);
+                var lback = JsonSerializer.Deserialize(lj, Models.AppJsonContext.Default.ListeningData);
+                Check(lback?.Sources?.Count == 1 && lback.Sources[0].Name == "资料A" &&
+                      lback.Sources[0].Finished && lback.Sources[0].LastFile == "unit03.mp3" &&
+                      lback.Sources[0].PlayedCount == 2 &&
+                      lback.SkipDates.Count == 1 && lback.AutoCloseSeconds == 5 && lback.Volume == 70,
+                    "listening.json 经 AppJsonContext 往返无损（来源/指针/例外日/音量都在）");
+
+                // ⑥ 窗口与设置页实例化（代码式窗口没有 XAML，但可视树建错同样只在打开时炸）
+                var lw = new Views.ListeningPlayerWindow();
+                Check(lw.Title == "听力播放", "听力播放器窗口可实例化（可视树建起来没抛异常）");
+                lw.Close();
+
+                var lsp = new Views.Settings.SchedulePage();
+                lsp.Load(new Models.AppSettings());
+                Check(lsp.ListeningSourceList != null && lsp.ListeningAutoCloseBox != null &&
+                      lsp.ListeningVolumeSlider != null && lsp.ListeningSkipList != null,
+                    "课表页「听力播放器」卡片控件在位（XAML 未拼错）");
+                // ⚠ 用 `is { }` 取非空局部：x:Name 生成的字段在别的方法调用之后会失去"非空"流状态（CS8602）
+                // ⚠⚠ 这里**只读**，绝不改控件的值 —— Load 已把 _loading 置回 false，
+                //     一改就会触发 ValueChanged → 服务 Save() → **真的写进 listening.json**（自检绝不允许碰数据文件）。
+                //     2026-09-30 实际踩到：写了一次 12，下一轮就 "断言失败：默认回显 3（实际 12）"。
+                if (lsp.ListeningAutoCloseBox is { } lClose)
+                    Check(lClose.Value >= -1 && lClose.Value <= 60,
+                        $"自动关闭秒数在合法区间 -1~60（实际 {lClose.Value}）");
+                if (lsp.ListeningVolumeSlider is { } lVol)
+                    Check(lVol.Value >= 0 && lVol.Value <= 100, $"音量在 0~100（实际 {lVol.Value}）");
+
+                // ⑦ 自动化页的两个下拉必须与枚举同步（漏加项会让索引与枚举错位 → 选「播放听力」跑成别的动作）
+                var lap = new Views.Settings.AutomationPage();
+                lap.Load(new Models.AppSettings());
+                Check(lap.TriggerTypeCombo.ItemCount == 8,
+                    $"自动化页「触发」下拉 {lap.TriggerTypeCombo.ItemCount} 项 = 枚举 8 个（新增触发块必须同步加项）");
+                Check(lap.ActionTypeCombo.ItemCount == 10,
+                    $"自动化页「动作」下拉 {lap.ActionTypeCombo.ItemCount} 项 = 枚举 10 个（新增动作必须同步加项）");
+                Check(lap.PlayListeningPanel != null && lap.ListeningPeriodPanel != null,
+                    "自动化页「播放听力」动作面板与「课表听力节次」触发面板在位");
+            }
+
             // ── I. 课表编辑器冒烟（2026-09-27 AOT：XAML 反射绑定 → 编译绑定）────
             // 该文件的 DataGrid 列原来用 `{Binding Xxx}`（反射绑定，IL2026/IL3050）→ 改成编译绑定 + x:DataType。
             // 编译绑定写错通常是**编译错误**（能拦住），但"行渲染成空白"这类只在运行时暴露 → 这里实例化一次兜底。
@@ -2599,6 +2775,9 @@ public partial class App : Application
             var pdfItem = new NativeMenuItem("PDF 阅读（Ctrl+Shift+P）");
             pdfItem.Click += (_, _) => OpenPdfReaderGlobal();
 
+            var listeningItem = new NativeMenuItem("听力播放器（Ctrl+Shift+L）");
+            listeningItem.Click += (_, _) => OpenListeningPlayerGlobal();
+
             var settingsItem = new NativeMenuItem("打开设置");
             settingsItem.Click += (_, _) => OpenSettingsGlobal();
 
@@ -2614,6 +2793,7 @@ public partial class App : Application
             menu.Add(boardItem);
             menu.Add(annotItem);
             menu.Add(pdfItem);
+            menu.Add(listeningItem);
             menu.Add(scheduleItem);
             menu.Add(settingsItem);
             menu.Add(new NativeMenuItemSeparator());

@@ -67,6 +67,76 @@
                 </StackPanel>
             </Border>
 
+            <!-- 听力播放器（v2.27.0，规划 2.9）——本卡片的改动**即时生效**（存 listening.json，与上面的设置无关） -->
+            <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
+                <StackPanel Spacing="8">
+                    <TextBlock Text="🎧  听力播放器" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="听力录音用内置播放器播：整份播完自动关窗，并记下听到哪一份（听一半关掉不会算「听过」，下次续播同一份）。本卡片的改动即时生效，不用点「保存设置」。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap"/>
+
+                    <!-- 已有来源 -->
+                    <StackPanel x:Name="ListeningSourceList" Spacing="4"/>
+                    <TextBlock x:Name="ListeningEmptyTb" Text="（还没有听力来源，先在下面添加一个）"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
+
+                    <!-- 添加来源 -->
+                    <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                        <StackPanel Spacing="6">
+                            <TextBox x:Name="ListeningNameBox" PlaceholderText="来源名称（如：资料A / 周考卷）" FontSize="12"/>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBox x:Name="ListeningDirBox" FontSize="12"
+                                         PlaceholderText="录音所在文件夹，如 D:\\听力\\资料A"/>
+                                <Button Grid.Column="1" Content="浏览…" Margin="6,0,0,0" FontSize="11"
+                                        Padding="10,3" Click="ListeningBrowseDir_Click"/>
+                            </Grid>
+                            <CheckBox x:Name="ListeningOnceCheck" IsChecked="True"
+                                      Content="临时来源（播完自动回到上一个来源；随手扔的文件夹/桌面选它）"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Content="＋ 添加" Margin="8,0,0,0" Padding="12,4" FontSize="12"
+                                VerticalAlignment="Top" Click="ListeningAddSource_Click"/>
+                    </Grid>
+
+                    <!-- 例外日 -->
+                    <TextBlock Text="例外日（这些日期不自动播放，也不推进进度 —— 例如英语周考由全校广播播放）"
+                               FontSize="12" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               Margin="0,6,0,0" TextWrapping="Wrap"/>
+                    <Grid ColumnDefinitions="Auto,Auto,*">
+                        <DatePicker x:Name="ListeningSkipDate" Width="150" FontSize="12"/>
+                        <Button Grid.Column="1" Content="＋ 加为例外日" Margin="8,0,0,0" Padding="10,3" FontSize="11"
+                                Click="ListeningAddSkipDate_Click"/>
+                        <WrapPanel Grid.Column="2" x:Name="ListeningSkipList" Margin="10,0,0,0"
+                                   VerticalAlignment="Center"/>
+                    </Grid>
+                    <CheckBox x:Name="ListeningSkipIfExamCheck"
+                              Content="当天课表里有英语考试时也自动跳过（默认关）"/>
+                    <Button Content="清空全部例外日" FontSize="11" Padding="10,3" HorizontalAlignment="Left"
+                            Click="ListeningClearSkipDates_Click"/>
+
+                    <!-- 播放行为 -->
+                    <Grid ColumnDefinitions="Auto,Auto,20,Auto,*" Margin="0,6,0,0">
+                        <TextBlock Text="播完后延时" FontSize="12" VerticalAlignment="Center"/>
+                        <NumericUpDown Grid.Column="1" x:Name="ListeningAutoCloseBox" Minimum="-1" Maximum="60"
+                                       Increment="1" FormatString="0" FontSize="12" Width="110" Margin="6,0,0,0"
+                                       ValueChanged="ListeningAutoClose_Changed"/>
+                        <TextBlock Grid.Column="2" Text="秒自动关窗" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="音量" FontSize="12" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                        <Slider Grid.Column="4" x:Name="ListeningVolumeSlider" Minimum="0" Maximum="100"
+                                Width="130" ValueChanged="ListeningVolume_Changed"/>
+                    </Grid>
+                    <TextBlock Text="延时填 -1 = 播完不自动关（窗口留着）；填 0 = 立刻关。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                        <Button Content="▶ 现在听一次" Padding="12,5" FontSize="12" Click="ListeningPlayNow_Click"/>
+                        <Button Content="打开播放器窗口" Padding="12,5" FontSize="12" Click="ListeningOpenPlayer_Click"/>
+                        <TextBlock x:Name="ListeningHintTb" FontSize="11" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
             <!-- 课表编辑 -->
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="8">

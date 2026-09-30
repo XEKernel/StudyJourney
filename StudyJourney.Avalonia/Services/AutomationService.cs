@@ -180,6 +180,14 @@ public class AutomationService : IDisposable
                 break;
             }
 
+            case AutomationTriggerKind.AtListeningPeriod:
+            {
+                // 规划 2.9：课表里科目名含「听力」的节次触发（考试模式激活时课表被顶替 → 不触发）
+                if (Views.ExamModeWindow.IsExamModeActive) return;
+                TryTriggerListeningPeriod(rule, now, dayKey);
+                break;
+            }
+
             case AutomationTriggerKind.Idle:
             {
                 // 2.5.7c：闲置熄屏改为**上课时段也生效**（老师上课不用电脑但没关 → 闲置到点照样熄屏）。
@@ -347,6 +355,32 @@ public class AutomationService : IDisposable
         return rule.TriggerDays.Contains(_manager.GetEffectiveDayOfWeek(now));
     }
 
+    /// <summary>
+    /// 课表「听力」节次触发（v2.27.0，规划 2.9）：遍历今天课表，凡科目名含「听力」的节次，
+    /// 在其**开始时刻**触发（TriggerMinutes &gt; 0 则提前 N 分钟开始播）。
+    /// ⚠ 走 _manager.GetTodayEntries → 天然含**调休映射**（周日补周五的课，那天听力照常触发；2026-09-21 修过的正是这个 case）。
+    /// ⚠ 例外日（英语周考全校广播那天）在**动作侧**由 ListeningService 判定跳过 —— 那更清楚"听力"这件事，
+    ///   触发引擎只负责"到点该做这件事了"。
+    /// </summary>
+    private void TryTriggerListeningPeriod(AutomationRule rule, DateTime now, string dayKey)
+    {
+        var entries = _manager.GetTodayEntries(now.Date);
+        if (entries.Count == 0) return;   // 今天没课 → 不触发
+
+        int lead = Math.Max(rule.TriggerMinutes, 0);
+        foreach (var entry in entries)
+        {
+            if (!Helpers.ListeningRules.IsListeningPeriod(entry)) continue;
+
+            var trigger = entry.GetStartDateTime(now.Date).AddMinutes(-lead);
+            // key 含节次与提前量：老师当天改提前量应能重新触发（与 FixedTime / 课表事件的 A6 修复同理）
+            string evKey = $"{dayKey}_listen{entry.Period}_{entry.StartTimeStr.Replace(":", "")}_{lead}";
+            if (RuleFired(rule, evKey)) continue;
+            if (!ReminderService.IsInTriggerWindow(now, trigger)) continue;
+            Fire(rule, evKey, entry.Subject);
+        }
+    }
+
     // ── 动作执行 ──────────────────────────────────────────────
 
     /// <summary>
@@ -398,6 +432,12 @@ public class AutomationService : IDisposable
 
                 case AutomationActionKind.CloseApp:
                     return CloseApp(rule);
+
+                case AutomationActionKind.PlayListening:
+                    // 规划 2.9：内置播放器播听力（整份播完延时自动关，并只在播完时推进进度）。
+                    // ⚠ 例外日（英语周考由全校广播播放）会被听力服务判定"跳过" —— 那种情况**也算执行成功**：
+                    //   它是老师配置好的预期行为、不是故障；否则每逢周考都会弹"没执行成功"的提示，像故障。
+                    return App.PlayListeningAutoGlobal(out _);
 
                 case AutomationActionKind.OpenWhiteboard:
                     // 打开白板板书（2026-09-15 新增）。开窗必须回 UI 线程 ——
