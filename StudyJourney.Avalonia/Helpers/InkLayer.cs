@@ -312,15 +312,6 @@ public static class InkGeometry
         return geo;
     }
 
-    /// <summary>把若干笔画合成一个 GeometryGroup（导出/整层重绘用）</summary>
-    public static GeometryGroup BuildGroup(IEnumerable<InkStroke> strokes, IInkSurface surface)
-    {
-        var g = new GeometryGroup();
-        foreach (var s in strokes)
-            g.Children.Add(BuildGeometry(s, surface));
-        return g;
-    }
-
     /// <summary>笔画应使用的画笔（荧光笔半透明 + 圆头圆角）</summary>
     public static Pen BuildPen(InkStroke stroke)
     {

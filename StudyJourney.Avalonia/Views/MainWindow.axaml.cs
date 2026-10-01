@@ -598,8 +598,12 @@ public partial class MainWindow : Window
 
     // ── 课件顺序胶囊（2026-09-23 用户要求）────────────────────
     // 显示"今天打开哪个文件 / 下一次该打开哪个"。数据来自 AutomationService.GetCoursewareStatus()。
-    // ⚠ 它会枚举课件目录（IO），不能跟着每秒的 UpdateScheduleInfo 跑 → 这里按 ~15 秒节流。
+    // ⚠ 它会枚举课件目录（IO），不能跟着每秒的 UpdateScheduleInfo 跑 → 按 5 秒节拍刷新
+    //   （见 UpdateScheduleInfo 开头的 `++_coursewareTick >= 5`；目录本身还有 10 秒候选缓存）。
     private int _coursewareTick;
+
+    /// <summary>「已上/未来科目」两个列表的 5 秒节拍（初值 5 = 首次调用就刷新）</summary>
+    private int _subjectListTick = 5;
 
     private void UpdateCoursewareCapsule()
     {
@@ -678,6 +682,12 @@ public partial class MainWindow : Window
         // 5 秒足够——文件打开是"分钟级"的事，晚几秒显示无所谓；每秒枚举目录则纯属浪费。
         if (++_coursewareTick >= 5) { _coursewareTick = 0; UpdateCoursewareCapsule(); UpdateListeningCapsule(); }
 
+        // 左右两侧的「已上/未来科目」同理：只在**跨过某节课的开始/结束时刻**才变，
+        // 原来却每秒 Where+OrderBy+Select+string.Join 重算一遍 → 压到 5 秒节拍。
+        // ⚠ 初值 5 让**首次调用立即刷新**（否则窗口刚出现那 5 秒两侧会是空白）。
+        bool refreshSubjects = ++_subjectListTick >= 5;
+        if (refreshSubjects) _subjectListTick = 0;
+
         var manager = App.Schedule;
         var today = manager.GetTodayEntries(now.Date);
         var cur = manager.GetCurrentEntry(now);
@@ -730,11 +740,15 @@ public partial class MainWindow : Window
             Topmost = compact ? App.Settings.CompactProgressTopmost : App.Settings.AlwaysOnTop;
 
         // 左：已上科目（跨天课用真实结束时刻，避免误归入"已上"）
-        var prevSubjects = today
-            .Where(e => e.GetEndDateTimeActual(now.Date) <= now)
-            .OrderBy(e => e.EndTime)
-            .Select(e => e.Subject);
-        PrevSubjectsTb.Text = string.Join("  ", prevSubjects);
+        // 右：未来科目 —— 两者只在课程边界变化，跟 5 秒节拍刷新（见方法开头的 refreshSubjects）
+        if (refreshSubjects)
+        {
+            var prevSubjects = today
+                .Where(e => e.GetEndDateTimeActual(now.Date) <= now)
+                .OrderBy(e => e.EndTime)
+                .Select(e => e.Subject);
+            PrevSubjectsTb.Text = string.Join("  ", prevSubjects);
+        }
 
         // 中：当前状态 + 倒计时
         if (cur != null)
@@ -756,12 +770,15 @@ public partial class MainWindow : Window
             StatusTb.Text = today.Count > 0 ? "今日课程已结束" : "今日无课";
         }
 
-        // 右：未来科目
-        var nextSubjects = today
-            .Where(e => e.GetStartDateTime(now.Date) > now)
-            .OrderBy(e => e.StartTime)
-            .Select(e => e.Subject);
-        NextSubjectsTb.Text = string.Join("  ", nextSubjects);
+        // 右：未来科目（跟 5 秒节拍，与左侧同时刷新）
+        if (refreshSubjects)
+        {
+            var nextSubjects = today
+                .Where(e => e.GetStartDateTime(now.Date) > now)
+                .OrderBy(e => e.StartTime)
+                .Select(e => e.Subject);
+            NextSubjectsTb.Text = string.Join("  ", nextSubjects);
+        }
 
         // 紧凑视图文字（上课进度）
         if (compact && cur != null)
@@ -957,18 +974,40 @@ public partial class MainWindow : Window
 
         var s = App.Settings;
         bool bar = s.CountdownProgressBarStyle;
-        var progressBrush = new SolidColorBrush(s.AccentColor);
 
-        // 环形：横向（文字左、环最右）；条形：纵向（文字上、进度条下）
-        GaokaoLayout.Orientation = bar
-            ? global::Avalonia.Layout.Orientation.Vertical
-            : global::Avalonia.Layout.Orientation.Horizontal;
-        GaokaoLayout.VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center;
-        // 百分比位置：环形=环中心，条形=文字与条之间
-        PlaceGaokaoPct(bar);
-
-        if (DateTime.TryParse(s.GaokaoDateStr, out var gao))
+        // 画笔：主题色没变就复用**同一个实例**。
+        // ⚠ 原来是每秒 new SolidColorBrush(AccentColor) → 新实例赋给 Arc.Stroke/Bar.Foreground 时，
+        //   属性比较判定"值变了"（引用不同）→ 每秒白白触发一次渲染失效（肉眼无感，但持续吃 CPU/GPU）。
+        if (_accentBrushCache == null || _accentBrushColor != s.AccentColor)
         {
+            _accentBrushColor = s.AccentColor;
+            _accentBrushCache = new SolidColorBrush(s.AccentColor);
+        }
+        var progressBrush = _accentBrushCache;
+
+        // 环形：横向（文字左、环最右）；条形：纵向（文字上、进度条下）。
+        // 只在"样式真的切换"时才写属性并搬百分比文本（PlaceGaokaoPct 幂等，但没必要每秒调）。
+        if (_countdownBarStyle != bar)
+        {
+            _countdownBarStyle = bar;
+            GaokaoLayout.Orientation = bar
+                ? global::Avalonia.Layout.Orientation.Vertical
+                : global::Avalonia.Layout.Orientation.Horizontal;
+            GaokaoLayout.VerticalAlignment = global::Avalonia.Layout.VerticalAlignment.Center;
+            // 百分比位置：环形=环中心，条形=文字与条之间
+            PlaceGaokaoPct(bar);
+        }
+
+        // 高考日期：字符串没改就复用上次解析结果（原来每秒 DateTime.TryParse 一次）
+        if (!string.Equals(_gaokaoParseSrc, s.GaokaoDateStr, StringComparison.Ordinal))
+        {
+            _gaokaoParseSrc = s.GaokaoDateStr;
+            _gaokaoParseOk = DateTime.TryParse(s.GaokaoDateStr, out _gaokaoParsed);
+        }
+
+        if (_gaokaoParseOk)
+        {
+            var gao = _gaokaoParsed;
             GaokaoTb.Text = FormatCountdownText("高考", gao, now);
             double progress = ComputeProgress(gao, s.StartDateStr, now);
             GaokaoRing.IsVisible = !bar && s.ShowProgressBar;
@@ -977,7 +1016,13 @@ public partial class MainWindow : Window
             GaokaoRingArc.SweepAngle = progress * 360;
             GaokaoRingArc.Stroke = progressBrush;
             GaokaoBar.Foreground = progressBrush;
-            GaokaoPctTb.Text = $"{progress * 100:F1}%";
+            // 百分比：文本真的变了才赋值（对高考倒计时来说，0.1% 的变化要几小时）
+            string pctText = $"{progress * 100:F1}%";
+            if (pctText != _gaokaoPctTextShown)
+            {
+                _gaokaoPctTextShown = pctText;
+                GaokaoPctTb.Text = pctText;
+            }
             GaokaoPctTb.IsVisible = s.ShowProgressText;
         }
         else
@@ -987,6 +1032,7 @@ public partial class MainWindow : Window
             GaokaoRing.IsVisible = false;
             GaokaoBar.IsVisible = false;
             GaokaoPctTb.IsVisible = false;
+            _gaokaoPctTextShown = null;   // 复位：日期恢复合法后一定要重写一次百分比文本
         }
 
         // 自定义倒计时（动态）
@@ -1057,6 +1103,21 @@ public partial class MainWindow : Window
 
     private readonly List<CustomRingView> _customRings = new();
     private string? _customRingSig;   // 数据+样式签名：不变则走增量刷新
+
+    // ── 倒计时热路径缓存（2026-10-01 性能优化）──────────────────
+    // 这些每秒都跑的刷新里，绝大多数输入（高考日期串、主题色、自定义倒计时列表）
+    // 几分钟甚至几小时才变一次，原来却每秒重算：
+    //   · new SolidColorBrush(AccentColor) → 新实例 ≠ 旧实例 → 每秒都判定"画笔变了"→ 触发重绘
+    //   · DateTime.TryParse(日期串) × (1 + 自定义倒计时数) → 每秒字符串解析
+    //   · 百分比文本 $"{x:F1}%" → 每秒格式化并赋值
+    // 下面按"输入变了才重算"缓存，结果与原来逐字节一致。
+    private SolidColorBrush? _accentBrushCache;
+    private Color _accentBrushColor;
+    private string? _gaokaoParseSrc;      // 上次解析用的原始字符串
+    private bool _gaokaoParseOk;          // 解析是否成功
+    private DateTime _gaokaoParsed;       // 解析结果（成功时有效）
+    private string? _gaokaoPctTextShown;   // 上次显示的百分比文本（字符串比较，保证与 F1 格式逐字一致）
+    private bool? _countdownBarStyle;     // 上次的"环形/条形"样式
 
     /// <summary>重建/刷新自定义倒计时胶囊（来自设置页「自定义倒计时」）。
     /// #20 修复：签名（数据+样式）不变时仅更新文本与进度值；force=true 强制重建（样式变化/设置刷新时）。</summary>

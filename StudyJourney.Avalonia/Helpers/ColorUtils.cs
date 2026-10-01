@@ -20,17 +20,6 @@ public static class ColorUtils
         }
     }
 
-    /// <summary>解析颜色，失败返回兜底</summary>
-    public static Color ParseColor(string hex, string fallbackHex)
-    {
-        try { return Color.Parse(hex); }
-        catch
-        {
-            try { return Color.Parse(fallbackHex); }
-            catch { return Colors.White; }
-        }
-    }
-
     /// <summary>天气图标代码 → 表情符号（与 WPF 版一致）</summary>
     public static string GetWeatherEmoji(string icon)
     {

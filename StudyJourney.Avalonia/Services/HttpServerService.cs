@@ -121,9 +121,6 @@ public static class HttpServerService
         ("下载", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads")),
     };
 
-    /// <summary>课表文件完整路径（GET/PUT /api/schedule 与主程序读写保持一致）</summary>
-    public static string GetScheduleFilePath() => ScheduleData.ScheduleFilePath;
-
     /// <summary>上传大小上限：500 MB</summary>
     private const long MaxUploadBytes = 500L * 1024 * 1024;
 

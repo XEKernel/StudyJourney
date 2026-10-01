@@ -110,13 +110,6 @@ public static class GlobalHotKeyManager
         return true;
     }
 
-    public static void Unregister(int id)
-    {
-        if (_hwnd == IntPtr.Zero) return;
-        UnregisterHotKey(_hwnd, id);
-        _actions.Remove(id);
-    }
-
     /// <summary>注销全部快捷键并销毁窗口（应用退出时调用）</summary>
     public static void UnregisterAll()
     {

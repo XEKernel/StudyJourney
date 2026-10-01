@@ -16,6 +16,35 @@ namespace StudyJourney.Avalonia.Models
 
         public ScheduleData Data => _data;
 
+        // ── 查询结果缓存（2026-10-01 性能优化）──────────────────────────
+        // 背景：主窗口每秒的刷新链会**反复**查询"今天的课"——
+        //   GetTodayEntries 被 GetCurrentEntry / GetNextEntry / GetTimeToEndOfCurrent /
+        //   GetCurrentProgress / UpdateClassProgress 各自再调一遍，一秒内约 10 次；
+        //   自动化引擎每条规则每 tick 也要查一次。
+        // 而每次查询都是 Entries.Where(按星期几) + OrderBy(开始时间) + ToList() 的**全表扫描 + 排序 + 分配**，
+        //   一天累计近百万次。实测这是空载 CPU 占用的主要来源之一。
+        //
+        // 做法：按"日期"缓存查询结果，配 200ms 短 TTL。
+        //   · 为什么不只靠 DataChanged 失效：课表编辑器会**直接改** Data.Entries（增删条目）
+        //     而不一定立刻发事件 → 只靠事件会读到过期数据。短 TTL 兜住这种情况（最多延迟 0.2 秒，
+        //     对"老师改课表"这种分钟级操作完全无感），事件触发时则立即清空（正常路径零延迟）。
+        //   · 锁保护：远程改课表（HTTP 后台线程 → Reload）与 UI 线程读缓存可能并发。
+        private readonly Dictionary<DateTime, (List<ScheduleEntry> Items, DateTime At)> _todayCache = new();
+        private readonly Dictionary<DateTime, (List<ExamEntry> Items, DateTime At)> _examCache = new();
+        private const int CacheTtlMs = 200;
+
+        /// <summary>清空查询缓存（数据变更时调用）</summary>
+        private void InvalidateCache()
+        {
+            lock (_cacheLock)
+            {
+                _todayCache.Clear();
+                _examCache.Clear();
+            }
+        }
+
+        private readonly object _cacheLock = new();
+
         public ScheduleManager()
         {
             _data = ScheduleData.Load();
@@ -24,12 +53,14 @@ namespace StudyJourney.Avalonia.Models
         public void Reload()
         {
             _data = ScheduleData.Load();
+            InvalidateCache();
             DataChanged?.Invoke();
         }
 
         public void Save()
         {
             _data.Save();
+            InvalidateCache();
             DataChanged?.Invoke();
         }
 
@@ -53,16 +84,31 @@ namespace StudyJourney.Avalonia.Models
             return _data.MakeupDays?.FirstOrDefault(x => x.DateStr == key);
         }
 
-        /// <summary>获取今天的课程列表（按上课时间排序）。调休日取"被补的那一天"的课表。</summary>
+        /// <summary>
+        /// 获取今天的课程列表（按上课时间排序）。调休日取"被补的那一天"的课表。
+        /// ⚠ 返回的是**内部缓存列表**：只读使用，调用方**不得修改**（2026-10-01 性能优化）。
+        /// </summary>
         public List<ScheduleEntry> GetTodayEntries(DateTime? date = null)
         {
-            var d = date ?? DateTime.Today;
-            int dow = GetEffectiveDayOfWeek(d);
+            var d = (date ?? DateTime.Today).Date;
 
-            return _data.Entries
-                .Where(e => e.DayOfWeek == dow)
-                .OrderBy(e => e.StartTime)
-                .ToList();
+            lock (_cacheLock)
+            {
+                if (_todayCache.TryGetValue(d, out var hit) &&
+                    (DateTime.UtcNow - hit.At).TotalMilliseconds < CacheTtlMs)
+                    return hit.Items;
+
+                int dow = GetEffectiveDayOfWeek(d);
+                var list = _data.Entries
+                    .Where(e => e.DayOfWeek == dow)
+                    .OrderBy(e => e.StartTime)
+                    .ToList();
+
+                // 跨天课凌晨会查"昨天"，正常只有 1~2 个键；留点余量防无界增长
+                if (_todayCache.Count > 4) _todayCache.Clear();
+                _todayCache[d] = (list, DateTime.UtcNow);
+                return list;
+            }
         }
 
         /// <summary>获取当前正在上的课（含提前2分钟预备铃），无则返回 null</summary>
@@ -147,14 +193,29 @@ namespace StudyJourney.Avalonia.Models
 
         // ── 考试查询 ──────────────────────────────────────────
 
-        /// <summary>获取今天的考试（可能有多场）</summary>
+        /// <summary>
+        /// 获取今天的考试（可能有多场）。
+        /// ⚠ 返回的是**内部缓存列表**：只读使用，调用方**不得修改**。
+        /// </summary>
         public List<ExamEntry> GetTodayExams(DateTime? date = null)
         {
             var d = (date ?? DateTime.Today).Date;
-            return _data.Exams
-                .Where(e => e.Date.Date == d)
-                .OrderBy(e => e.Date)
-                .ToList();
+
+            lock (_cacheLock)
+            {
+                if (_examCache.TryGetValue(d, out var hit) &&
+                    (DateTime.UtcNow - hit.At).TotalMilliseconds < CacheTtlMs)
+                    return hit.Items;
+
+                var list = _data.Exams
+                    .Where(e => e.Date.Date == d)
+                    .OrderBy(e => e.Date)
+                    .ToList();
+
+                if (_examCache.Count > 4) _examCache.Clear();
+                _examCache[d] = (list, DateTime.UtcNow);
+                return list;
+            }
         }
 
         /// <summary>获取当前正在考试的科目，无则 null</summary>
@@ -200,6 +261,7 @@ namespace StudyJourney.Avalonia.Models
                 data.Exams  ??= new System.Collections.ObjectModel.ObservableCollection<ExamEntry>();
                 _data = data;
                 _data.Save();
+                InvalidateCache();
                 DataChanged?.Invoke();
                 return (true, $"导入成功：{data.Entries.Count} 节课，{data.Exams.Count} 场考试");
             }

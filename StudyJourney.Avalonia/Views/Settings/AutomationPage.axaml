@@ -41,7 +41,7 @@
                 <StackPanel Spacing="8">
                     <Grid ColumnDefinitions="*,Auto">
                         <TextBlock Text="📋 我的规则" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                        <Button Grid.Column="1" x:Name="NewRuleBtn" Content="＋ 新建规则" Classes="accent"
+                        <Button Grid.Column="1" Content="＋ 新建规则" Classes="accent"
                                 Padding="14,6" Click="NewRuleBtn_Click"/>
                     </Grid>
                     <ListBox x:Name="RulesList" MinHeight="140" MaxHeight="200"

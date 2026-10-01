@@ -97,28 +97,6 @@ public static class WindowEnumerator
         return false;
     }
 
-    /// <summary>在已打开窗口里找出"标题命中了给定文件集合"的那一份（用于顺序记忆捕获老师手动打开的文件）</summary>
-    public static string? FindOpenFileFrom(IEnumerable<string> candidateFiles)
-    {
-        var candidates = candidateFiles.ToList();
-        if (candidates.Count == 0) return null;
-        var windows = TopLevelWindows();
-        if (windows.Count == 0) return null;
-
-        // 全部标题拼成一个大串，一次 Contains 即完成"窗口标题是否含某文件名"的判断：
-        // 原实现在候选文件 × 窗口数 上做线性扫描（O(n·m)），课件目录大 + 窗口多时开销明显。
-        var blob = BuildTitleBlob(windows);
-
-        foreach (var file in candidates)
-        {
-            var name = Path.GetFileName(file);
-            if (string.IsNullOrWhiteSpace(name)) continue;
-            if (blob.Contains(name, StringComparison.OrdinalIgnoreCase))
-                return file;
-        }
-        return null;
-    }
-
     /// <summary>把一批窗口标题拼成单个字符串（用 \n 分隔，避免跨标题误匹配），供批量 Contains 判定</summary>
     public static string BuildTitleBlob(IEnumerable<WindowInfo> windows)
     {

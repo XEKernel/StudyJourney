@@ -156,7 +156,7 @@
                                            FontSize="11" Foreground="#FFE08040" TextWrapping="Wrap"/>
                                 <StackPanel Orientation="Horizontal" Spacing="8">
                                     <ComboBox x:Name="ClearDayCombo" Width="110"/>
-                                    <Button x:Name="ClearDayBtn" Content="清空该天全部课程" Click="ClearDayBtn_Click" Padding="12,6"/>
+                                    <Button Content="清空该天全部课程" Click="ClearDayBtn_Click" Padding="12,6"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>

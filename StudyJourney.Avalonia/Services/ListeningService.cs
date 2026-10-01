@@ -196,7 +196,30 @@ public sealed class ListeningService
     {
         var src = ActiveSource;
         if (src == null) return null;
-        return ListeningRules.DescribeCapsule(src, ListeningRules.CandidatesOf(src), ShouldSkipToday(now.Date));
+        return ListeningRules.DescribeCapsule(src, CandidatesCached(src), ShouldSkipToday(now.Date));
+    }
+
+    // ── 候选文件短时缓存（2026-10-01 性能优化）────────────────────
+    // 主窗口按 5 秒节拍调 GetCapsuleStatus 来刷新胶囊，而取候选要**枚举音频目录**（IO）。
+    // 目录内容对"显示"来说是分钟级的事 → 10 秒缓存足够，省掉持续的目录扫描。
+    // ⚠ 只用于显示路径；真正的"该播哪一份"（NextStrict / CurrentToPlay）不经过这里，永远读最新目录。
+    private readonly Dictionary<string, (List<string> Items, DateTime At)> _candCache =
+        new(StringComparer.OrdinalIgnoreCase);
+    private const int CandsCacheSeconds = 10;
+
+    private List<string> CandidatesCached(ListeningSource src)
+    {
+        var dir = src.Directory ?? "";
+        if (string.IsNullOrWhiteSpace(dir)) return new List<string>();
+
+        if (_candCache.TryGetValue(dir, out var hit) &&
+            (DateTime.Now - hit.At).TotalSeconds < CandsCacheSeconds)
+            return hit.Items;
+
+        var list = ListeningRules.CandidatesOf(src);
+        if (_candCache.Count > 8) _candCache.Clear();
+        _candCache[dir] = (list, DateTime.Now);
+        return list;
     }
 
     /// <summary>播放记录（进当天活动记录，与课件打开同一套 jsonl）；失败绝不影响播放</summary>

@@ -115,7 +115,7 @@
                     </ScrollViewer>
                     <TextBlock x:Name="CountdownEmptyTb" Text="（还没有自定义倒计时）" FontSize="12"
                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                    <Button x:Name="AddCountdownBtn" Content="＋ 添加" Click="AddCountdownBtn_Click"
+                    <Button Content="＋ 添加" Click="AddCountdownBtn_Click"
                             HorizontalAlignment="Left" Margin="0,8,0,0"/>
                 </StackPanel>
             </Border>

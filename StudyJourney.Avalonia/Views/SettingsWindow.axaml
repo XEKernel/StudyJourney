@@ -21,7 +21,6 @@
                    Margin="24,16,0,8"/>
 
         <ui:FANavigationView Grid.Row="1"
-                             x:Name="NavView"
                              PaneDisplayMode="Left"
                              OpenPaneLength="220"
                              IsSettingsVisible="False"

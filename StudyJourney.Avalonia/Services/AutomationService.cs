@@ -573,7 +573,9 @@ public class AutomationService : IDisposable
                 string opened = string.IsNullOrWhiteSpace(ptr) ? "" : Path.GetFileName(ptr);
                 string openedFull = ptr;
 
-                var candidates = Helpers.FileSequence.ListCandidates(ResolveDirectory(rule, cur.Subject));
+                // ⚠ 走 GetCachedCandidates（与 CaptureManualOpens 共用 10 秒缓存）：
+                //   本方法由主窗口按 5 秒节拍调用，原来每次都真枚举课件目录 → 目录大时是持续的 IO 浪费。
+                var candidates = GetCachedCandidates(ResolveDirectory(rule, cur.Subject));
                 string next = "", nextFull = "";
                 if (candidates.Count > 0)
                 {

@@ -283,9 +283,6 @@ namespace StudyJourney.Avalonia.Models
                 }
             }
 
-            /// <summary>课表文件完整路径（软件目录 schedule.json，随软件文件夹分发；HTTP 远程管理共用）</summary>
-            public static string ScheduleFilePath => _schedulePath;
-
             /// <summary>按 星期→节次 排序（DataGrid 展示用）。
             /// ⚠ 必须**原地排序**：Entries 列表引用被 EntryGrid.ItemsSource / 周视图等外部持有，
             /// 早期实现用 `Entries = OrderBy(...).ToList()` 替换引用 → 排序后 DataGrid 与模型脱钩

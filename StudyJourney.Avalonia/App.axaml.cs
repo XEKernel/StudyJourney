@@ -1974,6 +1974,25 @@ public partial class App : Application
                       lback.SkipDates.Count == 1 && lback.AutoCloseSeconds == 5 && lback.Volume == 70,
                     "listening.json 经 AppJsonContext 往返无损（来源/指针/例外日/音量都在）");
 
+                // ══ 课表查询缓存（2026-10-01 性能优化）════════════════════════
+                // 背景：主窗口每秒的刷新链会**反复**查"今天的课"（GetTodayEntries 一秒约 10 次，
+                // 每次都是 Where+OrderBy+ToList），故加了 200ms TTL + 变更即失效的缓存。
+                // 这里钉住三条不变量，防止以后有人改缓存时把"改了课表却要等一会儿才生效"放进来。
+                var smCache = new Models.ScheduleManager();   // 只读：Load 不写盘
+                var q1 = smCache.GetTodayEntries(new DateTime(2026, 10, 1));
+                var q2 = smCache.GetTodayEntries(new DateTime(2026, 10, 1));
+                Check(ReferenceEquals(q1, q2),
+                    "课表缓存：同一天连续两次查询返回同一实例（真的命中了，省掉重复扫描+排序）");
+                var q3 = smCache.GetTodayEntries(new DateTime(2026, 10, 2));
+                Check(!ReferenceEquals(q1, q3), "课表缓存：不同日期各自缓存（不互相串味）");
+                smCache.Reload();
+                var q4 = smCache.GetTodayEntries(new DateTime(2026, 10, 1));
+                Check(!ReferenceEquals(q1, q4),
+                    "课表缓存：Reload 后立即失效重建（远程改课表/编辑器保存能立刻生效）");
+                var e1 = smCache.GetTodayExams(new DateTime(2026, 10, 1));
+                var e2 = smCache.GetTodayExams(new DateTime(2026, 10, 1));
+                Check(ReferenceEquals(e1, e2), "考试查询缓存：同一天两次返回同一实例");
+
                 // ⑥ 窗口与设置页实例化（代码式窗口没有 XAML，但可视树建错同样只在打开时炸）
                 var lw = new Views.ListeningPlayerWindow();
                 Check(lw.Title == "听力播放", "听力播放器窗口可实例化（可视树建起来没抛异常）");

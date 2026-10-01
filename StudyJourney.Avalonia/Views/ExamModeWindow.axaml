@@ -72,7 +72,7 @@
         </StackPanel>
 
         <!-- 底部退出按钮 -->
-        <Button Grid.Row="6" x:Name="ExitBtn" Content="退出考试模式"
+        <Button Grid.Row="6" Content="退出考试模式"
                 HorizontalAlignment="Center" VerticalAlignment="Bottom"
                 Margin="0,0,0,24" Padding="32,10" FontSize="15"
                 Click="ExitBtn_Click"/>

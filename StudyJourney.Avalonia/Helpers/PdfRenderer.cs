@@ -128,10 +128,6 @@ public sealed class PdfRenderer : IDisposable
         }
     }
 
-    /// <summary>把 PDF 点尺寸换算成给定缩放下的 DIP 尺寸</summary>
-    public static Size PtToDipSize(Size pt, double zoom)
-        => new(pt.Width * PtToDip * zoom, pt.Height * PtToDip * zoom);
-
     public void Dispose()
     {
         if (_disposed) return;
