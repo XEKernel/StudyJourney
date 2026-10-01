@@ -1925,6 +1925,33 @@ public partial class App : Application
 
                     var (li, lt) = Helpers.ListeningRules.PositionOf(lf2, lcands);
                     Check(li == 2 && lt == 3, $"进度显示「第 2/3 份」（实际 {li}/{lt}）");
+
+                    // ⑧ 胶囊栏文案（v2.28.0，规划 2.9 第 2 步）——纯函数，把"该播哪一份 + 例外日"变成一行话
+                    lsrc.Name = "资料A"; lsrc.LastFile = ""; lsrc.Finished = false;
+                    var lcap0 = Helpers.ListeningRules.DescribeCapsule(lsrc, lcands, false);
+                    Check(lcap0?.Line == "待播 第 1/3 份" && lcap0?.Short == "1/3" && lcap0?.SkipToday == false,
+                        $"没播过 → 「待播 第 1/3 份」（实际 {lcap0?.Line}）");
+
+                    lsrc.LastFile = lf2; lsrc.Finished = false;
+                    var lcap1 = Helpers.ListeningRules.DescribeCapsule(lsrc, lcands, false);
+                    Check(lcap1?.Line == "续听 第 2/3 份", $"听了一半 → 「续听 第 2/3 份」（实际 {lcap1?.Line}）");
+
+                    lsrc.Finished = true;
+                    var lcap2 = Helpers.ListeningRules.DescribeCapsule(lsrc, lcands, false);
+                    Check(lcap2?.Line == "下次 第 3/3 份", $"整份播完 → 「下次 第 3/3 份」（实际 {lcap2?.Line}）");
+
+                    lsrc.LastFile = lf3;
+                    var lcap3 = Helpers.ListeningRules.DescribeCapsule(lsrc, lcands, false);
+                    Check(lcap3?.Line == "已听完（共 3 份）" && lcap3?.Short == "听完",
+                        $"最后一份播完 → 「已听完（共 3 份）」（实际 {lcap3?.Line}）");
+
+                    var lcap4 = Helpers.ListeningRules.DescribeCapsule(lsrc, lcands, true);
+                    Check(lcap4?.Line == "今天例外（广播放），跳过" && lcap4?.Short == "跳过" && lcap4?.SkipToday == true,
+                        $"★ 例外日优先于进度显示「跳过」（实际 {lcap4?.Line}）—— 让老师一眼看出今天不播不是软件坏了");
+
+                    Check(Helpers.ListeningRules.DescribeCapsule(lsrc, new List<string>(), false) == null &&
+                          Helpers.ListeningRules.DescribeCapsule(null, lcands, false) == null,
+                        "没有候选 / 没有来源 → 胶囊整个不显示（返回 null）");
                 }
                 finally
                 {

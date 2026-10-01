@@ -5,6 +5,7 @@ using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;              // DragDrop / DragEventArgs（拖放，v2.28.0）
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;   // ⚠ 必须用 using：本文件在 StudyJourney.Avalonia.Views 里，
@@ -57,7 +58,7 @@ public sealed class ListeningPlayerWindow : Window
 
         var src = svc.ActiveSource;
         ShowOrActivate();
-        _instance?.StartTrack(file, src?.Id ?? "");
+        _instance?.StartTrack(file, src?.Id ?? "", auto: true);
         return true;
     }
 
@@ -105,6 +106,7 @@ public sealed class ListeningPlayerWindow : Window
     private string _sourceId = "";
     private int _closeLeft;
     private bool _autoCloseArmed;
+    private bool _autoPlay;               // 本次是否由自动化触发（只用于活动记录里标 auto/manual）
 
     /// <summary>internal 供自检实例化（校验整棵可视树能建起来）——对外仍只走上面的单例入口</summary>
     internal ListeningPlayerWindow()
@@ -119,6 +121,14 @@ public sealed class ListeningPlayerWindow : Window
         Background = new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x22));
 
         Content = BuildUi();
+
+        // 拖放：老师把录音文件/文件夹直接拖进来（v2.28.0，规划 2.9 第 2 步；
+        //      对应 "会放在一个临时文件夹，或者直接把文件扔在桌面" 的用法）
+        DragDrop.SetAllowDrop(this, true);
+        // ⚠ Avalonia 12 的 API 与 11 不同：没有 DragEventArgs.Data（改叫 DataTransfer，
+        //   文件走 DataTransfer.TryGetFiles()），事件也不再是 AddHandler(DragDrop.XxxEvent) 而是 AddXxxHandler。
+        DragDrop.AddDragOverHandler(this, OnDragOver);
+        DragDrop.AddDropHandler(this, OnDrop);
 
         _player.Finished += OnTrackFinished;
 
@@ -148,13 +158,21 @@ public sealed class ListeningPlayerWindow : Window
             Text = "来源", FontSize = 12, VerticalAlignment = VerticalAlignment.Center,
         });
         srcRow.Children.Add(_sourceCombo);
+        root.Children.Add(srcRow);
+
+        // 手动播放入口。v2.28.0 加「桌面录音…」——老师习惯把临时录音直接扔桌面。
+        var actRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         var openBtn = new Button { Content = "播放文件…", FontSize = 12 };
         openBtn.Click += (_, _) => _ = PickFileAsync();
-        srcRow.Children.Add(openBtn);
+        actRow.Children.Add(openBtn);
         var openDirBtn = new Button { Content = "播放文件夹…", FontSize = 12 };
         openDirBtn.Click += (_, _) => _ = PickFolderAsync();
-        srcRow.Children.Add(openDirBtn);
-        root.Children.Add(srcRow);
+        actRow.Children.Add(openDirBtn);
+        var desktopBtn = new Button { Content = "桌面录音…", FontSize = 12 };
+        desktopBtn.Click += (_, _) => OpenTempFolder(
+            Environment.GetFolderPath(Environment.SpecialFolder.Desktop));
+        actRow.Children.Add(desktopBtn);
+        root.Children.Add(actRow);
 
         root.Children.Add(_titleTb);
         root.Children.Add(_progressTb);
@@ -206,7 +224,8 @@ public sealed class ListeningPlayerWindow : Window
 
         var hint = new TextBlock
         {
-            Text = "播完会自动关闭（秒数在「设置 → 课表 → 听力播放器」里改）。听一半关掉不会记成「听过」，下次会续播这一份。",
+            Text = "播完会自动关闭（秒数在「设置 → 课表 → 听力播放器」里改）。听一半关掉不会记成「听过」，下次会续播这一份。"
+                 + "也可以把录音文件或文件夹直接拖进本窗口。",
             FontSize = 11,
             Foreground = new SolidColorBrush(Color.FromArgb(0x90, 0xFF, 0xFF, 0xFF)),
             TextWrapping = TextWrapping.Wrap,
@@ -278,11 +297,12 @@ public sealed class ListeningPlayerWindow : Window
     // ── 播放控制 ────────────────────────────────────────────
 
     /// <summary>开始播一份（会把它记为"正在播"，但**不**算听过）</summary>
-    private void StartTrack(string path, string sourceId)
+    private void StartTrack(string path, string sourceId, bool auto = false)
     {
         if (string.IsNullOrWhiteSpace(path)) return;
         try
         {
+            _autoPlay = auto;
             _player.Load(path);
             _player.Volume = (float)(Math.Clamp(App.Listening?.Data.Volume ?? 80, 0, 100) / 100.0);
             _autoCloseArmed = false;
@@ -411,6 +431,7 @@ public sealed class ListeningPlayerWindow : Window
             if (svc != null && !string.IsNullOrEmpty(path) && !string.IsNullOrEmpty(_sourceId))
             {
                 svc.MarkFinished(_sourceId, path);            // 到这里才推进进度（下次播下一份）
+                svc.RecordPlay(path, _autoPlay);              // 活动记录（与课件打开同一套 jsonl）
 
                 var src = svc.FindSource(_sourceId);
                 if (src != null && ListeningRules.IsAtEnd(src, ListeningRules.CandidatesOf(src)))
@@ -491,17 +512,95 @@ public sealed class ListeningPlayerWindow : Window
             });
             var dir = dirs?.FirstOrDefault()?.TryGetLocalPath();
             if (string.IsNullOrEmpty(dir)) return;
+            OpenTempFolder(dir!);
+        }
+        catch (Exception ex) { AppLogger.Error("听力：选文件夹失败", ex); }
+    }
 
-            // 临时来源：老师随手指的文件夹（含桌面）→ 播完自动回退到常规来源
-            var svc = App.Listening;
-            if (svc == null) return;
-            var src = svc.AddSource(Path.GetFileName(dir.TrimEnd('\\', '/')), dir, once: true);
+    // ── 拖放 / 临时文件夹（v2.28.0，规划 2.9 第 2 步）────────────
+
+    /// <summary>
+    /// 把任意文件夹当**临时来源**播放：「桌面录音…」/ 拖进来的文件夹 / 「播放文件夹…」三处共用。
+    /// 同一路径的临时来源**复用**，免得老师点几次就堆一长串重复来源。
+    /// </summary>
+    internal void OpenTempFolder(string dir)
+    {
+        if (string.IsNullOrWhiteSpace(dir)) return;
+        var svc = App.Listening;
+        if (svc == null) return;
+        try
+        {
+            var exist = svc.Sources.FirstOrDefault(s => string.Equals(
+                (s.Directory ?? "").TrimEnd('\\', '/'), dir.TrimEnd('\\', '/'), StringComparison.OrdinalIgnoreCase));
+            var src = exist ?? svc.AddSource(Path.GetFileName(dir.TrimEnd('\\', '/')), dir, once: true);
+
             LoadSourcesIntoCombo();
             var cands = ListeningRules.CandidatesOf(src);
             var file = ListeningRules.CurrentToPlay(src, cands);
-            if (file == null) { _statusTb.Text = "这个文件夹里没有音频文件"; return; }
+            if (file == null)
+            {
+                _statusTb.Text = "这个文件夹里没有音频文件";
+                return;
+            }
             StartTrack(file, src.Id);
         }
-        catch (Exception ex) { AppLogger.Error("听力：选文件夹失败", ex); }
+        catch (Exception ex)
+        {
+            AppLogger.Error($"听力：打开临时文件夹失败 {dir}", ex);
+            _statusTb.Text = "打不开这个文件夹：" + ex.Message;
+        }
+    }
+
+    /// <summary>拖进来的东西：文件夹按临时来源、音频文件直接播（只认第一个能用的）</summary>
+    private void HandleDroppedItems(IEnumerable<string> paths)
+    {
+        var list = paths.ToList();
+        foreach (var p in list)
+        {
+            try
+            {
+                if (Directory.Exists(p)) { OpenTempFolder(p); return; }
+                if (File.Exists(p) && ListeningRules.IsAudioFile(p)) { PlayFile(p, _sourceId); return; }
+            }
+            catch { }
+        }
+        _statusTb.Text = list.Count == 0
+            ? "只认得音频文件或装有录音的文件夹"
+            : "拖进来的东西里没有可播的音频";
+    }
+
+    private void OnDragOver(object? sender, DragEventArgs e)
+        => e.DragEffects = HasPlayableDrop(e) ? DragDropEffects.Copy : DragDropEffects.None;
+
+    private void OnDrop(object? sender, DragEventArgs e)
+        => HandleDroppedItems(DroppedPaths(e));
+
+    /// <summary>从拖放数据里取本地路径（Avalonia 12：拖进来的文件是 IStorageItem，要转本地路径）</summary>
+    private static List<string> DroppedPaths(DragEventArgs e)
+    {
+        var list = new List<string>();
+        try
+        {
+            var items = e.DataTransfer.TryGetFiles();
+            if (items == null) return list;
+            foreach (var it in items)
+            {
+                var p = it.TryGetLocalPath();
+                if (!string.IsNullOrEmpty(p)) list.Add(p!);
+            }
+        }
+        catch (Exception ex) { AppLogger.Warn("听力：读取拖入内容失败: " + ex.Message); }
+        return list;
+    }
+
+    /// <summary>拖到窗口上时给不给"可放下"的视觉反馈（文件夹或音频才算）</summary>
+    private static bool HasPlayableDrop(DragEventArgs e)
+    {
+        foreach (var p in DroppedPaths(e))
+        {
+            if (Directory.Exists(p)) return true;
+            if (ListeningRules.IsAudioFile(p)) return true;
+        }
+        return false;
     }
 }

@@ -141,6 +141,25 @@
                             </StackPanel>
                         </StackPanel>
                     </Border>
+
+                    <!-- ══ 听力进度胶囊（v2.28.0，规划 2.9 第 2 步）══
+                         显示当前听力来源与进度（"资料A · 下次 第 4/12 份"）；
+                         今天为例外日（如英语周考由全校广播播放）时显示"跳过"。
+                         点击打开播放器。 -->
+                    <Border x:Name="ListeningCapsule" CornerRadius="12" Padding="10,6" IsVisible="False"
+                            Cursor="Hand" PointerPressed="ListeningCapsule_PointerPressed">
+                        <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                            <TextBlock Text="🎧" FontSize="13" VerticalAlignment="Center"/>
+                            <StackPanel VerticalAlignment="Center" Spacing="1">
+                                <TextBlock x:Name="ListeningSourceTb" Text="" FontSize="12" FontWeight="SemiBold"
+                                           Foreground="#FFFFFFFF" MaxWidth="200"
+                                           TextTrimming="CharacterEllipsis"/>
+                                <TextBlock x:Name="ListeningProgressTb" Text="" FontSize="10"
+                                           Foreground="#AAFFFFFF" MaxWidth="200"
+                                           TextTrimming="CharacterEllipsis"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
 
                 <!-- ══ 每日一言 ══ -->
@@ -171,6 +190,14 @@
                            Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
                 <ProgressBar x:Name="CompactProgressBar" Width="80" Height="3" Minimum="0" Maximum="100"
                              Foreground="#4DD0E1" Background="#22FFFFFF"/>
+
+                <!-- 听力进度（v2.28.0）：上课（紧凑视图）时只挂一个"🎧 3/12"的小胶囊 -->
+                <Border x:Name="ListeningMiniCapsule" CornerRadius="10" Background="#26FFFFFF"
+                        Padding="7,3" IsVisible="False" VerticalAlignment="Center"
+                        Cursor="Hand" PointerPressed="ListeningCapsule_PointerPressed">
+                    <TextBlock x:Name="ListeningMiniTb" Text="🎧" FontSize="11" FontWeight="SemiBold"
+                               Foreground="#FFFFFFFF" VerticalAlignment="Center"/>
+                </Border>
 
                 <!-- 上课中遇到自动更新：在进度条胶囊里再挂一个更小的胶囊显示更新进度（v2.13.3） -->
                 <Border x:Name="UpdateMiniCapsule" CornerRadius="10" Background="#26FFFFFF"

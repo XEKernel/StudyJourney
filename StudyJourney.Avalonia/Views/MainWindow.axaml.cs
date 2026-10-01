@@ -634,12 +634,49 @@ public partial class MainWindow : Window
         catch { CoursewareCapsule.IsVisible = false; }
     }
 
+    // ── 听力进度胶囊（v2.28.0，规划 2.9 第 2 步）────────────────
+    // 与课件胶囊共用同一个 5 秒节拍：取状态要枚举来源目录（IO），不能跟着每秒的 UpdateScheduleInfo 跑。
+    // 完整视图显示"🎧 资料A / 下次 第4/12份"；上课（紧凑视图）只显示"🎧 4/12"。
+    private void UpdateListeningCapsule()
+    {
+        try
+        {
+            var st = App.Listening?.GetCapsuleStatus(DateTime.Now);
+            if (st == null)
+            {
+                ListeningCapsule.IsVisible = false;
+                ListeningMiniCapsule.IsVisible = false;
+                return;
+            }
+
+            var (source, line, shortText, skip) = st.Value;
+
+            ListeningSourceTb.Text = (skip ? "⚠ " : "") + source;
+            ListeningProgressTb.Text = line;
+            ListeningCapsule.IsVisible = true;
+            ToolTip.SetTip(ListeningCapsule, $"听力来源：{source}\n{line}\n（点击打开播放器）");
+
+            ListeningMiniTb.Text = "🎧 " + shortText;
+            ListeningMiniCapsule.IsVisible = true;
+            ToolTip.SetTip(ListeningMiniCapsule, $"听力：{source} · {line}");
+        }
+        catch
+        {
+            ListeningCapsule.IsVisible = false;
+            ListeningMiniCapsule.IsVisible = false;
+        }
+    }
+
+    /// <summary>点击听力胶囊 → 打开播放器（与右键菜单/托盘/快捷键同一入口）</summary>
+    private void ListeningCapsule_PointerPressed(object? sender, PointerPressedEventArgs e)
+        => App.OpenListeningPlayerGlobal();
+
     /// <summary>模块二：课程栏（已上科目 | 当前状态 | 未来科目）；上课可收起为紧凑视图</summary>
     private void UpdateScheduleInfo(DateTime now)
     {
         // 课件顺序胶囊：本方法每秒跑一次，而取状态要枚举课件目录（IO）→ 每 5 秒才真的刷新一次。
         // 5 秒足够——文件打开是"分钟级"的事，晚几秒显示无所谓；每秒枚举目录则纯属浪费。
-        if (++_coursewareTick >= 5) { _coursewareTick = 0; UpdateCoursewareCapsule(); }
+        if (++_coursewareTick >= 5) { _coursewareTick = 0; UpdateCoursewareCapsule(); UpdateListeningCapsule(); }
 
         var manager = App.Schedule;
         var today = manager.GetTodayEntries(now.Date);

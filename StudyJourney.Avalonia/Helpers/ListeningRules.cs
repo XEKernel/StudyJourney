@@ -159,4 +159,29 @@ public static class ListeningRules
         if (total == 0) return "（目录里没有音频）";
         return idx > 0 ? $"第 {idx}/{total} 份" : $"共 {total} 份";
     }
+
+    /// <summary>
+    /// 主窗口胶囊栏的文案（**纯函数**，v2.28.0）——把"这次该播哪一份 + 今天是否例外日"变成一行话。
+    /// 没有任何可播内容（无来源 / 目录里没音频）→ 返回 null，胶囊整个不显示。
+    /// </summary>
+    /// <returns>(来源名, 完整一行, 紧凑视图用的短串, 今天是否例外日跳过)</returns>
+    public static (string Source, string Line, string Short, bool SkipToday)? DescribeCapsule(
+        Models.ListeningSource? source, IReadOnlyList<string> candidates, bool skipToday)
+    {
+        if (source == null || candidates == null || candidates.Count == 0) return null;
+
+        // 例外日（英语周考全校广播那天）要**明说"跳过"**，否则老师会以为软件坏了
+        if (skipToday)
+            return (source.Name, "今天例外（广播放），跳过", "跳过", true);
+
+        var toPlay = CurrentToPlay(source, candidates);
+        if (toPlay == null)                     // 这套已播到最后一份
+            return (source.Name, $"已听完（共 {candidates.Count} 份）", "听完", false);
+
+        var (idx, total) = PositionOf(toPlay, candidates);
+        // 三种状态必须分开：从没播过 / 上次听了一半（续听同一份）/ 上次播完（下一份）
+        string verb = string.IsNullOrWhiteSpace(source.LastFile) ? "待播"
+                    : source.Finished ? "下次" : "续听";
+        return (source.Name, $"{verb} 第 {idx}/{total} 份", $"{idx}/{total}", false);
+    }
 }

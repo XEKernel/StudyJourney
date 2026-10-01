@@ -185,6 +185,30 @@ public sealed class ListeningService
         return true;
     }
 
+    // ── 胶囊栏摘要 / 播放记录（v2.28.0，规划 2.9 第 2 步）─────────
+
+    /// <summary>
+    /// 主窗口胶囊栏用的一句话摘要。
+    /// 没有任何可播内容（未配置来源 / 目录不存在 / 目录里没音频）→ 返回 null，胶囊不显示。
+    /// </summary>
+    /// <returns>(来源名, 完整一行, 紧凑视图用的短串, 今天是否例外日跳过)</returns>
+    public (string Source, string Line, string Short, bool SkipToday)? GetCapsuleStatus(DateTime now)
+    {
+        var src = ActiveSource;
+        if (src == null) return null;
+        return ListeningRules.DescribeCapsule(src, ListeningRules.CandidatesOf(src), ShouldSkipToday(now.Date));
+    }
+
+    /// <summary>播放记录（进当天活动记录，与课件打开同一套 jsonl）；失败绝不影响播放</summary>
+    public void RecordPlay(string path, bool auto)
+    {
+        try
+        {
+            Services.ActivityRecorder.RecordOpen(auto ? "auto" : "manual", path, "听力", ActiveSource?.Name ?? "");
+        }
+        catch { }
+    }
+
     // ── 进度指针 ────────────────────────────────────────────
 
     /// <summary>刚要开播这一份：LastFile = 它，**Finished = false**（还没听完）。</summary>
