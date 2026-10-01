@@ -23,6 +23,12 @@ public class UpdateInfo
 
     /// <summary>本次用的安装形态（决定挑的包，也用于设置页显示）</summary>
     public InstallForm Form { get; set; }
+
+    /// <summary>
+    /// 非空 = 本次**实际要装的是这个"门槛版本"**（不是 <see cref="LatestVersion"/>）；
+    /// 装好之后由它去升到最新版。用于界面如实说明"先 x，再 y"。
+    /// </summary>
+    public string WaypointVersion { get; set; } = "";
 }
 
 /// <summary>
@@ -169,9 +175,9 @@ public static class UpdateService
                 if (!string.IsNullOrWhiteSpace(info)) return info.Trim();
             }
             var ver = asm.GetName().Version;
-            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "3.0.1";
+            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "3.0.2";
         }
-        catch { return "3.0.1"; }
+        catch { return "3.0.2"; }
     });
 
     public static string CurrentVersion => _currentVersion.Value;
@@ -303,12 +309,63 @@ public static class UpdateService
 
     // ── 检查更新 ─────────────────────────────────────────────
 
-    /// <summary>检查 GitHub Release 最新版本，自动匹配自包含/框架依赖的下载链接</summary>
+    /// <summary>
+    /// 检查 GitHub Release 最新版本 → 按形态挑包；必要时改走"必经门槛版本"。
+    /// </summary>
     public static async Task<UpdateInfo> CheckAsync(string owner, string repo, CancellationToken ct = default)
     {
-        string direct = $"https://api.github.com/repos/{owner}/{repo}/releases/latest";
+        var info = await FetchReleaseAsync(
+            $"https://api.github.com/repos/{owner}/{repo}/releases/latest", ct);
+        if (info == null || !info.HasUpdate) return info ?? new UpdateInfo { HasUpdate = false };
 
-        foreach (var url in BuildCandidates(direct))
+        // ★ 必经门槛（2026-10-01 用户要求）：老版本**必须先升到门槛版本**，再由它升到更高版本。
+        //
+        //   为什么不让老版本直接升最新：门槛版本承载了**更新线路本身的修复**（形态判定 / 装错包保险 /
+        //   过渡安排）。比它更老的程序跑的是旧代码（本地改不了）—— 放它们直达最新，等于让**旧代码
+        //   自己决定装什么**（v3.0.0 就会挑到需要装 .NET 的包 → 更新完打不开）。先落到门槛版本，
+        //   之后由门槛版本的新代码去挑最新版，整条路就一定是通的。
+        //
+        //   ⚠ 客户端这一端只能管住"跑本版及以后代码"的机器（例如被手动装回旧版的情况）。
+        //     管住真正老机器的是 CI 那一端：把 `-fd.zip` 资产固定成门槛版本的构建 ——
+        //     会去下 `-fd.zip` 的正是 v3.0.0 的 AOT 机器与框架依赖机器。两端合起来才完整。
+        if (NeedsWaypoint(CurrentVersion, info.LatestVersion, UpgradeWaypointVersion))
+        {
+            var wp = await FetchReleaseAsync(
+                $"https://api.github.com/repos/{owner}/{repo}/releases/tags/v{UpgradeWaypointVersion}", ct);
+
+            if (wp != null && wp.DownloadUrl.Length > 0)
+            {
+                string target = info.LatestVersion;   // 真·最新版本（门槛版本之上）
+                wp.LatestVersion = target;            // 界面要能显示"先门槛、再最新"
+                wp.WaypointVersion = UpgradeWaypointVersion;
+                AppLogger.Info($"[UpdateService] 当前 {CurrentVersion} 必须先经过门槛版本 " +
+                               $"v{UpgradeWaypointVersion}（其后再升到 v{target}）");
+                return wp;
+            }
+
+            // 取不到门槛版本 → **不放行"直达最新"**（那正是要避免的路径）：本次视为无更新，下轮再试
+            AppLogger.Warn($"[UpdateService] 取门槛版本 v{UpgradeWaypointVersion} 失败 → 本次不更新" +
+                           "（老版本不允许跳过门槛版本直达最新）");
+            return new UpdateInfo { HasUpdate = false };
+        }
+
+        return info;
+    }
+
+    /// <summary>
+    /// 本次是否**必须经过门槛版本**（**纯函数**，供自检覆盖）。
+    /// 条件：设了门槛 且 当前版本 &lt; 门槛 且 最新版本 &gt; 门槛。
+    /// （当前已等于/高于门槛 → 正常直达最新；最新就是门槛本身 → 也是一次正常更新。）
+    /// </summary>
+    internal static bool NeedsWaypoint(string current, string latest, string waypoint)
+        => waypoint.Length > 0
+           && CompareVersions(current, waypoint) < 0
+           && CompareVersions(latest, waypoint) > 0;
+
+    /// <summary>拉取并解析某个 Release（全部候选通道都失败才算失败 → 返回 null）</summary>
+    private static async Task<UpdateInfo?> FetchReleaseAsync(string directUrl, CancellationToken ct)
+    {
+        foreach (var url in BuildCandidates(directUrl))
         {
             try
             {
@@ -320,9 +377,7 @@ public static class UpdateService
                 AppLogger.Warn($"[UpdateService] 检查更新失败（{Describe(url)}）: {ex.Message}");
             }
         }
-
-        // 全部候选都失败：静默视为无更新，不打扰用户
-        return new UpdateInfo { HasUpdate = false };
+        return null;
     }
 
     /// <summary>解析 Release JSON（internal 供自检用合成数据验证资产匹配）</summary>
@@ -396,6 +451,17 @@ public static class UpdateService
 
     /// <summary>框架依赖形态对应的资产名后缀（CI 规范命名）</summary>
     private const string FrameworkDependentAssetSuffix = "-win-x64-fd.zip";
+
+    /// <summary>
+    /// **必经门槛版本**（2026-10-01 用户要求）：比它更老的程序必须先升到它，再由它升到更高版本。
+    /// 空串 = 关闭这条规则。
+    ///
+    /// ⚠ 它与 CI 里的 `env.UPGRADE_WAYPOINT` 是**同一件事的两端，改一边必须同步另一边**：
+    ///   · 客户端这一端（本常量）：只对"跑本版及以后代码"的机器生效（含被手动装回旧版的机器）；
+    ///   · CI 那一端：把 `-fd.zip` 资产固定成**门槛版本的构建** —— 这才是管得住真正老机器的机制，
+    ///     因为会去下 `-fd.zip` 的正是 v3.0.0 的 AOT 机器（旧判定代码）与框架依赖机器。
+    /// </summary>
+    public const string UpgradeWaypointVersion = "3.0.1";
 
     // ── 下载 ─────────────────────────────────────────────────
 

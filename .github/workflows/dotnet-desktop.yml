@@ -37,6 +37,22 @@ jobs:
       # 把这里改成 false 即恢复为真正的框架依赖包。
       FD_ASSET_IS_AOT_ALIAS: 'true'
 
+      # ── 必经门槛版本（2026-10-01 用户要求）────────────────────────────────
+      # 非空 = 兼容包 `-win-x64-fd.zip` 里放的是**这个版本的推荐包**（而不是本版的构建）。
+      #
+      # 为什么这样就能"强制老版本先升到门槛版本"：会去下 `-fd.zip` 的只有两类机器 ——
+      #   ① v3.0.0 的 AOT 机器（旧判定代码把 AOT 误判成框架依赖）
+      #   ② 框架依赖机器
+      # 让这个资产固定成门槛版本的构建，它们就只能先装成门槛版本；装好之后跑的是**门槛版本的
+      # 新代码**，形态判定正确 → 下一次自动检查就会拿到最新版。于是"老 → 门槛 → 最新"，
+      # 不会出现"老代码自己决定装什么"（那正是 v3.0.0 挑到需要装 .NET 的包的原因）。
+      #
+      # ⚠ 与主程序里的 `UpdateService.UpgradeWaypointVersion` 是**同一件事的两端，改一边要同步**。
+      # ⚠ 走推荐包（非 -fd）的机器（自包含 / 已升级过的机器）不受此限制、直接拿本版 ——
+      #   本版本身已含全部修复，结果等价（客户端那端只对跑新代码的机器生效）。
+      # ⚠ 取消门槛：把这里清空即可（清空后回到 FD_ASSET_IS_AOT_ALIAS 的别名行为）。
+      UPGRADE_WAYPOINT: '3.0.1'
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -222,14 +238,42 @@ jobs:
 
       - name: Pack FD zip
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # 过渡期（见 env.FD_ASSET_IS_AOT_ALIAS）：兼容包也放 AOT 构建。
-          # 这样"已装 v3.0.0 的机器（旧判定代码，会把 AOT 误判成框架依赖）"误下这个包也能正常用。
-          # 注意：两个目录深度相同，`..\..\` 都是仓库根。
-          $src = if ($env:FD_ASSET_IS_AOT_ALIAS -eq 'true') { 'publish\aot' } else { 'publish\fd' }
-          Write-Host "兼容包内容取自：$src（FD_ASSET_IS_AOT_ALIAS=$env:FD_ASSET_IS_AOT_ALIAS）"
-          cd $src
-          powershell Compress-Archive -Path * -DestinationPath ..\..\StudyJourney-v${{ steps.version.outputs.version }}-win-x64-fd.zip
+          $cur = "${{ steps.version.outputs.version }}"
+          $out = "StudyJourney-v$cur-win-x64-fd.zip"
+          $wp  = $env:UPGRADE_WAYPOINT
+
+          if ($wp -and $wp -ne $cur) {
+            # ── 门槛期：兼容包 = 门槛版本的推荐包（让老机器必须先装成门槛版本）──
+            # 取不到就**回退**到别名方案（AOT 构建）：宁可这版不设门槛，也不能打包失败或发错包。
+            try {
+              gh release download "v$wp" -p "*-win-x64.zip" -D publish\waypoint --clobber
+              $a = Get-ChildItem publish\waypoint\*.zip -ErrorAction Stop | Select-Object -First 1
+              if (-not $a) { throw "没下到 v$wp 的推荐包" }
+              Copy-Item $a.FullName $out -Force
+              Write-Host "兼容包 = 门槛版本 v$wp 的推荐包（$($a.Name)）→ $out"
+            } catch {
+              Write-Host "⚠ 取门槛版本 v$wp 失败（$_）→ 回退到 AOT 别名方案"
+              Push-Location publish\aot
+              powershell -NoProfile -Command "Compress-Archive -Path * -DestinationPath '$PWD\..\..\$out' -Force"
+              Pop-Location
+            }
+          }
+          elseif ($env:FD_ASSET_IS_AOT_ALIAS -eq 'true') {
+            # 过渡期：兼容包也放 AOT 构建（见 env 里的开关说明）
+            Push-Location publish\aot
+            powershell -NoProfile -Command "Compress-Archive -Path * -DestinationPath '$PWD\..\..\$out' -Force"
+            Pop-Location
+          }
+          else {
+            Push-Location publish\fd
+            powershell -NoProfile -Command "Compress-Archive -Path * -DestinationPath '$PWD\..\..\$out' -Force"
+            Pop-Location
+          }
+          if (Test-Path $out) { Write-Host "已生成 $out（$([math]::Round((Get-Item $out).Length/1MB,1)) MB）" }
+          else { throw "$out 没有生成" }
 
       # ── 生成 Release 正文：只取提交说明里的 <!--RELEASE--> 块 ──
       # 约定（2026-09-25）：提交说明可以写长篇（背景 / 原因 / 踩坑 / 验证），
@@ -261,7 +305,11 @@ jobs:
           # ⚠ 此处不写体积 —— 正文生成时资产还没上传，GitHub Release 页面本身会显示每个文件的大小。
           # ⚠ .NET 10 是 Avalonia 版本的运行时（v1.x 的 WPF 版是 .NET 8，这里不再区分）。
           $ver = "${{ steps.version.outputs.version }}"
-          if ($env:FD_ASSET_IS_AOT_ALIAS -eq 'true') {
+          $wp2 = $env:UPGRADE_WAYPOINT
+          if ($wp2 -and $wp2 -ne $ver) {
+            # 门槛期措辞：兼容包是"给旧版本程序用的中间版本包"，老师自己也用不到
+            $body += "`n`n### 下载哪个版本`n- **直接下 ``StudyJourney-v$ver-win-x64.zip``**（免安装 .NET、解压即用、体积小启动快）。`n- 另一个 ``…-win-x64-fd.zip``：**给旧版本程序自动升级用的中间版本包**（内容为 v$wp2），你不需要用它。`n`n> 比 v$wp2 更旧的版本会被要求**先升级到 v$wp2**，之后自动升级到本版。`n"
+          } elseif ($env:FD_ASSET_IS_AOT_ALIAS -eq 'true') {
             # 过渡期措辞：两个包内容相同，别让老师以为自己要挑（见 env 里的开关说明）
             $body += "`n`n### 下载哪个版本`n- **直接下 ``StudyJourney-v$ver-win-x64.zip``**（免安装 .NET、解压即用、体积小启动快）。`n- 另一个 ``…-win-x64-fd.zip``：**内容与它完全相同** —— 本版为过渡版本，保留这个名字只是为了让**旧版本的程序**在自动更新时能正确识别，你不需要用它。`n"
           } else {

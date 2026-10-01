@@ -3096,6 +3096,26 @@ public partial class App : Application
                 try { System.IO.Directory.Delete(tmpAotPkg, true); } catch { }
             }
 
+            // ★★ 必经门槛版本（2026-10-01 用户要求：老版本必须先升到门槛版本，再升更高版本）
+            //    只判定"要不要先过门槛"这一步（纯函数），五种情形全部钉住。
+            //    ⚠ 客户端这端管不住真正老机器的下载决定（它们跑旧代码）→ 管住它们的是 CI 侧
+            //      `UPGRADE_WAYPOINT`：把 -fd.zip 固定成门槛版本的构建（会下 -fd.zip 的正是老机器）。
+            const string wpVer = Services.UpdateService.UpgradeWaypointVersion;
+            bool wpOldToNew = Services.UpdateService.NeedsWaypoint("3.0.0", "3.0.2", wpVer);
+            bool wpAtWaypoint = Services.UpdateService.NeedsWaypoint("3.0.1", "3.0.2", wpVer);
+            bool wpNewer = Services.UpdateService.NeedsWaypoint("3.0.5", "3.0.6", wpVer);
+            bool wpOnlyWaypoint = Services.UpdateService.NeedsWaypoint("3.0.0", "3.0.1", wpVer);
+            bool wpDisabled = Services.UpdateService.NeedsWaypoint("3.0.0", "3.0.2", "");
+            static string W(bool b) => b ? "先过门槛" : "直达";
+            sb.AppendLine($"[UPDTEST] 门槛版本（当前门槛 v{wpVer}）：3.0.0→3.0.2={W(wpOldToNew)}；" +
+                          $"3.0.1→3.0.2={W(wpAtWaypoint)}；3.0.5→3.0.6={W(wpNewer)}；" +
+                          $"3.0.0→3.0.1={W(wpOnlyWaypoint)}；门槛为空={W(wpDisabled)}");
+            if (!wpOldToNew) throw new Exception("门槛失效：3.0.0 会直达 3.0.2（应先经过 3.0.1）");
+            if (wpAtWaypoint) throw new Exception("门槛误拦：已在门槛版本上应直达最新");
+            if (wpNewer) throw new Exception("门槛误拦：高于门槛的版本应直达最新");
+            if (wpOnlyWaypoint) throw new Exception("门槛误拦：最新版就是门槛本身时应正常更新");
+            if (wpDisabled) throw new Exception("门槛误拦：门槛为空（关闭）时应直达最新");
+
             // ── 5. 更新程序必须取自**更新包**（2026-09-19 修的核心，钉死它防回归）──
             //    故障链：从程序目录启动自包含的更新程序 → 它把程序目录里的运行时 DLL
             //    （coreclr/System.Private.CoreLib/hostpolicy…）映射成自己的 → 复制新版本覆盖

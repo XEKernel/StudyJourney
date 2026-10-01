@@ -172,8 +172,13 @@ public partial class AboutPage : UserControl, ISettingsPage
             {
                 // ⚠ 用三态显示名（2026-10-01）：原来的二选一在 AOT 版上会显示成「框架依赖版」（错的）
                 var mode = UpdateService.FormDisplayName(info.Form);
-                UpdateStatusTb.Text = $"发现新版本 v{info.LatestVersion}（当前 v{UpdateService.CurrentVersion}）。\n" +
-                                      $"{mode}可下载。";
+
+                // 必经门槛版本（2026-10-01）：本次实际装的是门槛版本，装好后会自动再升到最新
+                UpdateStatusTb.Text = info.WaypointVersion.Length > 0
+                    ? $"发现新版本 v{info.LatestVersion}（当前 v{UpdateService.CurrentVersion}）。\n" +
+                      $"按升级要求，将**先安装 v{info.WaypointVersion}**（必要的中间版本），随后自动升级到 v{info.LatestVersion}。"
+                    : $"发现新版本 v{info.LatestVersion}（当前 v{UpdateService.CurrentVersion}）。\n" +
+                      $"{mode}可下载。";
                 UpdateStatusTb.IsVisible = true;
 
                 // 原来这里只显示文字、没有任何办法真的更新（只有启动时的自动检查能更新）。
