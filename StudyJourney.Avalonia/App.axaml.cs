@@ -376,7 +376,17 @@ public partial class App : Application
 
             if (prepared == null)
             {
-                SetBanner("更新失败，稍后将重试", -1);
+                // 被「装错包」保险拦下时要说清原因：报"下载失败"会让老师以为网络问题、
+                // 反复重启重试（而怎么试都不会成）。
+                if (UpdateService.LastBlockReason.Length > 0)
+                {
+                    Helpers.AppLogger.Warn($"[Updater] 已跳过本版更新：{UpdateService.LastBlockReason}");
+                    SetBanner("此更新包不适用于本机，已跳过", -1);
+                }
+                else
+                {
+                    SetBanner("更新失败，稍后将重试", -1);
+                }
                 await System.Threading.Tasks.Task.Delay(6000);
                 SetBanner(null);
                 return;
@@ -563,6 +573,14 @@ public partial class App : Application
             if (prepared == null)
             {
                 win.Close();
+                if (UpdateService.LastBlockReason.Length > 0)
+                {
+                    await ConfirmAsync("学程 — 已取消本次更新",
+                        UpdateService.LastBlockReason + "\n\n" +
+                        "请到 GitHub Releases 下载「推荐」包（免安装 .NET）后手动替换，\n" +
+                        "或先安装 .NET 运行时再重试。", "知道了", "关闭");
+                    return;
+                }
                 await ConfirmAsync("学程 — 更新未完成",
                     "下载或解压失败。\n\n可以稍后重试，或到 GitHub Releases 手动下载。", "知道了", "关闭");
                 return;
@@ -3027,6 +3045,56 @@ public partial class App : Application
             var bad = Services.UpdateService.ParseRelease(badJson);
             sb.AppendLine($"[UPDTEST] 非法资产名 → HasUpdate={bad.HasUpdate}（应为 False）");
             if (bad.HasUpdate) throw new Exception("非法资产名被错误匹配，可能下载到错误文件");
+
+            // ★★ 非法名在两种形态下都不该匹配
+            //    （2026-10-01：在 AOT 产物上跑自检时抓到 —— 原来"免装 .NET"那一支只要求
+            //     「是 zip 且不以 -fd.zip 结尾」，于是**任意无关 zip 都会被当成安装包**）
+            var trapAssets = new List<(string, string)> { ("x-fdx.zip", "https://x/x-fdx.zip") };
+            string trap1 = Services.UpdateService.PickAssetUrl(trapAssets, standalone: true);
+            string trap2 = Services.UpdateService.PickAssetUrl(trapAssets, standalone: false);
+            sb.AppendLine($"[UPDTEST] 非法名 `-fdx.zip`：免装形态挑={(trap1.Length == 0 ? "不匹配 ✓" : trap1)}，" +
+                          $"框架依赖形态挑={(trap2.Length == 0 ? "不匹配 ✓" : trap2)}");
+            if (trap1.Length != 0 || trap2.Length != 0)
+                throw new Exception("非法资产名（-fdx.zip）被匹配 → 可能下到无关 zip");
+
+            // ★★ 「装错包」保险的判定（四种组合，纯函数）
+            //    背景：v3.0.0 的形态判定把 AOT 误判成框架依赖 → 已升 AOT 的机器会来下 -fd 包
+            //    （那个需要装 .NET）→ 更新等于白做。宁可拒装，也不要留下打不开的程序。
+            string blkFdNoRt = Services.UpdateService.DecidePackageInstall(isFdPackage: true, hasDesktopRuntime: false);
+            string blkFdRt = Services.UpdateService.DecidePackageInstall(true, true);
+            string blkAotNoRt = Services.UpdateService.DecidePackageInstall(false, false);
+            string blkAotRt = Services.UpdateService.DecidePackageInstall(false, true);
+            static string Tag(string s) => s.Length > 0 ? "拒装" : "放行";
+            sb.AppendLine($"[UPDTEST] 装错包保险：框架依赖+无.NET→{Tag(blkFdNoRt)}；框架依赖+有.NET→{Tag(blkFdRt)}；" +
+                          $"AOT+无.NET→{Tag(blkAotNoRt)}；AOT+有.NET→{Tag(blkAotRt)}");
+            if (blkFdNoRt.Length == 0) throw new Exception("保险失效：框架依赖包 + 本机无 .NET 应当拒装");
+            if (blkFdRt.Length > 0) throw new Exception("保险误拦：本机有 .NET 时框架依赖包应放行");
+            if (blkAotNoRt.Length > 0) throw new Exception("保险误拦：AOT 包不需要 .NET，任何机器都应放行");
+            if (blkAotRt.Length > 0) throw new Exception("保险误拦：AOT 包 + 有 .NET 应放行");
+
+            // ★ 包形态识别（纯函数：包内是否有托管主程序 dll + runtimeconfig.json）
+            string tmpFdPkg = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sj_updtest_pkg_fd");
+            string tmpAotPkg = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "sj_updtest_pkg_aot");
+            try
+            {
+                System.IO.Directory.CreateDirectory(tmpFdPkg);
+                System.IO.Directory.CreateDirectory(tmpAotPkg);
+                System.IO.File.WriteAllText(System.IO.Path.Combine(tmpFdPkg, "StudyJourneyAvalonia.dll"), "x");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(tmpFdPkg, "StudyJourneyAvalonia.runtimeconfig.json"), "{}");
+                System.IO.File.WriteAllText(System.IO.Path.Combine(tmpAotPkg, "StudyJourneyAvalonia.exe"), "x");
+
+                bool fdPkg = Services.UpdateService.LooksFrameworkDependent(tmpFdPkg);
+                bool aotPkg = Services.UpdateService.LooksFrameworkDependent(tmpAotPkg);
+                sb.AppendLine($"[UPDTEST] 包形态识别：带 dll+runtimeconfig → {(fdPkg ? "框架依赖 ✓" : "未识别 ✗")}；" +
+                              $"只有 exe → {(aotPkg ? "误判为框架依赖 ✗" : "非框架依赖 ✓")}");
+                if (!fdPkg) throw new Exception("框架依赖包没被识别出来（保险会失效）");
+                if (aotPkg) throw new Exception("AOT 包被误判成框架依赖（保险会误拦）");
+            }
+            finally
+            {
+                try { System.IO.Directory.Delete(tmpFdPkg, true); } catch { }
+                try { System.IO.Directory.Delete(tmpAotPkg, true); } catch { }
+            }
 
             // ── 5. 更新程序必须取自**更新包**（2026-09-19 修的核心，钉死它防回归）──
             //    故障链：从程序目录启动自包含的更新程序 → 它把程序目录里的运行时 DLL

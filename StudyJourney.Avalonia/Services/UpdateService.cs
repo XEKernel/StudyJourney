@@ -169,9 +169,9 @@ public static class UpdateService
                 if (!string.IsNullOrWhiteSpace(info)) return info.Trim();
             }
             var ver = asm.GetName().Version;
-            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "3.0.0";
+            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "3.0.1";
         }
-        catch { return "3.0.0"; }
+        catch { return "3.0.1"; }
     });
 
     public static string CurrentVersion => _currentVersion.Value;
@@ -370,23 +370,32 @@ public static class UpdateService
     /// <summary>
     /// 从 Release 的资产列表里挑出该下载哪一个（**纯函数**，便于自检覆盖两种形态）。
     ///
-    /// 规则：`standalone`（免装 .NET 的形态 = AOT / 自包含）挑**不带 `-fd` 的**；
-    /// 框架依赖挑**带 `-fd` 的**。判定用 `EndsWith("-fd.zip")` 而不是 `Contains("-fd")` ——
-    /// 后者会把名字里恰好含 `-fd` 的其它文件（如 `-fdx.zip`）也算进来。
-    /// 挑不到就返回空串 → 调用方判为"不可更新"（宁可不动，也别下到错包）。
+    /// 规则：`standalone`（免装 .NET 的形态 = AOT / 自包含）挑 **`-win-x64.zip`**；
+    /// 框架依赖挑 **`-win-x64-fd.zip`**。两个后缀都是 CI 的规范命名
+    /// （`StudyJourney-v{ver}-win-x64.zip` / `…-win-x64-fd.zip`）。
+    ///
+    /// ⚠ 2026-10-01（在 AOT 产物上跑自检时抓到的）：原来"免装 .NET"这一支只要求
+    ///   「是 zip 且不以 `-fd.zip` 结尾」→ **Release 里任何一个别的 zip 都会被当成安装包**
+    ///   （自带样例、符号包、源包……），挑到就白下几十 MB 甚至解压失败。
+    ///   现在两支都要求**规范名精确结尾**，挑不到就返回空串 → 判"不可更新"（宁可不动，也不下错包）。
+    ///   顺带：`-fd.zip` 与 `-win-x64.zip` 两个后缀互不包含，不会互相误匹配。
     /// </summary>
     internal static string PickAssetUrl(IEnumerable<(string Name, string Url)> assets, bool standalone)
     {
+        string want = standalone ? StandaloneAssetSuffix : FrameworkDependentAssetSuffix;
         foreach (var (name, url) in assets)
         {
             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url)) continue;
-            if (!name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) continue;
-
-            bool isFD = name.EndsWith("-fd.zip", StringComparison.OrdinalIgnoreCase);
-            if (standalone == !isFD) return url;
+            if (name.EndsWith(want, StringComparison.OrdinalIgnoreCase)) return url;
         }
         return "";
     }
+
+    /// <summary>免装 .NET 形态（AOT / 自包含）对应的资产名后缀（CI 规范命名）</summary>
+    private const string StandaloneAssetSuffix = "-win-x64.zip";
+
+    /// <summary>框架依赖形态对应的资产名后缀（CI 规范命名）</summary>
+    private const string FrameworkDependentAssetSuffix = "-win-x64-fd.zip";
 
     // ── 下载 ─────────────────────────────────────────────────
 
@@ -534,6 +543,79 @@ public static class UpdateService
         string StagingDir, string ZipPath, string UpdaterExe, string TargetDir, string ExePath);
 
     /// <summary>
+    /// 上一次更新被**形态保险**拦下的原因（空串 = 没被拦）。调用方据此给出准确提示，
+    /// 别把"包与本机不匹配"说成"下载失败"。
+    /// </summary>
+    public static string LastBlockReason { get; private set; } = "";
+
+    /// <summary>
+    /// 「装错包」保险的判定（**纯函数**，四种组合都能在自检里覆盖）。
+    /// 只有一种情况要拦：**包里是需要装 .NET 的框架依赖版，而本机没有 .NET 运行时** ——
+    /// 装上去必然打不开（连包里的更新程序自己都起不来）。
+    /// </summary>
+    internal static string DecidePackageInstall(bool isFdPackage, bool hasDesktopRuntime)
+        => !isFdPackage || hasDesktopRuntime
+            ? ""
+            : "这个更新包需要机器上安装 .NET 运行时，而本机没有 —— 装上去会打不开，已取消本次更新。";
+
+    /// <summary>
+    /// 检查包形态与本机能力是否匹配（返回空串 = 可安装）。失败一律**放行**（宁可不拦，
+    /// 也不要把正常更新误拦下来）。
+    /// </summary>
+    internal static string CheckPackageCompatible(string contentDir)
+    {
+        try
+        {
+            return DecidePackageInstall(LooksFrameworkDependent(contentDir), HasDotnetRuntime());
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn($"[Updater] 形态检查失败（按放行处理）：{ex.Message}");
+            return "";
+        }
+    }
+
+    /// <summary>
+    /// 包是不是「框架依赖版」：带托管主程序 dll + runtimeconfig.json。
+    /// AOT 包只有一个原生 exe（外加几个原生 dll），两样都没有。**纯函数**（只查文件存在）。
+    /// </summary>
+    internal static bool LooksFrameworkDependent(string contentDir)
+        => File.Exists(Path.Combine(contentDir, "StudyJourneyAvalonia.dll"))
+           && File.Exists(Path.Combine(contentDir, "StudyJourneyAvalonia.runtimeconfig.json"));
+
+    /// <summary>
+    /// 本机是否装了 .NET 运行时（x64）。检查 `shared\Microsoft.NETCore.App` 与
+    /// `Microsoft.WindowsDesktop.App` 两个共享框架 —— Avalonia 只需要前者，
+    /// 但老师可能装的是后者，两个都认，避免把能用的机器误判成"没装"。
+    /// </summary>
+    internal static bool HasDotnetRuntime()
+    {
+        foreach (var root in DotnetRoots())
+        {
+            if (string.IsNullOrEmpty(root)) continue;
+            try
+            {
+                foreach (var fw in new[] { "Microsoft.NETCore.App", "Microsoft.WindowsDesktop.App" })
+                {
+                    var dir = Path.Combine(root, "shared", fw);
+                    if (Directory.Exists(dir) && Directory.EnumerateDirectories(dir).Any()) return true;
+                }
+            }
+            catch { /* 目录不可读 → 换下一个根 */ }
+        }
+        return false;
+    }
+
+    /// <summary>可能装 .NET 的位置（本程序是 win-x64，所以要 x64 的运行时）</summary>
+    private static IEnumerable<string> DotnetRoots()
+    {
+        yield return Environment.GetEnvironmentVariable("DOTNET_ROOT_X64") ?? "";
+        yield return Environment.GetEnvironmentVariable("DOTNET_ROOT") ?? "";
+        yield return Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet");
+    }
+
+    /// <summary>
     /// 下载 → 解压到 staging → 刷新更新程序。**不启动更新程序**（见 <see cref="LaunchUpdater"/>）。
     /// 返回 null 表示准备失败（原因已记日志），调用方不应退出进程。
     /// </summary>
@@ -542,6 +624,7 @@ public static class UpdateService
         Action<UpdatePhase>? onPhase = null, CancellationToken ct = default)
     {
         onPhase?.Invoke(UpdatePhase.Downloading);
+        LastBlockReason = "";
         try
         {
             zipPath ??= await DownloadUpdateAsync(downloadUrl, progress, ct);
@@ -554,6 +637,20 @@ public static class UpdateService
             // 放后台线程解压：包里有几百个文件，同步做会卡住 UI 线程 ——
             // 那样"正在解压"这四个字根本来不及画出来，界面看着就是死的。
             string stagingDir = await Task.Run(() => ExtractToStaging(zipPath), ct);
+
+            // ★ 「装错包」保险（2026-10-01）：**在更新器跑起来之前**拦最新的一道。
+            //   背景：v3.0.0 的形态判定把 AOT 误判成框架依赖 → 已升 AOT 的机器会来下 -fd 包
+            //   → 本机没装 .NET 时更新等于白做（包里的更新程序自己都起不来，老师看到的是
+            //   "程序关了之后什么都没发生"）。这里拦下代价最小：原程序原样保留、可继续用。
+            //   更新器里还有一模一样的一道（手工/旧版调用也能拦住）。
+            string blockReason = CheckPackageCompatible(stagingDir);
+            if (blockReason.Length > 0)
+            {
+                LastBlockReason = blockReason;
+                AppLogger.Error($"[Updater] 拒绝本次更新：{blockReason}");
+                try { Directory.Delete(stagingDir, recursive: true); } catch { }
+                return null;
+            }
 
             // ⚠ 关键（2026-09-19 修）：更新程序要**从 staging 目录里那一份启动**，
             //    不能再从程序目录启动。

@@ -23,6 +23,19 @@ jobs:
     env:
       Project_Path: StudyJourney.Avalonia/StudyJourney.Avalonia.csproj
       Updater_Path: Updater/StudyJourney.Updater.csproj
+      # ── 形态过渡开关（2026-10-01，用完就改回 false）────────────────────────
+      # true = 兼容包（`-win-x64-fd.zip`）里也放 **AOT 构建**，而不是真正的框架依赖构建。
+      #
+      # 为什么要这么做：v3.0.0 的形态判定只按「有没有 coreclr.dll」二分 → **AOT 版没有该文件，
+      # 被判成「框架依赖」** → 已经升到 v3.0.0 的机器**下一次更新会来下 `-fd.zip`**。
+      # 那些机器跑的是**旧判定代码**、本机改不了；如果这里的 `-fd.zip` 放真·框架依赖构建，
+      # 它们更新完就需要机器上装 .NET（教室机通常没有）→ 打不开。
+      # AOT 构建在**任何 win-x64** 上都能跑（免 .NET），所以过渡期拿它当兼容包：
+      # 旧机器误挑到它也能正常用，而且升上来之后就带上修好的判定代码，之后一切正常。
+      #
+      # 什么时候能关：等所有在用的机器都跑过一次「含三态形态判定」的版本（v3.0.1 起）之后，
+      # 把这里改成 false 即恢复为真正的框架依赖包。
+      FD_ASSET_IS_AOT_ALIAS: 'true'
 
     steps:
       - name: Checkout
@@ -210,7 +223,12 @@ jobs:
       - name: Pack FD zip
         shell: pwsh
         run: |
-          cd publish\fd
+          # 过渡期（见 env.FD_ASSET_IS_AOT_ALIAS）：兼容包也放 AOT 构建。
+          # 这样"已装 v3.0.0 的机器（旧判定代码，会把 AOT 误判成框架依赖）"误下这个包也能正常用。
+          # 注意：两个目录深度相同，`..\..\` 都是仓库根。
+          $src = if ($env:FD_ASSET_IS_AOT_ALIAS -eq 'true') { 'publish\aot' } else { 'publish\fd' }
+          Write-Host "兼容包内容取自：$src（FD_ASSET_IS_AOT_ALIAS=$env:FD_ASSET_IS_AOT_ALIAS）"
+          cd $src
           powershell Compress-Archive -Path * -DestinationPath ..\..\StudyJourney-v${{ steps.version.outputs.version }}-win-x64-fd.zip
 
       # ── 生成 Release 正文：只取提交说明里的 <!--RELEASE--> 块 ──
@@ -243,7 +261,12 @@ jobs:
           # ⚠ 此处不写体积 —— 正文生成时资产还没上传，GitHub Release 页面本身会显示每个文件的大小。
           # ⚠ .NET 10 是 Avalonia 版本的运行时（v1.x 的 WPF 版是 .NET 8，这里不再区分）。
           $ver = "${{ steps.version.outputs.version }}"
-          $body += "`n`n### 下载哪个版本`n- **推荐**（``StudyJourney-v$ver-win-x64.zip``）：免安装 .NET，解压即用，体积小、启动快。`n- **兼容版**（``StudyJourney-v$ver-win-x64-fd.zip``）：需安装 [.NET 10 桌面运行时](https://dotnet.microsoft.com/download/dotnet/10.0)。仅当推荐版在你的电脑上打不开时再换这个。`n"
+          if ($env:FD_ASSET_IS_AOT_ALIAS -eq 'true') {
+            # 过渡期措辞：两个包内容相同，别让老师以为自己要挑（见 env 里的开关说明）
+            $body += "`n`n### 下载哪个版本`n- **直接下 ``StudyJourney-v$ver-win-x64.zip``**（免安装 .NET、解压即用、体积小启动快）。`n- 另一个 ``…-win-x64-fd.zip``：**内容与它完全相同** —— 本版为过渡版本，保留这个名字只是为了让**旧版本的程序**在自动更新时能正确识别，你不需要用它。`n"
+          } else {
+            $body += "`n`n### 下载哪个版本`n- **推荐**（``StudyJourney-v$ver-win-x64.zip``）：免安装 .NET，解压即用，体积小、启动快。`n- **兼容版**（``StudyJourney-v$ver-win-x64-fd.zip``）：需安装 [.NET 10 桌面运行时](https://dotnet.microsoft.com/download/dotnet/10.0)。仅当推荐版在你的电脑上打不开时再换这个。`n"
+          }
 
           [System.IO.File]::WriteAllText("release-notes.md", $body, (New-Object System.Text.UTF8Encoding($false)))
           Write-Host "—— 发布正文 ——"

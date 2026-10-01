@@ -87,6 +87,19 @@ class Program
 
             Log($"本进程目录：{runDir}；目标目录：{opts.TargetDir}；内容目录：{workDir}");
 
+            // ★ 「装错包」保险（与主程序侧同一判据，2026-10-01）：包里是**需要装 .NET 的框架依赖版**、
+            //   而本机没有 .NET 运行时 → **一个文件都别动**，直接退出。
+            //   为什么这里也要拦：主程序侧那道只在"主程序自己下载"时生效；老师手工拷包、
+            //   或很旧的主程序调用时，只有这里能拦住。宁可这次不更新，也不要留下打不开的程序。
+            string blockReason = CheckPackageCompatible(workDir);
+            if (blockReason.Length > 0)
+            {
+                Log($"拒绝安装：{blockReason}");
+                ShowError("已取消本次更新。\n\n" + blockReason +
+                          "\n\n请改用「推荐」包（免安装 .NET），或先在本机安装 .NET 运行时。");
+                return 1;
+            }
+
             List<string> failedFiles;
             try
             {
@@ -446,6 +459,60 @@ class Program
             }
         }
         catch { /* 清理空目录纯属锦上添花，失败无所谓 */ }
+    }
+
+    // ── 「装错包」保险（2026-10-01）────────────────────────────
+    //   与主程序侧 Services/UpdateService.CheckPackageCompatible 同一判据。
+    //   更新器是独立工程（不引用主程序），所以这份判定**刻意重复**一份；
+    //   改判据时两边都要改，否则会出现"主程序拦得住、更新器拦不住"。
+
+    /// <summary>包是不是「框架依赖版」：带托管主程序 dll + runtimeconfig.json（AOT 包两样都没有）</summary>
+    private static bool LooksFrameworkDependent(string contentDir)
+        => File.Exists(Path.Combine(contentDir, "StudyJourneyAvalonia.dll"))
+           && File.Exists(Path.Combine(contentDir, "StudyJourneyAvalonia.runtimeconfig.json"));
+
+    /// <summary>
+    /// 本机是否装了 .NET 运行时（x64）。两个共享框架都认：
+    /// Avalonia 只需 `Microsoft.NETCore.App`，但老师可能装的是「桌面运行时」（WindowsDesktop.App）。
+    /// </summary>
+    private static bool HasDotnetRuntime()
+    {
+        var roots = new[]
+        {
+            Environment.GetEnvironmentVariable("DOTNET_ROOT_X64") ?? "",
+            Environment.GetEnvironmentVariable("DOTNET_ROOT") ?? "",
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "dotnet"),
+        };
+        foreach (string root in roots)
+        {
+            if (string.IsNullOrEmpty(root)) continue;
+            try
+            {
+                foreach (string fw in new[] { "Microsoft.NETCore.App", "Microsoft.WindowsDesktop.App" })
+                {
+                    string dir = Path.Combine(root, "shared", fw);
+                    if (Directory.Exists(dir) && Directory.EnumerateDirectories(dir).Any()) return true;
+                }
+            }
+            catch { /* 换下一个根 */ }
+        }
+        return false;
+    }
+
+    /// <summary>空串 = 可安装；否则是拒绝原因（**只有"包需要 .NET 而本机没有"才拦**）。</summary>
+    private static string CheckPackageCompatible(string contentDir)
+    {
+        try
+        {
+            if (!LooksFrameworkDependent(contentDir)) return "";
+            if (HasDotnetRuntime()) return "";
+            return "这个更新包需要机器上安装 .NET 运行时，而本机没有 —— 装上去会打不开。";
+        }
+        catch (Exception ex)
+        {
+            Log($"形态检查失败（按放行处理）：{ex.Message}");
+            return "";
+        }
     }
 
     /// <summary>读安装清单（正斜杠归一化）。文件不存在或读不出 → null，调用方据此跳过清理。</summary>
