@@ -2246,6 +2246,24 @@ public partial class App : Application
             // 该文件的 DataGrid 列原来用 `{Binding Xxx}`（反射绑定，IL2026/IL3050）→ 改成编译绑定 + x:DataType。
             // 编译绑定写错通常是**编译错误**（能拦住），但"行渲染成空白"这类只在运行时暴露 → 这里实例化一次兜底。
             {
+                // ⚠ 先注入一份**最小课表数据**：周视图的行来自"时段模板 / 课表条目"，
+                //   而干净目录（例如刚 publish 出来的 AOT 产物目录）没有任何 schedule.json
+                //   → 一行都不会生成 → 下面这条断言会**误报失败**。
+                //   2026-10-01 在 AOT 产物上实测踩到：以为是 AOT 把周视图搞坏了，实为环境无数据。
+                //   只在内存里注入、测完立刻还原，**绝不落盘**。
+                var sdata = Schedule.Data;
+                var savedEntries = new List<Models.ScheduleEntry>(sdata.Entries);
+                var savedTpls = new List<Models.TimeTemplate>(sdata.TimeTemplates);
+                if (sdata.TimeTemplates.Count == 0)
+                    sdata.TimeTemplates.Add(new Models.TimeTemplate
+                    { Period = 1, StartTime = "08:00", EndTime = "08:45" });
+                if (sdata.Entries.Count == 0)
+                    sdata.Entries.Add(new Models.ScheduleEntry
+                    {
+                        DayOfWeek = 1, Period = 1, Subject = "SJTEST",
+                        StartTimeStr = "08:00", EndTimeStr = "08:45",
+                    });
+
                 var schWin = new Views.ScheduleEditorWindow();
                 Check(schWin.EntryGrid != null && schWin.EntryGrid.Columns.Count >= 6,
                     $"课表编辑器可实例化且 DataGrid 列就位（实际 {schWin.EntryGrid?.Columns.Count} 列）");
@@ -2279,6 +2297,10 @@ public partial class App : Application
                     Check(schWin.SwapSourceLb.Text != "源：未选择",
                         $"单击格子 → 有选中反馈（源标签 = {schWin.SwapSourceLb.Text}）");
                 }
+
+                // 还原上面为"周视图断言"注入的数据（自检绝不改真实课表内容）
+                sdata.TimeTemplates.Clear(); sdata.TimeTemplates.AddRange(savedTpls);
+                sdata.Entries.Clear(); sdata.Entries.AddRange(savedEntries);
 
                 // ── 调休：必须只写「按日期映射」，绝不动课表数据 ────────────────
                 // 用户 2026-09-27 报的严重 bug：旧版「复制课程（调休）」是把 A 天的课**永久写进** B 天的
@@ -2591,6 +2613,24 @@ public partial class App : Application
         try
         {
             sb.AppendLine("[JSONTEST] 源生成器自检开始");
+
+            // ⚠ NativeAOT 下本模式**不适用**，直接说明并算通过：
+            //   它靠 `typeof(...).GetProperties()` 反射枚举"类的每个可写属性都必须有 JSON 键"，
+            //   而 AOT 会裁掉未使用的元数据 → 反射结果不可信，跑下去只会给出假的"漏了 N 个属性"。
+            //   ⚠ 但这**不等于** AOT 下的 JSON 没被验证：正确的验证途径是
+            //   ①`api` 模式（登录/改课表/上传的**请求体**往返，含大小写字段名——最容易漏的地方）；
+            //   ②`settings` 模式里的 AppJsonContext 往返断言（settings/listening/open-state 等）。
+            if (!System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported)
+            {
+                sb.AppendLine("[JSONTEST] 运行在 NativeAOT（无动态代码）→ 本模式依赖反射做属性全覆盖检查，不适用。");
+                sb.AppendLine("[JSONTEST] AOT 下 JSON 源生成改由 api 模式端到端验证（请求体大小写字段往返）。");
+                sb.AppendLine("[JSONTEST] 结论：PASS（不适用）");
+                Helpers.AppLogger.Info(sb.ToString());
+                System.IO.File.WriteAllText(
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+                    sb.ToString());
+                Environment.Exit(0);
+            }
 
             // 从 exe 目录上溯到仓库根（bin/<cfg>/net10.0 → 仓库根）
             string root = AppDomain.CurrentDomain.BaseDirectory;

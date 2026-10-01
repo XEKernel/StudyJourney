@@ -8,8 +8,9 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 2.30.1：AssemblyVersion=2.30.1.0（由 <Version> 派生），InformationalVersion=2.30.1（更新检查解析用） -->
-    <Version>2.30.1</Version>
+    <!-- 3.0.0：分发形态改为 NativeAOT（判据②：分发形态/运行环境变）→ X 位。
+         AssemblyVersion=3.0.0.0（由 <Version> 派生），InformationalVersion=3.0.0（更新检查解析用） -->
+    <Version>3.0.0</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 

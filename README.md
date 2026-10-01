@@ -1,7 +1,7 @@
 ﻿# 学程
 
 > 🎓 高考倒计时桌面伴侣 — 倒计时 · 课表 · 考试 · 天气 · 提醒 · 远程管理 · 自动化任务 · 白板 · 屏幕批注 · PDF 阅读
-> 基于 Avalonia + FluentAvalonia 构建，WinUI 3 风格界面 ｜ 当前版本：**v2.30.1**
+> 基于 Avalonia + FluentAvalonia 构建，WinUI 3 风格界面 ｜ 当前版本：**v3.0.0**
 >
 > 📦 框架迁移已完成（WPF → Avalonia）；**旧 WPF 版已确认淘汰（2026-09-05），不再维护**，源码归档于 `LegacyWPF/`（本地保留、不入库）
 > 🔐 老师账号密码采用 **PBKDF2 哈希存储**（v2.7.0 起），settings.json 不再保存明文密码
@@ -73,7 +73,7 @@
 - 🔐 **安全** — Token 持久化登录、**登录限速**（同 IP 错 5 次锁 2 分钟）、**PBKDF2 密码哈希**（v2.7.0，旧明文登录后自动迁移）、账号名不外泄、IP 白名单可选开关、**默认弱口令红字告警 + 新账号随机密码 + 内置账号兜底已终止**（v2.29.0）
 - ⌨️ **全局快捷键** — Ctrl+Shift+H 显隐主窗 / Ctrl+Shift+E 考试模式 / **Ctrl+Shift+W 白板** / **Ctrl+Alt+D 屏幕批注** / **Ctrl+Shift+P PDF 阅读** / **Ctrl+Shift+K 编辑课表**
 - 🎯 **始终置顶** — 可选始终置顶或正常窗口层级
-- 🚀 **自动更新** — 发现新版本**自动静默更新**（不弹窗）：走国内加速镜像下载，进度显示在顶部课表胶囊栏（「正在下载新版本 / 正在解压 / 重启」），有未导出的板书时会等你关掉再重启；自包含/框架依赖版自动匹配（v2.13.1 修：更新程序改从临时目录运行，不再出现"某个 DLL 正被占用"导致更新失败）
+- 🚀 **自动更新** — 发现新版本**自动静默更新**（不弹窗）：走国内加速镜像下载，进度显示在顶部课表胶囊栏（「正在下载新版本 / 正在解压 / 重启」），有未导出的板书时会等你关掉再重启；AOT / 框架依赖版自动匹配（v2.13.1 修：更新程序改从临时目录运行，不再出现"某个 DLL 正被占用"导致更新失败）
 - 🔒 **单实例** — 重复启动时激活已有窗口（按进程名校验，不误激活同名窗口）
 - 💾 **配置持久化** — JSON 文件存储（settings.json / schedule.json / automations.json），重启不丢失；支持一键备份/恢复
 - ⚡ **低开销常驻**（v2.30.0 / v2.30.1）— 课表查询加缓存（主窗口每秒的刷新链原来要重算课表 **10 次/秒**）、主题色与日期不再每秒重新解析、画笔复用同一实例（原来每秒都触发一次无谓重绘）。内存侧经实测**确认无泄漏**：窗口关掉后能完整回收；标题栏图标与周视图装饰画笔改为共享实例；GC 调为「内存吃紧时更积极归还」，长时间使用占用更平稳
@@ -136,19 +136,28 @@ dotnet run
 
 ### 编译发布
 
-自包含（无需安装 .NET，体积较大）：
+**推荐：NativeAOT**（免装 .NET，约 28 MB，启动最快）。更新程序也要一起 AOT 编译，否则它会靠自带的
+~190 个运行时文件把"单文件分发"变成假象：
 
 ```bash
-dotnet publish StudyJourney.Avalonia/StudyJourney.Avalonia.csproj -c Release -r win-x64 --self-contained true
+dotnet publish StudyJourney.Avalonia/StudyJourney.Avalonia.csproj -c Release -r win-x64 -p:PublishAot=true -o publish/aot
+dotnet publish Updater/StudyJourney.Updater.csproj -c Release -r win-x64 -p:PublishAot=true -o publish/updater-aot
 ```
 
-框架依赖（需安装 .NET 10 桌面运行时，体积较小）：
+⚠ AOT 产物目录里会带很大的 `.pdb` 调试符号（主程序约 191 MB，是程序本体的 6 倍），**分发前务必删掉**：
+
+```bash
+Get-ChildItem publish/aot -Recurse -Filter *.pdb | Remove-Item -Force
+```
+
+**兜底：框架依赖**（需安装 .NET 10 桌面运行时）：
 
 ```bash
 dotnet publish StudyJourney.Avalonia/StudyJourney.Avalonia.csproj -c Release -r win-x64 --self-contained false
+dotnet publish Updater/StudyJourney.Updater.csproj -c Release -r win-x64 --self-contained false
 ```
 
-发布输出位于 `StudyJourney.Avalonia/bin/Release/net10.0/win-x64/publish/`。更新程序 `Updater/` 单独编译，随发布一起分发。
+更新程序 `Updater/` 单独编译，产物要与主程序放进**同一个目录**再分发。
 
 ---
 

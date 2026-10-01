@@ -72,15 +72,18 @@ jobs:
       - name: Build (Debug)
         run: dotnet build ${{ env.Project_Path }} -c Debug --no-restore
 
-      # ── 发布主应用（自包含 + 框架依赖） ──
-      - name: Publish (Self-contained, x64)
-        run: dotnet publish ${{ env.Project_Path }} -c Release -r win-x64 --self-contained true -o publish/sc
+      # ── 发布主应用（2026-10-01 起：NativeAOT 主推 + 框架依赖兜底） ──
+      # 本机实测对比：AOT = 8 文件 / 解压 69.4MB / **zip 28.0MB** / 启动 ~1.7s / 免装 .NET；
+      # 旧自包含包 zip 86.8MB；旧框架依赖包 zip 40.7MB（需装 .NET）、启动 ~3.0s。
+      # 结论：**AOT 取代原先的「自包含」包**（更小更快、同样免 .NET），只留框架依赖版兜底。
+      - name: Publish (NativeAOT, x64)
+        run: dotnet publish ${{ env.Project_Path }} -c Release -r win-x64 -p:PublishAot=true -o publish/aot
 
       - name: Publish (Framework-dependent, x64)
         run: dotnet publish ${{ env.Project_Path }} -c Release -r win-x64 --self-contained false -o publish/fd
 
-      - name: Publish Updater (Self-contained)
-        run: dotnet publish ${{ env.Updater_Path }} -c Release -r win-x64 --self-contained true -o publish/updater-sc
+      - name: Publish Updater (NativeAOT)
+        run: dotnet publish ${{ env.Updater_Path }} -c Release -r win-x64 -p:PublishAot=true -o publish/updater-aot
 
       - name: Publish Updater (Framework-dependent)
         run: dotnet publish ${{ env.Updater_Path }} -c Release -r win-x64 --self-contained false -o publish/updater-fd
@@ -88,8 +91,19 @@ jobs:
       - name: Copy Updater to both outputs
         shell: pwsh
         run: |
-          Copy-Item -Path publish\updater-sc\* -Destination publish\sc\ -Recurse -Force
+          Copy-Item -Path publish\updater-aot\* -Destination publish\aot\ -Recurse -Force
           Copy-Item -Path publish\updater-fd\* -Destination publish\fd\ -Recurse -Force
+
+      # ⚠ 删掉调试符号（.pdb）—— 位置很关键，必须在**签名与生成清单之前**：
+      #   AOT 的 pdb 极大（主程序 191MB + libSkiaSharp 84MB + libHarfBuzzSharp 20MB ≈ 295MB，
+      #   是程序本体体积的 6 倍），而教室机根本用不到。
+      #   若放在"生成清单"之后删，清单会列出这些文件 → 更新器按清单核对时找不到 → 清理逻辑每次都报失败。
+      - name: Strip debug symbols (AOT)
+        shell: pwsh
+        run: |
+          $pdbs = Get-ChildItem -Path publish\aot -Recurse -Filter *.pdb
+          if ($pdbs) { $pdbs | Remove-Item -Force }
+          Write-Host "AOT 目录已移除 $($pdbs.Count) 个 pdb"
 
       # ── 代码签名（自签名证书 CN=XEKernel，来自 GitHub Secrets） ──
       - name: Import signing certificate
@@ -109,19 +123,35 @@ jobs:
           echo "signtool_path=$signtool" >> $env:GITHUB_OUTPUT
           Write-Host "signtool: $signtool"
 
-      - name: Sign binaries (Self-contained)
+      # ⚠ AOT 产物只有一个 exe（**没有** StudyJourneyAvalonia.dll），签名脚本不能照抄旧版。
+      # ⚠ 顺带修掉一个既有缺陷：更新器 StudyJourney.Updater.exe 原来**从未被签名**
+      #   —— 而它要在用户机上执行"删除+替换程序文件"，未签名更容易被杀软拦下或触发 UAC 疑问。
+      #   两个形态都补上，并且先判断文件存在（fd 形态没有 AOT 那套单 exe 结构）。
+      - name: Sign binaries (NativeAOT)
         if: github.event_name == 'push'
         shell: pwsh
         run: |
-          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "publish\sc\StudyJourneyAvalonia.exe"
-          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "publish\sc\StudyJourneyAvalonia.dll"
+          $st = "${{ steps.find_signtool.outputs.signtool_path }}"
+          $pfx = "StudyJourney.pfx"
+          $pw = "${{ secrets.PFX_PASSWORD }}"
+          foreach ($f in @("publish\aot\StudyJourneyAvalonia.exe", "publish\aot\StudyJourney.Updater.exe")) {
+            if (Test-Path $f) {
+              & $st sign /fd SHA256 /f $pfx /p $pw /tr http://timestamp.digicert.com /td SHA256 /v $f
+            } else { Write-Host "跳过（不存在）：$f" }
+          }
 
       - name: Sign binaries (Framework-dependent)
         if: github.event_name == 'push'
         shell: pwsh
         run: |
-          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "publish\fd\StudyJourneyAvalonia.exe"
-          & "${{ steps.find_signtool.outputs.signtool_path }}" sign /fd SHA256 /f "StudyJourney.pfx" /p "${{ secrets.PFX_PASSWORD }}" /tr http://timestamp.digicert.com /td SHA256 /v "publish\fd\StudyJourneyAvalonia.dll"
+          $st = "${{ steps.find_signtool.outputs.signtool_path }}"
+          $pfx = "StudyJourney.pfx"
+          $pw = "${{ secrets.PFX_PASSWORD }}"
+          foreach ($f in @("publish\fd\StudyJourneyAvalonia.exe", "publish\fd\StudyJourneyAvalonia.dll", "publish\fd\StudyJourney.Updater.exe")) {
+            if (Test-Path $f) {
+              & $st sign /fd SHA256 /f $pfx /p $pw /tr http://timestamp.digicert.com /td SHA256 /v $f
+            } else { Write-Host "跳过（不存在）：$f" }
+          }
 
       - name: Verify signatures
         if: github.event_name == 'push'
@@ -129,7 +159,7 @@ jobs:
         run: |
           # 自签名证书：先导入受信根再 verify /pa（/pa 用默认认证验证策略）
           Import-PfxCertificate -FilePath "StudyJourney.pfx" -CertStoreLocation Cert:\LocalMachine\Root -Password (ConvertTo-SecureString -String "${{ secrets.PFX_PASSWORD }}" -AsPlainText -Force) -Exportable
-          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "publish\sc\StudyJourneyAvalonia.exe"
+          & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "publish\aot\StudyJourneyAvalonia.exe"
           & "${{ steps.find_signtool.outputs.signtool_path }}" verify /pa /v "publish\fd\StudyJourneyAvalonia.exe"
           Write-Host "签名验证通过（CN=XEKernel）"
 
@@ -153,13 +183,17 @@ jobs:
       - name: Generate install manifest
         shell: pwsh
         run: |
-          foreach ($d in @('publish\sc', 'publish\fd')) {
+          foreach ($d in @('publish\aot', 'publish\fd')) {
             $root = (Resolve-Path $d).Path
             $len  = $root.Length + 1
             $list = Get-ChildItem -Path $root -Recurse -File |
                       ForEach-Object { $_.FullName.Substring($len).Replace('\', '/') } |
                       Sort-Object
-            if ($list.Count -lt 10) { throw "$d 文件数异常（$($list.Count)），清单不生成" }
+            # ⚠ 阈值不能沿用旧的 10：**NativeAOT 形态只有 8 个文件**
+            #   （单 exe + 5 个原生库 + LICENSE + 更新器），用 10 会让 AOT 打包直接抛异常中断。
+            #   AOT 包本来就是"文件少"的形态，这正是它的优点 —— 门槛降到 5 仍能拦住
+            #   "清单为空/几乎为空"这种真异常。
+            if ($list.Count -lt 5) { throw "$d 文件数异常（$($list.Count)），清单不生成" }
             $out = Join-Path $root 'install-manifest.txt'
             # 显式用无 BOM 的 UTF8（更新器按行读，BOM 会污染第一行）
             [System.IO.File]::WriteAllLines($out, [string[]]$list, (New-Object System.Text.UTF8Encoding($false)))
@@ -167,10 +201,10 @@ jobs:
           }
 
       # ── 打包（带版本号） ──
-      - name: Pack SC zip
+      - name: Pack AOT zip
         shell: pwsh
         run: |
-          cd publish\sc
+          cd publish\aot
           powershell Compress-Archive -Path * -DestinationPath ..\..\StudyJourney-v${{ steps.version.outputs.version }}-win-x64.zip
 
       - name: Pack FD zip
@@ -200,13 +234,16 @@ jobs:
           }
           if ([string]::IsNullOrWhiteSpace($body)) { $body = "维护更新" }
 
-          # 追加「下载哪个版本」说明（2026-09-25 用户要求保留自包含版 / 框架依赖版的区别）。
+          # 追加「下载哪个版本」说明。
           # 放在标记块**之后**：标记块只写"更新了什么、修了什么"，这段下载说明由 CI 统一补，
           # 免得每次手写漏掉、也免得各版本措辞不一致。
+          # 2026-10-01 改版：主推包从「自包含」换成 **NativeAOT**（免装 .NET 且体积从 86.8MB 降到 28MB、
+          #   启动从 ~3.0s 降到 ~1.7s），框架依赖版保留作兜底。**不要再让老师在"自包含"里选**
+          #   —— 那个包已被 AOT 完全取代，留着只会多一个更差的选项。
           # ⚠ 此处不写体积 —— 正文生成时资产还没上传，GitHub Release 页面本身会显示每个文件的大小。
           # ⚠ .NET 10 是 Avalonia 版本的运行时（v1.x 的 WPF 版是 .NET 8，这里不再区分）。
           $ver = "${{ steps.version.outputs.version }}"
-          $body += "`n`n### 下载哪个版本`n- **自包含版**（``StudyJourney-v$ver-win-x64.zip``）：无需安装 .NET，直接运行。体积较大。`n- **框架依赖版**（``StudyJourney-v$ver-win-x64-fd.zip``）：需安装 [.NET 10 桌面运行时](https://dotnet.microsoft.com/download/dotnet/10.0)。体积较小。`n"
+          $body += "`n`n### 下载哪个版本`n- **推荐**（``StudyJourney-v$ver-win-x64.zip``）：免安装 .NET，解压即用，体积小、启动快。`n- **兼容版**（``StudyJourney-v$ver-win-x64-fd.zip``）：需安装 [.NET 10 桌面运行时](https://dotnet.microsoft.com/download/dotnet/10.0)。仅当推荐版在你的电脑上打不开时再换这个。`n"
 
           [System.IO.File]::WriteAllText("release-notes.md", $body, (New-Object System.Text.UTF8Encoding($false)))
           Write-Host "—— 发布正文 ——"
@@ -226,12 +263,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload SC artifact
+      - name: Upload AOT artifact
         if: github.event_name == 'push'
         uses: actions/upload-artifact@v4
         with:
           name: StudyJourney-v${{ steps.version.outputs.version }}-win-x64
-          path: publish/sc/
+          path: publish/aot/
 
       - name: Upload FD artifact
         if: github.event_name == 'push'
