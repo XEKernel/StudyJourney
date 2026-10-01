@@ -170,7 +170,8 @@ public partial class AboutPage : UserControl, ISettingsPage
 
             if (info.HasUpdate)
             {
-                var mode = info.IsSelfContained ? "自包含版" : "框架依赖版";
+                // ⚠ 用三态显示名（2026-10-01）：原来的二选一在 AOT 版上会显示成「框架依赖版」（错的）
+                var mode = UpdateService.FormDisplayName(info.Form);
                 UpdateStatusTb.Text = $"发现新版本 v{info.LatestVersion}（当前 v{UpdateService.CurrentVersion}）。\n" +
                                       $"{mode}可下载。";
                 UpdateStatusTb.IsVisible = true;

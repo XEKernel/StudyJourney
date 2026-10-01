@@ -20,7 +20,32 @@ public class UpdateInfo
     public string LatestVersion { get; set; } = "";
     public string DownloadUrl { get; set; } = "";
     public string ReleaseNotes { get; set; } = "";
-    public bool IsSelfContained { get; set; }
+
+    /// <summary>本次用的安装形态（决定挑的包，也用于设置页显示）</summary>
+    public InstallForm Form { get; set; }
+}
+
+/// <summary>
+/// 安装形态 —— 决定从 Release 里挑哪个包。
+///
+/// ⚠ **2026-10-01（切 AOT 当天就发现并修掉）**：原来只按「程序目录有没有 coreclr.dll」
+///   分两类（自包含 / 框架依赖），而 **AOT 版本来就没有 coreclr.dll → 会被判成框架依赖**
+///   → 已经升到 AOT 的机器**在下一次更新时会去下 `-fd` 包**（那个需要机器上装 .NET）
+///   → 更新完直接打不开。当时只有 v3.0.0 一个 AOT 版本、教室里那台还没升，属于"刚埋下就挖掉"。
+///
+/// 修法：分三类，并用**运行期能力**（能否动态生成代码）识别 AOT —— 这个判据不依赖文件，
+/// 不受裁剪 / 单文件 / 改名影响。
+/// </summary>
+public enum InstallForm
+{
+    /// <summary>NativeAOT 单文件：无 coreclr.dll、不能用动态代码</summary>
+    Aot,
+
+    /// <summary>自包含：程序目录自带 coreclr.dll（JIT 可用）</summary>
+    SelfContained,
+
+    /// <summary>框架依赖：无 coreclr.dll，需要机器上装 .NET 桌面运行时</summary>
+    FrameworkDependent,
 }
 
 /// <summary>更新流程的阶段（用于给老师显示"正在下载 / 正在解压 / 重启"）</summary>
@@ -151,18 +176,46 @@ public static class UpdateService
 
     public static string CurrentVersion => _currentVersion.Value;
 
-    /// <summary>检测当前应用是否自包含（coreclr.dll 是否在应用目录中）</summary>
-    public static bool IsSelfContained
+    /// <summary>
+    /// 当前安装形态（探测一次即缓存 —— 进程运行期内不可能变）。
+    ///
+    /// 判据顺序**不能颠倒**：
+    ///   ① 能否动态生成代码？NativeAOT = **不能** → 直接判 Aot。
+    ///      必须放第一位：AOT 没有 coreclr.dll，若先查文件就会掉进"框架依赖"（本轮修的 bug）。
+    ///   ② 有 coreclr.dll = 自包含（JIT 版带自己的运行时）。
+    ///   ③ 都没有 = 框架依赖（靠机器上装的 .NET）。
+    /// </summary>
+    public static InstallForm CurrentForm => _form.Value;
+
+    private static readonly Lazy<InstallForm> _form = new(DetectForm);
+
+    private static InstallForm DetectForm()
     {
-        get
+        try
         {
-            try
-            {
-                return File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "coreclr.dll"));
-            }
-            catch { return false; }
+            if (!System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported)
+                return InstallForm.Aot;
+            return File.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "coreclr.dll"))
+                ? InstallForm.SelfContained
+                : InstallForm.FrameworkDependent;
         }
+        catch { return InstallForm.FrameworkDependent; }
     }
+
+    /// <summary>
+    /// 这次更新该拿「非 -fd 包」（true）还是「-fd 包」（false）。
+    /// **AOT 与自包含都拿非 -fd 包** —— 这两个形态都是免装 .NET 的；只有框架依赖才拿 -fd。
+    /// ⚠ 别写成 `CurrentForm == InstallForm.SelfContained`：那正是本轮修掉的 bug（AOT 会被漏掉）。
+    /// </summary>
+    public static bool UsesStandalonePackage => CurrentForm != InstallForm.FrameworkDependent;
+
+    /// <summary>形态的显示名（设置页「关于」用）</summary>
+    public static string FormDisplayName(InstallForm form) => form switch
+    {
+        InstallForm.Aot => "原生 AOT 版",
+        InstallForm.SelfContained => "自包含版",
+        _ => "框架依赖版",
+    };
 
     /// <summary>更新程序是否在位（不在位就别让用户白等下载）</summary>
     public static bool UpdaterPresent
@@ -283,28 +336,23 @@ public static class UpdateService
 
         string latestVer = Regex.Replace(tagName, @"^v", "", RegexOptions.IgnoreCase);
         bool hasUpdate = CompareVersions(latestVer, CurrentVersion) > 0;
-        bool isSC = IsSelfContained;
 
-        // 从 assets 找匹配的 zip：自包含找不带 -fd 的，框架依赖找带 -fd 的。
+        // 从 assets 找匹配的 zip：**免装 .NET 的形态（AOT / 自包含）挑不带 -fd 的**，框架依赖挑带 -fd 的。
         // 用 EndsWith("-fd.zip") 精确判定 —— 原来用 Contains("-fd") 会把名字里
         // 恰好含 "-fd" 的其它文件（如 -fdx）也算进来。
+        bool standalone = UsesStandalonePackage;
+        var assetList = new List<(string Name, string Url)>();
         string downloadUrl = "";
         if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
         {
             foreach (var asset in assets.EnumerateArray())
             {
-                string? assetName = asset.TryGetProperty("name", out var n) ? n.GetString() : null;
-                string? assetUrl = asset.TryGetProperty("browser_download_url", out var d) ? d.GetString() : null;
-                if (string.IsNullOrEmpty(assetName) || string.IsNullOrEmpty(assetUrl)) continue;
-
-                bool endsZip = assetName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase);
-                bool isFD = assetName.EndsWith("-fd.zip", StringComparison.OrdinalIgnoreCase);
-                if (!endsZip) continue;
-
-                if (isSC && !isFD) { downloadUrl = assetUrl; break; }
-                if (!isSC && isFD) { downloadUrl = assetUrl; break; }
+                assetList.Add((
+                    asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "",
+                    asset.TryGetProperty("browser_download_url", out var d) ? d.GetString() ?? "" : ""));
             }
         }
+        downloadUrl = PickAssetUrl(assetList, standalone);
 
         // 没有匹配的下载包时视为不可更新，避免兜底成 HTML 页面导致下载后解压失败
         if (downloadUrl.Length == 0) hasUpdate = false;
@@ -315,8 +363,29 @@ public static class UpdateService
             LatestVersion = latestVer,
             DownloadUrl = downloadUrl,
             ReleaseNotes = body.Length > 500 ? body[..500] + "\u2026" : body,
-            IsSelfContained = isSC,
+            Form = CurrentForm,
         };
+    }
+
+    /// <summary>
+    /// 从 Release 的资产列表里挑出该下载哪一个（**纯函数**，便于自检覆盖两种形态）。
+    ///
+    /// 规则：`standalone`（免装 .NET 的形态 = AOT / 自包含）挑**不带 `-fd` 的**；
+    /// 框架依赖挑**带 `-fd` 的**。判定用 `EndsWith("-fd.zip")` 而不是 `Contains("-fd")` ——
+    /// 后者会把名字里恰好含 `-fd` 的其它文件（如 `-fdx.zip`）也算进来。
+    /// 挑不到就返回空串 → 调用方判为"不可更新"（宁可不动，也别下到错包）。
+    /// </summary>
+    internal static string PickAssetUrl(IEnumerable<(string Name, string Url)> assets, bool standalone)
+    {
+        foreach (var (name, url) in assets)
+        {
+            if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(url)) continue;
+            if (!name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) continue;
+
+            bool isFD = name.EndsWith("-fd.zip", StringComparison.OrdinalIgnoreCase);
+            if (standalone == !isFD) return url;
+        }
+        return "";
     }
 
     // ── 下载 ─────────────────────────────────────────────────

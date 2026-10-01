@@ -2973,20 +2973,51 @@ public partial class App : Application
                 throw new Exception("首选通道不是配置的镜像");
             if (cands[^1] != assetUrl) throw new Exception("最后一个候选应为直连原链接");
 
-            // ── 4. Release JSON 解析 + 自包含/框架依赖资产匹配 ──
+            // ── 4. Release JSON 解析 + 资产匹配（三种安装形态）──
             const string json = """
             {"tag_name":"v99.0.0","body":"note","assets":[
-              {"name":"StudyJourney-v99.0.0-win-x64.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/sc.zip"},
-              {"name":"StudyJourney-v99.0.0-win-x64-fd.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/fd.zip"},
-              {"name":"StudyJourney-v99.0.0-win-x64-fdx.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/fdx.zip"}]}
+              {"name":"StudyJourney-v99.0.0-win-x64.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/StudyJourney-v99.0.0-win-x64.zip"},
+              {"name":"StudyJourney-v99.0.0-win-x64-fd.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/StudyJourney-v99.0.0-win-x64-fd.zip"},
+              {"name":"StudyJourney-v99.0.0-win-x64-fdx.zip","browser_download_url":"https://github.com/o/r/releases/download/v99.0.0/StudyJourney-v99.0.0-win-x64-fdx.zip"}]}
             """;
             var parsed = Services.UpdateService.ParseRelease(json);
-            string wantSuffix = Services.UpdateService.IsSelfContained ? "/sc.zip" : "/fd.zip";
-            sb.AppendLine($"[UPDTEST] 解析 v{parsed.LatestVersion} → {parsed.DownloadUrl}（自包含={Services.UpdateService.IsSelfContained}）");
+            string wantSuffix = Services.UpdateService.UsesStandalonePackage ? "-win-x64.zip" : "-win-x64-fd.zip";
+            sb.AppendLine($"[UPDTEST] 解析 v{parsed.LatestVersion} → {parsed.DownloadUrl}" +
+                          $"（本机形态={Services.UpdateService.CurrentForm}，期望以 {wantSuffix} 结尾）");
             if (parsed.LatestVersion != "99.0.0") throw new Exception("tag_name 解析错误");
             if (!parsed.HasUpdate) throw new Exception("99.0.0 应判为有新版本");
             if (!parsed.DownloadUrl.EndsWith(wantSuffix, StringComparison.Ordinal))
                 throw new Exception($"资产匹配错误：期望以 {wantSuffix} 结尾（\"-fdx.zip\" 不该被当成 -fd 包）");
+
+            // ★★ 形态探测本身（2026-10-01 修的核心 bug）
+            //    旧实现按「有没有 coreclr.dll」二分 → **AOT 没有 coreclr.dll 会被判成框架依赖**
+            //    → AOT 机器下一次更新会去下 `-fd` 包（需要装 .NET）→ 更新完打不开。
+            //    新实现先用「能否动态生成代码」识别 AOT。这里把两个方向都钉死。
+            bool dynOk = System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported;
+            var form = Services.UpdateService.CurrentForm;
+            sb.AppendLine($"[UPDTEST] 形态探测 = {form}（动态代码可用={dynOk}）");
+            if (!dynOk && form != Services.InstallForm.Aot)
+                throw new Exception("AOT 进程被误判成非 AOT → 更新会下错包（这就是 2026-10-01 修掉的 bug）");
+            if (dynOk && form == Services.InstallForm.Aot)
+                throw new Exception("JIT 进程被误判成 AOT");
+
+            // ★ 挑包规则两种形态都测（自检进程自身形态固定，只能靠纯函数覆盖另一支）
+            var fakeAssets = new List<(string, string)>
+            {
+                ("StudyJourney-v99.0.0-win-x64.zip",
+                 "https://github.com/o/r/releases/download/v99.0.0/StudyJourney-v99.0.0-win-x64.zip"),
+                ("StudyJourney-v99.0.0-win-x64-fd.zip",
+                 "https://github.com/o/r/releases/download/v99.0.0/StudyJourney-v99.0.0-win-x64-fd.zip"),
+            };
+            string pickStandalone = Services.UpdateService.PickAssetUrl(fakeAssets, standalone: true);
+            string pickFd = Services.UpdateService.PickAssetUrl(fakeAssets, standalone: false);
+            sb.AppendLine($"[UPDTEST] 免装 .NET 形态（AOT/自包含）挑 → {System.IO.Path.GetFileName(pickStandalone)}");
+            sb.AppendLine($"[UPDTEST] 框架依赖形态挑 → {System.IO.Path.GetFileName(pickFd)}");
+            if (!pickStandalone.EndsWith("-win-x64.zip", StringComparison.Ordinal) ||
+                pickStandalone.EndsWith("-fd.zip", StringComparison.Ordinal))
+                throw new Exception("AOT/自包含形态应挑非 -fd 包");
+            if (!pickFd.EndsWith("-win-x64-fd.zip", StringComparison.Ordinal))
+                throw new Exception("框架依赖形态应挑 -fd 包");
 
             // 只有 -fdx.zip（非法名）时应当匹配不到 → 判为不可更新，避免下到错包
             const string badJson = """
