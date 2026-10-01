@@ -249,6 +249,10 @@ public partial class App : Application
                 // 2026-09-25（规划 2.7）：恢复默认的影响清单 + 重置前备份 + 日期/时间串往返 + 颜色 hex
                 Dispatcher.UIThread.Post(RunSettingsSelfTest, DispatcherPriority.Background);
                 break;
+            case "mem":
+                // 2026-10-01：内存画像（窗口开多后内存是否可回落 / 是否泄漏）
+                Dispatcher.UIThread.Post(RunMemorySelfTest, DispatcherPriority.Background);
+                break;
             default:
                 Helpers.AppLogger.Warn($"未知自检模式：{mode}");
                 Environment.Exit(2);
@@ -1304,6 +1308,138 @@ public partial class App : Application
         catch (Exception ex)
         {
             sb.AppendLine($"[CWTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
+            sb.AppendLine(ex.StackTrace);
+        }
+
+        Helpers.AppLogger.Info(sb.ToString());
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            sb.ToString());
+        Environment.Exit(0);
+    }
+
+    /// <summary>
+    /// 内存画像自检（SJ_SELFTEST=mem）：逐个创建 / 关闭窗口，报告工作集与托管堆。
+    ///
+    /// 用途：老师反馈"窗口一多就吃内存，打开课表能到 200MB+"。要回答的问题是
+    /// **这是每个窗口的正常成本，还是关掉后没释放（泄漏）** —— 读代码只能猜，所以这里实测：
+    /// 反复"打开 → 关闭"同一个窗口，若关闭后回落到基线附近、且逐轮「打开」的读数不递增 → 正常；
+    /// 若逐轮抬高或关闭后不回落 → 泄漏。
+    ///
+    /// ⚠ 报告型自检：只输出数据 + 固定 PASS，**不做阈值断言** ——
+    ///   内存数字随机器、.NET 版本、是否首次 JIT 浮动，钉死阈值只会制造假 FAIL。
+    ///   判读看各行 Δ 与"关闭后"的回落幅度（结论区也写了判读方法）。
+    /// </summary>
+    private static void RunMemorySelfTest()
+    {
+        var sb = new System.Text.StringBuilder();
+        var proc = System.Diagnostics.Process.GetCurrentProcess();
+        long baseWs = 0;
+
+        void Mark(string label)
+        {
+            // 连收两次 + 等终结器：把"已失去引用但还没回收"的对象清干净，
+            // 否则读数里混着上一轮的垃圾，看不出真实回落。
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
+
+            long ws = proc.WorkingSet64;
+            if (baseWs == 0) baseWs = ws;
+            sb.AppendLine(string.Format(
+                "[MEM] {0,-30} 工作集 {1,4} MB (Δ{2,5} MB)   托管堆 {3,4} MB   Gen2={4}",
+                label, ws >> 20, (ws - baseWs) >> 20,
+                GC.GetTotalMemory(true) >> 20, GC.CollectionCount(2)));
+        }
+
+        // 反复"打开 → 关闭"一个窗口。
+        // ⚠ 必须真的 Show 一次：窗口的退订挂在 Closed / DetachedFromVisualTree 上，
+        //   从不 Show 就 Close 触发不到那些路径 → 会**测出假泄漏**。
+        void Cycle(string title, Func<global::Avalonia.Controls.Window> make, int rounds)
+        {
+            for (int r = 1; r <= rounds; r++)
+            {
+                global::Avalonia.Controls.Window? w = null;
+                try
+                {
+                    w = make();
+                    bool shown = false;
+                    try { w.Show(); shown = true; } catch { }
+                    Mark($"{title} 第{r}轮 · 打开" + (shown ? "" : "（未能 Show）"));
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"[MEM] {title} 构造失败：{ex.GetType().Name}: {ex.Message}");
+                    break;
+                }
+                try { w.Close(); } catch { }
+                // ⚠ Close() 触发的 Closed 回调可能只是**排进 UI 队列、尚未执行**，
+                //   而窗口的退订恰恰挂在 Closed（或 DetachedFromVisualTree）上。
+                //   不把队列跑完就测量，会把"还没轮到退订"误读成"泄漏"。
+                try { Dispatcher.UIThread.RunJobs(); } catch { }
+                // ⚠ 同样必须确认"真的关了"：部分窗口的 OnClosing 会在"有未保存修改"时
+                //   `e.Cancel = true` 并弹确认框 —— 自检里没人点按钮 → 窗口留着不关，
+                //   读数就会表现为"关闭后不回落"，那是**测量假象**而不是泄漏。这里标出来。
+                bool stillOpen = false;
+                try { stillOpen = w.IsVisible; } catch { }
+                Mark($"{title} 第{r}轮 · 关闭" + (stillOpen ? "（⚠ 未真关，被确认框拦下 → 读数不可信）" : ""));
+            }
+        }
+
+        try
+        {
+            Mark("基线（自检启动后，仅主窗口未建）");
+
+            // ① 各设置页：SettingsWindow 每次切页都会**新建**一个（不缓存页面），
+            //    所以这里是老师在设置里切来切去时的真实成本。
+            var pages = new (string Name, Func<global::Avalonia.Controls.Control> Make)[]
+            {
+                ("倒计时页",   () => new Views.Settings.CountdownPage()),
+                ("位置页",     () => new Views.Settings.PositionPage()),
+                ("一言/天气页", () => new Views.Settings.ApiPage()),
+                ("课表页",     () => new Views.Settings.SchedulePage()),
+                ("考试页",     () => new Views.Settings.ExamPage()),
+                ("服务器页",   () => new Views.Settings.ServerPage()),
+                ("自动化页",   () => new Views.Settings.AutomationPage()),
+                ("关于页",     () => new Views.Settings.AboutPage()),
+            };
+            foreach (var (name, make) in pages)
+            {
+                try
+                {
+                    var c = make();
+                    if (c is Views.Settings.ISettingsPage sp) sp.Load(new Models.AppSettings());
+                    Mark($"设置页「{name}」");
+                    // 立刻丢弃；下一次 Mark 里的 GC 会回收它 → 读数 ≈ 该页净开销
+                }
+                catch (Exception ex)
+                {
+                    sb.AppendLine($"[MEM] 设置页「{name}」构造失败：{ex.GetType().Name}: {ex.Message}");
+                }
+            }
+            Mark("设置页全部丢弃后（应回落到基线附近）");
+
+            // ② 设置窗口整体（XAML 加载 + 标题栏图标解码 + 默认倒计时页）
+            Cycle("设置窗口", () => new Views.SettingsWindow(), 3);
+
+            // ③ 课表编辑器 —— 老师反馈"打开课表直接飙"的就是它（DataGrid + 7×N 周视图 + 考试/模板区）
+            Cycle("课表编辑器", () => new Views.ScheduleEditorWindow(), 3);
+
+            // ④ 听力播放器（代码式窗口，轻量对照组）
+            Cycle("听力播放器", () => new Views.ListeningPlayerWindow(), 2);
+
+            Mark("全部关闭并回收后");
+            sb.AppendLine();
+            sb.AppendLine("[MEM] 判读：同一窗口各轮「打开」的 Δ 应基本持平（不随轮次递增）；");
+            sb.AppendLine("[MEM]       「关闭」后应回落到接近上一轮关闭后的水平；");
+            sb.AppendLine("[MEM]       若逐轮抬高或关闭后不回落 → 该窗口泄漏（订阅未退 / 被静态引用持有）。");
+            sb.AppendLine();
+            sb.AppendLine("[MEM] 结论：PASS（内存画像为报告型自检，无阈值断言；请判读上方各行 Δ 与回落）");
+        }
+        catch (Exception ex)
+        {
+            sb.AppendLine();
+            sb.AppendLine($"[MEM] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
             sb.AppendLine(ex.StackTrace);
         }
 

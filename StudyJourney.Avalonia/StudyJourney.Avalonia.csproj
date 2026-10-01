@@ -8,8 +8,8 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 2.30.0：AssemblyVersion=2.30.0.0（由 <Version> 派生），InformationalVersion=2.30.0（更新检查解析用） -->
-    <Version>2.30.0</Version>
+    <!-- 2.30.1：AssemblyVersion=2.30.1.0（由 <Version> 派生），InformationalVersion=2.30.1（更新检查解析用） -->
+    <Version>2.30.1</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
@@ -37,6 +37,19 @@
   <!-- 远程管理：ASP.NET Core Minimal API（Kestrel 后台线程运行，不阻塞 UI 线程） -->
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!-- ── GC 内存策略（2026-10-01）──────────────────────────────────────────────
+       背景：老师反馈"窗口开多了内存到 200MB，关掉也不降"。实测（SJ_SELFTEST=mem）确认**不是泄漏**
+       —— 全部窗口关闭 + GC 后托管堆回落到基线。任务管理器里"不降"的主因是
+       **.NET 把回收的内存留在 GC 堆里备用**（复用比还给系统更快），属默认行为的取舍。
+       ConserveMemory=5：内存吃紧时让 GC 更积极回收/归还（0=默认不积极，9=最积极）。
+       选 5 是官方建议的平衡点 —— 只在有内存压力时起作用，平时不额外增加 GC 次数，
+       所以对 CPU 影响有限（本轮刚做过 CPU 优化，不拿它换）。
+       另有 RetainVM=false：明确允许把空段还给系统（本就是 .NET 默认值，写出来表明意图）。 -->
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.GC.ConserveMemory" Value="5" />
+    <RuntimeHostConfigurationOption Include="System.GC.RetainVM" Value="false" />
   </ItemGroup>
 
   <!-- ⚠ 这里**不能**把 settings.json 打进产物（2026-09-17 修复，数据丢失 BUG）

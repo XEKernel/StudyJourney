@@ -20,6 +20,14 @@ namespace StudyJourney.Avalonia.Views;
 /// <summary>课表/考试编辑窗口：DataGrid 编辑 schedule.json，保存写回</summary>
 public partial class ScheduleEditorWindow : Window, IUnsavedWork
 {
+    // ── 共享装饰画笔（2026-10-01 内存优化）──────────────────────
+    // 周视图有 8 行 × 7 列 = 56 个格子，原来每格都 `new SolidColorBrush(...)` 两次
+    // （边框 + 时间小字），一次重建就是 112 个画刷实例；而 RebuildTimetable 有 15+ 个调用点
+    // （每次调课/换课/改模板都重建）。颜色是固定常量 → 提成共享实例即可，渲染行为完全一致。
+    private static readonly IBrush CellBorderBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
+    private static readonly IBrush CellTimeBrush = new SolidColorBrush(Color.FromArgb(0x9A, 0xFF, 0xFF, 0xFF));
+    private static readonly IBrush HeaderTextBrush = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF));
+
     public ScheduleEditorWindow()
     {
         InitializeComponent();
@@ -828,7 +836,7 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
 
                 var border = new Border
                 {
-                    BorderBrush = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF)),
+                    BorderBrush = CellBorderBrush,
                     BorderThickness = new Thickness(0.5),
                     CornerRadius = new CornerRadius(4),
                     Margin = new Thickness(1),
@@ -857,7 +865,7 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
                 {
                     Text = hasTime ? $"{s}-{e2}" : "无此节",
                     FontSize = 9,
-                    Foreground = new SolidColorBrush(Color.FromArgb(0x9A, 0xFF, 0xFF, 0xFF)),
+                    Foreground = CellTimeBrush,
                     HorizontalAlignment = HorizontalAlignment.Right,
                     VerticalAlignment = VerticalAlignment.Bottom,
                     Margin = new Thickness(0, 0, 3, 1),
@@ -936,7 +944,7 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
             Text = text,
             FontSize = 12,
             FontWeight = bold ? FontWeight.SemiBold : FontWeight.Normal,
-            Foreground = new SolidColorBrush(Color.FromArgb(0xAA, 0xFF, 0xFF, 0xFF)),
+            Foreground = HeaderTextBrush,
             VerticalAlignment = VerticalAlignment.Center,
             HorizontalAlignment = alignRight ? HorizontalAlignment.Right : HorizontalAlignment.Center,
             Margin = new Thickness(6, 0, 6, 0)

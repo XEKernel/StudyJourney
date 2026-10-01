@@ -75,13 +75,19 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow, I
         // choice == 0 → 留在本页
     }
 
-    /// <summary>FAAppWindow 标题栏图标（IImage，用 PNG）</summary>
+    /// <summary>FAAppWindow 标题栏图标（IImage，用 PNG）。
+    /// ⚠ 缓存：原来每次开设置窗口都重新解码一遍 PNG（256×256 → 约 0.25MB 未压缩位图），
+    ///   且 Bitmap 是 IDisposable、不 Dispose 就得等终结器 —— 缓存后全程只有一份。</summary>
+    private static IImage? _cachedIcon;
+
     private static IImage? LoadBitmapIcon()
     {
+        if (_cachedIcon != null) return _cachedIcon;
         try
         {
             using var stream = AssetLoader.Open(new Uri("avares://StudyJourneyAvalonia/Assets/icon.png"));
-            return new Bitmap(stream);
+            _cachedIcon = new Bitmap(stream);
+            return _cachedIcon;
         }
         catch { return null; }
     }
