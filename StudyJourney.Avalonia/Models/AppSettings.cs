@@ -289,7 +289,7 @@ namespace StudyJourney.Avalonia.Models
                 //   "只付一次"的说法相反），日志里还会每次都出现"未找到 settings.json"。
                 //   落盘后 Updater 的用户数据保护名单也从第一次启动起就有效。
                 Helpers.AppLogger.Info("[AppSettings] 未找到 settings.json，按首次运行创建默认设置（含默认老师账号）");
-                var fresh = new AppSettings { Teachers = CreateDefaultTeachers() };
+                var fresh = new AppSettings { Teachers = CreateDefaultTeachers(), AccountsInitialized = true };
                 fresh.Save();
                 return fresh;
             }
@@ -307,6 +307,27 @@ namespace StudyJourney.Avalonia.Models
                 var result = JsonSerializer.Deserialize(json, AppJsonContext.Default.AppSettings)
                              ?? new AppSettings();
                 long tParse = sw.ElapsedMilliseconds;
+
+                // ── 一次性迁移（v2.29.0 安全加固）：给老配置补上"账号表已初始化"标记 ──
+                // 目的：终止"内置默认账号删不掉"的兜底（详见 Helpers/TeacherAuthRules.cs）。
+                //
+                // 为什么账号表为空时要**补回**内置账号，而不是只打标记：
+                //   老配置账号表为空 = 老师删光过账号，但他很可能**一直在用内置账号登录**（旧版无条件兜底）。
+                //   只打标记不补 → 他升级后会"突然登不进远程控制台"且不知道原因。
+                //   补回来之后行为不变（仍能登录），区别只是这些账号**从此显式出现在设置页**，改/删都由老师说了算。
+                var action = Helpers.TeacherAuthRules.DecideMigration(
+                    result.AccountsInitialized, result.Teachers?.Count ?? 0);
+                if (action != Helpers.AccountMigrationAction.None)
+                {
+                    result.AccountsInitialized = true;
+                    if (action == Helpers.AccountMigrationAction.MarkAndSeed)
+                        result.Teachers = CreateDefaultTeachers();
+                    try { result.Save(); }
+                    catch (Exception ex) { Helpers.AppLogger.Warn($"[安全加固] 初始化标记落盘失败（下次启动会重试）：{ex.Message}"); }
+                    Helpers.AppLogger.Info(action == Helpers.AccountMigrationAction.MarkAndSeed
+                        ? "[安全加固] 老配置无初始化标记且账号表为空 → 已补回内置默认账号（此后删除即永久生效）"
+                        : $"[安全加固] 已为既有 {result.Teachers!.Count} 个账号打上初始化标记（内置账号兜底从此失效）");
+                }
 
                 Helpers.AppLogger.Info(
                     $"[启动耗时]   └ settings 明细：读文件 {tRead} ms / 反序列化 {tParse - tRead} ms / 共 {tParse} ms");
@@ -378,6 +399,17 @@ namespace StudyJourney.Avalonia.Models
         /// 现在默认账号只由 <see cref="Load"/> 在"首次运行（无 settings.json）"时赋一次。
         /// </summary>
         public List<TeacherAccount> Teachers { get; set; } = new();
+
+        /// <summary>
+        /// 账号表是否已初始化（v2.29.0 安全加固）。用途见 <see cref="Helpers.TeacherAuthRules"/>。
+        ///
+        /// · **false**（默认；只会出现在老配置或文件损坏后重建的情况）→ 登录仍允许兜底到内置账号，兼容旧行为；
+        /// · **true**（首次运行、以及 <see cref="Load"/> 的一次性迁移都会置上）→ **不再兜底，删掉就是删掉**。
+        ///
+        /// ⚠ 刻意**不用**"Teachers 是否为空"当判据：老师故意删光账号时它就是空的，
+        ///    而那种情况恰恰**必须**不兜底 —— 这正是本次要修的漏洞。
+        /// </summary>
+        public bool AccountsInitialized { get; set; } = false;
 
         /// <summary>
         /// 课件里的 .pdf 是否用**内置阅读器**打开（而不是系统默认 PDF 程序）。

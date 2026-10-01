@@ -62,6 +62,7 @@ public partial class ServerPage : UserControl, ISettingsPage
         _teachers = new ObservableCollection<TeacherAccount>((s.Teachers ?? new()).Select(Clone));
         TeacherListBox.ItemsSource = _teachers;
         ClearTeacherForm();
+        RefreshTeacherRiskBanner();   // v2.29.0：进来就让老师看见"有哪些账号还在用公开默认密码"
         _subjects = new ObservableCollection<string>(s.Subjects ?? new());
         SubjectListBox.ItemsSource = _subjects;
         NewSubjectBox.Text = "";
@@ -172,6 +173,48 @@ public partial class ServerPage : UserControl, ISettingsPage
         }
     }
 
+    /// <summary>
+    /// v2.29.0 安全加固：提示"仍有账号在使用公开的默认密码"。
+    ///
+    /// 为什么值得专门做个红条：默认密码 `123456` / `Study@2026` **写在本软件的开源源码里**，
+    /// 等于公开；而远程控制台默认对整个局域网开放（IP 白名单默认关闭）+ 自动启动服务。
+    /// 老师通常不会意识到"这些初始账号还能用、且密码人人可知"。
+    /// </summary>
+    private void RefreshTeacherRiskBanner()
+    {
+        try
+        {
+            var risky = Helpers.TeacherAuthRules.WithDefaultPassword(_teachers);
+            if (risky.Count == 0)
+            {
+                TeacherRiskBanner.IsVisible = false;
+                return;
+            }
+            TeacherRiskBanner.IsVisible = true;
+            TeacherRiskTitle.Text = $"⚠ 有 {risky.Count} 个账号仍在使用公开的默认密码";
+            TeacherRiskDetail.Text =
+                "这些密码（123456 / Study@2026）写在本软件的开源代码里，等于公开。"
+                + "远程管理默认对整个局域网开放，同一网络内的任何人都可能用它登录控制台"
+                + "（改课表、传文件、关屏或关机）。"
+                + "建议：逐个选中 → 在「密码」里填新密码 → 点「更新选中」；用不到的账号直接删除。";
+        }
+        catch
+        {
+            // 提示失败绝不能影响设置页
+            try { TeacherRiskBanner.IsVisible = false; } catch { }
+        }
+    }
+
+    /// <summary>生成便于口头转达的随机密码（避开易混字符 0/O/1/l/I）</summary>
+    private static string GeneratePassword()
+    {
+        const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+        var bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(10);
+        var sb = new System.Text.StringBuilder(bytes.Length);
+        foreach (var b in bytes) sb.Append(chars[b % chars.Length]);
+        return sb.ToString();
+    }
+
     private void ClearTeacherForm()
     {
         TUsernameBox.Text = "";
@@ -199,10 +242,21 @@ public partial class ServerPage : UserControl, ISettingsPage
             DisplayName = string.IsNullOrWhiteSpace(TDisplayNameBox.Text) ? username : TDisplayNameBox.Text.Trim(),
             Subject = TSubjectBox.Text?.Trim() ?? "",
         };
-        // 新增账号：密码留空则给默认初始密码（同老账号迁移前一致，老师之后可改）
-        acc.SetPassword(string.IsNullOrWhiteSpace(TPasswordBox.Text) ? "123456" : TPasswordBox.Text.Trim());
+        // v2.29.0 安全加固：**不再**拿 123456 当新账号的初始密码 ——
+        // 那是公开在源码里的弱口令，每加一个账号等于多发一把"人人都有的钥匙"。
+        // 现在留空 = 生成随机密码并显示一次（老师记录后转交；丢了可在本页重设）。
+        var pass = TPasswordBox.Text?.Trim();
+        bool generated = string.IsNullOrWhiteSpace(pass);
+        if (generated) pass = GeneratePassword();
+        acc.SetPassword(pass!);
         _teachers.Add(acc);
         ClearTeacherForm();
+        RefreshTeacherRiskBanner();
+        if (generated)
+            _ = App.ShowMessageAsync("老师账号 · 随机密码",
+                $"已为「{username}」生成随机密码：\n\n{pass}\n\n"
+                + "请立即记录并转交给该老师 —— 密码只存加密值，这个窗口关掉后就看不到明文了。"
+                + "（忘记的话：在本页选中该账号 → 在「密码」里填新密码 → 点「更新选中」。）");
     }
 
     private void UpdateTeacherBtn_Click(object? sender, RoutedEventArgs e)
@@ -226,6 +280,7 @@ public partial class ServerPage : UserControl, ISettingsPage
         TeacherListBox.ItemsSource = _teachers;
         TeacherListBox.SelectedIndex = idx;
         TPasswordBox.Text = "";   // 改完即清空密码框，避免误触发下次"更新"改密
+        RefreshTeacherRiskBanner();   // v2.29.0：改完密码后风险红条应当立刻消失
     }
 
     private void DeleteTeacherBtn_Click(object? sender, RoutedEventArgs e)
@@ -234,6 +289,7 @@ public partial class ServerPage : UserControl, ISettingsPage
         {
             _teachers.Remove(acc);
             ClearTeacherForm();
+            RefreshTeacherRiskBanner();   // v2.29.0：删掉用默认密码的账号后，红条应随之减少或消失
         }
     }
 

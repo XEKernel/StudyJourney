@@ -2005,6 +2005,88 @@ public partial class App : Application
                     "自动化页「播放听力」动作面板与「课表听力节次」触发面板在位");
             }
 
+            // ── M. 安全加固（v2.29.0）：终止"内置账号删不掉"的兜底 ──────────────
+            // 背景：内置默认账号（teacher01/123456 等）**写死在源码里**，而本仓库开源 → 密码等于公开；
+            //       旧实现还在账号表查不到时**无条件**兜底 → 老师在设置页删光账号也删不掉它们，
+            //       等于留下一个"局域网任何人都能登录远程控制台"的入口。
+            // 加固：配置带 AccountsInitialized 标记，一旦置上就**彻底不兜底**（删掉就是删掉）。
+            {
+                // ① 迁移决策三态（纯函数）
+                Check(Helpers.TeacherAuthRules.DecideMigration(false, 0) == Helpers.AccountMigrationAction.MarkAndSeed,
+                    "迁移：未初始化 + 账号表为空 → 打标记并补回内置账号（保证老用户升级后不会突然登不进）");
+                Check(Helpers.TeacherAuthRules.DecideMigration(false, 3) == Helpers.AccountMigrationAction.MarkOnly,
+                    "迁移：未初始化 + 已有账号 → 只打标记（不重复塞内置账号）");
+                Check(Helpers.TeacherAuthRules.DecideMigration(true, 0) == Helpers.AccountMigrationAction.None,
+                    "★ 迁移：已初始化 → 什么都不做（老师删光账号是**有意**的，不能借迁移给他复活）");
+
+                // ② 登录查找
+                var secCfg = new List<Models.TeacherAccount>
+                {
+                    new() { Username = "mylogin", DisplayName = "我的账号" },
+                };
+                var secFb = new List<Models.TeacherAccount>
+                {
+                    new() { Username = "teacher01", DisplayName = "李老师" },
+                };
+                Check(Helpers.TeacherAuthRules.FindForLogin(secCfg, secFb, true, "mylogin")?.Username == "mylogin",
+                    "登录：用户名命中配置里的账号");
+                Check(Helpers.TeacherAuthRules.FindForLogin(secCfg, secFb, true, "我的账号")?.Username == "mylogin",
+                    "登录：显示名也能命中（网页端下拉就是按显示名登录的）");
+                Check(Helpers.TeacherAuthRules.FindForLogin(secCfg, secFb, true, "MyLogin")?.Username == "mylogin",
+                    "登录：用户名大小写不敏感");
+
+                // ★★ 本次加固的核心断言
+                Check(Helpers.TeacherAuthRules.FindForLogin(secCfg, secFb, true, "teacher01") == null,
+                    "★★ 已初始化 → 内置 teacher01 **不再兜底**（老师删掉就是删掉）");
+                Check(Helpers.TeacherAuthRules.FindForLogin(new List<Models.TeacherAccount>(), secFb, true, "teacher01") == null,
+                    "★★ 账号表被清空且已初始化 → 仍**不**兜底（这正是原漏洞的确切场景）");
+
+                // 向后兼容：未初始化（老配置升级前 / settings.json 损坏后重建）仍兜底
+                Check(Helpers.TeacherAuthRules.FindForLogin(new List<Models.TeacherAccount>(), secFb, false, "teacher01")?.Username == "teacher01",
+                    "未初始化时仍兜底 → 老配置升级后不会突然登不进（向后兼容）");
+
+                Check(Helpers.TeacherAuthRules.FindForLogin(secCfg, secFb, false, "") == null &&
+                      Helpers.TeacherAuthRules.FindForLogin(secCfg, secFb, false, "   ") == null &&
+                      Helpers.TeacherAuthRules.FindForLogin(secCfg, secFb, false, null) == null,
+                    "空 / 空白 / null 用户名 → 返回 null，不崩");
+
+                // ③ 默认密码识别（设置页风险提示的依据）
+                var secWeak1 = new Models.TeacherAccount { Username = "w1", DisplayName = "弱口令1" };
+                secWeak1.SetPassword("123456");
+                var secWeak2 = new Models.TeacherAccount { Username = "w2", DisplayName = "弱口令2" };
+                secWeak2.SetPassword("Study@2026");
+                var secStrong = new Models.TeacherAccount { Username = "s1", DisplayName = "强口令" };
+                secStrong.SetPassword("Qm7#vL2pX");
+                Check(Helpers.TeacherAuthRules.UsesDefaultPassword(secWeak1) &&
+                      Helpers.TeacherAuthRules.UsesDefaultPassword(secWeak2),
+                    "识别出仍用公开默认密码的账号（123456 与 Study@2026 都算）");
+                Check(!Helpers.TeacherAuthRules.UsesDefaultPassword(secStrong), "自定义密码不算默认密码（不误报）");
+                Check(!Helpers.TeacherAuthRules.UsesDefaultPassword(null), "null 账号不崩");
+                Check(Helpers.TeacherAuthRules.WithDefaultPassword(new[] { secWeak1, secStrong }).Count == 1,
+                    "WithDefaultPassword 只挑出用默认密码的那 1 个");
+                Check(Helpers.TeacherAuthRules.WithDefaultPassword(null).Count == 0, "账号列表为 null 不崩");
+
+                // ④ 标记经源生成器往返（漏了 → 每次启动都退回"未初始化"，加固等于白做）
+                string secJson = JsonSerializer.Serialize(
+                    new Models.AppSettings { AccountsInitialized = true },
+                    Models.AppJsonContext.Default.AppSettings);
+                var secBack = JsonSerializer.Deserialize(secJson, Models.AppJsonContext.Default.AppSettings);
+                Check(secBack?.AccountsInitialized == true,
+                    "AccountsInitialized 经 AppJsonContext 往返无损（漏了 → 加固失效）");
+                Check(!new Models.AppSettings().AccountsInitialized, "新建设置默认**未**初始化");
+                Check(Helpers.SettingsReset.CreateResetTarget().AccountsInitialized,
+                    "「重置所有设置」的目标带初始化标记（重置后是正常可用状态，不会退回兜底）");
+
+                // ⑤ 设置页风险提示控件在位（XAML 写错只在老师打开时才炸）
+                var secPage = new Views.Settings.ServerPage();
+                secPage.Load(new Models.AppSettings());
+                Check(secPage.TeacherRiskBanner != null && secPage.TeacherRiskTitle != null &&
+                      secPage.TeacherRiskDetail != null,
+                    "服务器页「默认密码风险提示」控件在位（XAML 未拼错）");
+                Check(!secPage.TeacherRiskBanner!.IsVisible,
+                    "账号列表为空时不显示风险提示（不误报）");
+            }
+
             // ── I. 课表编辑器冒烟（2026-09-27 AOT：XAML 反射绑定 → 编译绑定）────
             // 该文件的 DataGrid 列原来用 `{Binding Xxx}`（反射绑定，IL2026/IL3050）→ 改成编译绑定 + x:DataType。
             // 编译绑定写错通常是**编译错误**（能拦住），但"行渲染成空白"这类只在运行时暴露 → 这里实例化一次兜底。

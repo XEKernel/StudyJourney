@@ -353,7 +353,14 @@ public static class HttpServerService
             // #4-阶段1 收口：只返回 显示名/科目，不返回 username（防账号名公开枚举 + 批量爆破）
             app.MapGet("/api/teachers", () =>
             {
-                var list = (App.Settings.Teachers?.Count > 0 ? App.Settings.Teachers.AsEnumerable() : FallbackTeachers.AsEnumerable())
+                // v2.29.0 安全加固：已初始化的配置**不再**回落到内置账号表 ——
+                // 否则等于对外播报"这台机器有哪些内置账号"，配合公开的默认密码就是一份可直接用的登录名单。
+                var src = App.Settings.Teachers?.Count > 0
+                    ? App.Settings.Teachers.AsEnumerable()
+                    : (App.Settings.AccountsInitialized
+                        ? Enumerable.Empty<TeacherAccount>()
+                        : FallbackTeachers.AsEnumerable());
+                var list = src
                     .Select(t => new ApiTeacherItem { DisplayName = t.DisplayName, Subject = t.Subject })
                     .ToList();
                 return Results.Json(new ApiTeachers { Ok = true, Count = list.Count, Teachers = list },
@@ -983,19 +990,13 @@ public static class HttpServerService
     /// <summary>
     /// 登录用查找：#4-阶段1 后网页端只展示显示名，故按 用户名 或 显示名 均可登录。
     /// 显示名理论可重复 → 取第一个匹配（班级规模下无冲突；如冲突请在设置页改显示名）。
+    ///
+    /// v2.29.0 安全加固：判定交给纯函数 <see cref="Helpers.TeacherAuthRules.FindForLogin"/> ——
+    /// **账号表已初始化时不再兜底内置账号**（原来无条件兜底，导致老师删光账号也删不掉 `teacher01/123456`）。
     /// </summary>
     private static TeacherAccount? FindTeacherForLogin(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return null;
-        var list = App.Settings.Teachers;
-        var acc = list?.FirstOrDefault(a =>
-            string.Equals(a.Username, name, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a.DisplayName, name, StringComparison.OrdinalIgnoreCase));
-        if (acc != null) return acc;
-        return FallbackTeachers.FirstOrDefault(a =>
-            string.Equals(a.Username, name, StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(a.DisplayName, name, StringComparison.OrdinalIgnoreCase));
-    }
+        => Helpers.TeacherAuthRules.FindForLogin(
+            App.Settings.Teachers, FallbackTeachers, App.Settings.AccountsInitialized, name);
 
     /// <summary>内置默认老师账号（settings.json 的 Teachers 为空时兜底）：语数英物化生 + 管理员。
     /// #4-阶段2：内存中即存哈希，不保留明文常量可落盘对象。</summary>
@@ -1443,6 +1444,17 @@ public static class HttpServerService
                     const j=await r.json();
                     if(!j.ok||!j.teachers)return;
                     const sel=$('username');sel.innerHTML='';
+                    /* v2.29.0 加固：账号表为空 = 老师把账号都删了（现在删除即永久生效）。
+                       这时**没有任何账号能登录**，必须明确告诉老师去哪儿补救，否则会被当成"系统坏了"。 */
+                    if(j.teachers.length===0){
+                      const o=document.createElement('option');
+                      o.value='';o.textContent='（这台电脑尚未配置登录账号）';o.disabled=true;
+                      sel.appendChild(o);
+                      const lb=$('loginBtn');if(lb)lb.disabled=true;
+                      const lm=$('loginMsg');
+                      if(lm)lm.textContent='教室电脑还没有配置登录账号 —— 请到那台电脑的「设置 → 服务器 → 老师账号」里添加一个。';
+                      return;
+                    }
                     j.teachers.forEach(t=>{
                       const o=document.createElement('option');
                       o.value=t.displayName;
@@ -1854,9 +1866,19 @@ public static class HttpServerService
                         const j = await r.json();
                         if (j.ok && j.teachers) {
                           const sel = $('username'); sel.innerHTML = '';
+                          // v2.29.0：账号为空（老师把账号都删了）时给个提示，别留一个空下拉让人猜
+                          if (j.teachers.length === 0) {
+                            const o = document.createElement('option');
+                            o.value = ''; o.textContent = '（尚未配置登录账号）'; o.disabled = true;
+                            sel.appendChild(o);
+                            return;
+                          }
                           j.teachers.forEach(t => {
                             const o = document.createElement('option');
-                            o.value = t.username;
+                            // ⚠ 这里原来取 t.username —— 但 /api/teachers 自 #4-阶段1 起**只返回
+                            //   displayName/subject，不含 username**，所以那个 value 恒为 undefined。
+                            //   改成 displayName（与登录页一致；后端 FindTeacherForLogin 也认显示名）。
+                            o.value = t.displayName;
                             o.textContent = t.displayName + '（' + t.subject + '）';
                             sel.appendChild(o);
                           });

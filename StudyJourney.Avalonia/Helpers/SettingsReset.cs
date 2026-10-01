@@ -39,7 +39,7 @@ public static class SettingsReset
     /// 与"每次启动白付 470ms"是两码事，不要试图把它挪回属性初始化器。
     /// </summary>
     public static AppSettings CreateResetTarget()
-        => new() { Teachers = AppSettings.CreateDefaultTeachers() };
+        => new() { Teachers = AppSettings.CreateDefaultTeachers(), AccountsInitialized = true };
 
     /// <summary>目标考试日期 / 起算日期的兜底显示（空值说明白，别显示成空白）</summary>
     private static string Show(string? v, string empty = "（未设置）")

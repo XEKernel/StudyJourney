@@ -77,6 +77,17 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="👥 老师账号" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <!-- v2.29.0 安全加固：默认密码风险提示（仅在有账号仍用公开默认密码时显示） -->
+                    <Border x:Name="TeacherRiskBanner" CornerRadius="6" Background="#33C81E1E"
+                            BorderBrush="#66E57373" BorderThickness="1" Padding="10,8" Margin="0,0,0,6"
+                            IsVisible="False">
+                        <StackPanel Spacing="3">
+                            <TextBlock x:Name="TeacherRiskTitle" FontSize="12" FontWeight="SemiBold"
+                                       Foreground="#FFFF8A80" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="TeacherRiskDetail" FontSize="11"
+                                       Foreground="#FFEF9A9A" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
                     <TextBlock Text="远程管理登录账号（语数英物化生 + 管理员）。选中行可编辑，点「更新选中」保存到列表。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap"/>
@@ -88,7 +99,7 @@
                         <TextBox x:Name="TDisplayNameBox" Grid.Column="2" PlaceholderText="显示名" FontSize="12"/>
                         <TextBox x:Name="TSubjectBox" Grid.Column="3" PlaceholderText="科目" FontSize="12"/>
                     </Grid>
-                    <TextBlock Text="密码以加密形式存储、不显示不回读；编辑老师时留空 = 保持原密码，新增账号留空 = 初始密码 123456。"
+                    <TextBlock Text="密码以加密形式存储、不显示不回读；编辑老师时留空 = 保持原密码，新增账号留空 = 自动生成一个随机密码并在提示框里显示一次。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap"/>
                     <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
