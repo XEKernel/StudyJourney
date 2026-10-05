@@ -39,12 +39,6 @@ public static class PdfReadingState
     private static readonly object Gate = new();
     private static PdfReadingStateData _data = LoadFromDisk();
 
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-    };
-
     private static PdfReadingStateData LoadFromDisk()
     {
         try

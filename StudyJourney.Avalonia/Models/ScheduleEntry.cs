@@ -305,12 +305,6 @@ namespace StudyJourney.Avalonia.Models
                 Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
                 "StudyJourney", "schedule.json");
 
-            private static readonly JsonSerializerOptions _jsonOpts = new()
-            {
-                WriteIndented = true,
-                PropertyNameCaseInsensitive = true,
-            };
-
             public static ScheduleData Load()
             {
                 try
@@ -346,7 +340,7 @@ namespace StudyJourney.Avalonia.Models
                         var bak = _schedulePath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
                         File.Copy(_schedulePath, bak, overwrite: true);
                         File.Delete(_schedulePath);
-                        TrimCorruptedBackups(_schedulePath);
+                        Helpers.FileAtomic.TrimCorruptedBackups(_schedulePath);
                         System.Diagnostics.Debug.WriteLine($"[ScheduleData] 已备份损坏文件: {bak}");
                     }
                     catch { }
@@ -374,24 +368,6 @@ namespace StudyJourney.Avalonia.Models
                 // 归一化到非 null 才能真正稳定。
                 d.MakeupDays ??= new List<MakeupDay>();
             }
-
-        /// <summary>清理过期的 .corrupted 备份，只保留最近 maxCount 份</summary>
-        private static void TrimCorruptedBackups(string basePath, int maxCount = 3)
-        {
-            try
-            {
-                var dir = Path.GetDirectoryName(basePath);
-                if (string.IsNullOrEmpty(dir)) return;
-                var files = Directory.GetFiles(dir, Path.GetFileName(basePath) + ".corrupted.*")
-                    .OrderByDescending(f => f)
-                    .Skip(maxCount);
-                foreach (var f in files)
-                {
-                    try { File.Delete(f); } catch { }
-                }
-            }
-            catch { }
-        }
 
         /// <summary>保存课表；返回是否成功（调用方如网页 PUT /api/schedule 据此返回真实结果）</summary>
         public bool Save()

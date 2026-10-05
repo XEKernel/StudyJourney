@@ -91,9 +91,6 @@ public class ColorSwatch : Button
     /// <summary>用户**通过色板**改了颜色（Load 回填不触发）</summary>
     public event EventHandler? ValueChanged;
 
-    /// <summary>供设置页在校验前判断色值是否可用</summary>
-    public bool IsValid => TryParse(_value, out _);
-
     /// <summary>解析 hex 颜色；失败返回 false（不做兜底替换 —— 让调用方决定怎么办）</summary>
     public static bool TryParse(string? hex, out Color color)
     {

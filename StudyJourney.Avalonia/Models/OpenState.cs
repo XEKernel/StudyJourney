@@ -95,12 +95,6 @@ public static class OpenStateStore
     private static readonly object Gate = new();
     private static OpenStateData _data = LoadFromDisk();
 
-    private static readonly JsonSerializerOptions JsonOpts = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-    };
-
     private static OpenStateData LoadFromDisk()
     {
         try

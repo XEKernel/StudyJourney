@@ -77,13 +77,6 @@ namespace StudyJourney.Avalonia.Models
         public int GetEffectiveDayOfWeek(DateTime date)
             => ScheduleData.ResolveEffectiveDayOfWeek(date, _data.MakeupDays);
 
-        /// <summary>今天是调休日吗（供 UI 提示用）</summary>
-        public MakeupDay? GetMakeupDay(DateTime date)
-        {
-            string key = date.ToString("yyyy-MM-dd");
-            return _data.MakeupDays?.FirstOrDefault(x => x.DateStr == key);
-        }
-
         /// <summary>
         /// 获取今天的课程列表（按上课时间排序）。调休日取"被补的那一天"的课表。
         /// ⚠ 返回的是**内部缓存列表**：只读使用，调用方**不得修改**（2026-10-01 性能优化）。

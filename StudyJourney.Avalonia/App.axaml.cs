@@ -1879,8 +1879,6 @@ public partial class App : Application
                 var back = JsonSerializer.Deserialize(oj, Models.AppJsonContext.Default.AutomationRule);
                 Check(back?.DeleteAfterRun == true, "DeleteAfterRun 经 AppJsonContext 往返仍为 true");
                 Check(back != null && back.Summary.Contains("临时"), "摘要里带「临时」说明（老师看得见）");
-                Check(oneShot.OneShotBadge == "临时" && new Models.AutomationRule().OneShotBadge == "",
-                    "列表「临时」标记只对临时任务显示");
 
                 // ⑤ 设置页克隆：⚠ 必须连 Id 一起复制（2026-09-29 修的真 bug：漏 Id →
                 //    老师每保存一次设置，规则 Id 全换 → open-state.json 里的顺序记忆指针全成孤儿）

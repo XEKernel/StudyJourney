@@ -58,9 +58,6 @@ namespace StudyJourney.Avalonia.Models;
 // ── 听力播放器（v2.27.0）──
 [JsonSerializable(typeof(ListeningData))]
 [JsonSerializable(typeof(ListeningSource))]
-// ── 听力播放器（v2.27.0）──
-[JsonSerializable(typeof(ListeningData))]
-[JsonSerializable(typeof(ListeningSource))]
 // ── PDF 续读状态 ──
 [JsonSerializable(typeof(PdfReadingStateData))]
 // ── 其它（泛型组合）──

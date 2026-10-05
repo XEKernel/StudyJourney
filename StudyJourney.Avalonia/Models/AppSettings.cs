@@ -1,6 +1,5 @@
 using Avalonia.Media;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using StudyJourney.Avalonia.Helpers;
@@ -37,11 +36,6 @@ namespace StudyJourney.Avalonia.Models
             PasswordHash = Helpers.PasswordHasher.Hash(plain);
             Password = "";
         }
-
-        /// <summary>是否仍存旧版明文（等待首次登录迁移）</summary>
-        [System.Text.Json.Serialization.JsonIgnore]
-        public bool NeedsPlaintextMigration =>
-            string.IsNullOrEmpty(PasswordHash) && !string.IsNullOrEmpty(Password);
 
         /// <summary>本次校验是否触发明文→哈希自动升级（登录成功路径据此立即落盘；internal 供同程序集清除标记）</summary>
         [System.Text.Json.Serialization.JsonIgnore]
@@ -259,24 +253,6 @@ namespace StudyJourney.Avalonia.Models
         // ── 持久化 ────────────────────────────────────────────
         private static readonly string SettingsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings.json");
 
-        /// <summary>清理过期的 .corrupted 备份，只保留最近 maxCount 份</summary>
-        private static void TrimCorruptedBackups(string basePath, int maxCount = 3)
-        {
-            try
-            {
-                var dir = Path.GetDirectoryName(basePath);
-                if (string.IsNullOrEmpty(dir)) return;
-                var files = Directory.GetFiles(dir, Path.GetFileName(basePath) + ".corrupted.*")
-                    .OrderByDescending(f => f)   // 文件名含时间戳，字典序即时间序
-                    .Skip(maxCount);
-                foreach (var f in files)
-                {
-                    try { File.Delete(f); } catch { }
-                }
-            }
-            catch { }
-        }
-
         public static AppSettings Load()
         {
             if (!File.Exists(SettingsPath))
@@ -366,7 +342,7 @@ namespace StudyJourney.Avalonia.Models
                 var bak = SettingsPath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 File.Copy(SettingsPath, bak, overwrite: true);
                 File.Delete(SettingsPath);
-                TrimCorruptedBackups(SettingsPath);
+                Helpers.FileAtomic.TrimCorruptedBackups(SettingsPath);
             }
             catch (Exception ex)
             {

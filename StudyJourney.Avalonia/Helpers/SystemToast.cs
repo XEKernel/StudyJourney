@@ -60,9 +60,6 @@ public static class SystemToast
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr LoadImageW(IntPtr hInst, string name, uint type, int cx, int cy, uint fuLoad);
 
-    [DllImport("user32.dll")]
-    private static extern bool DestroyIcon(IntPtr hIcon);
-
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr GetModuleHandleW(string? lpModuleName);
 

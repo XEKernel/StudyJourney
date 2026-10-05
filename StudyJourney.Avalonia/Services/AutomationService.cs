@@ -100,8 +100,6 @@ public class AutomationService : IDisposable
         _timer.Tick += OnTick;
     }
 
-    public bool GlobalEnabled => _data.Enabled;
-
     public void Start() => _timer.Start();
     public void Stop() => _timer.Stop();
 

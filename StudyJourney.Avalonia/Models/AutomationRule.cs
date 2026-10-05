@@ -92,8 +92,6 @@ namespace StudyJourney.Avalonia.Models
         public string TriggerText => DescribeTrigger();
         public string ActionText => DescribeAction();
         public string Summary => $"{TriggerText} → {ActionText}" + (DeleteAfterRun ? "（临时：执行一次后自动删除）" : "");
-        /// <summary>列表里的「临时」小标（空串 = 不显示）</summary>
-        public string OneShotBadge => DeleteAfterRun ? "临时" : "";
 
         private static readonly string[] WeekNames = { "周一", "周二", "周三", "周四", "周五", "周六", "周日" };
 
@@ -201,12 +199,6 @@ namespace StudyJourney.Avalonia.Models
 
         public static string FilePath => StorePath;
 
-        private static readonly JsonSerializerOptions _jsonOpts = new()
-        {
-            WriteIndented = true,
-            PropertyNameCaseInsensitive = true,
-        };
-
         public static AutomationSettings Load()
         {
             try
@@ -225,7 +217,7 @@ namespace StudyJourney.Avalonia.Models
                 {
                     var bak = StorePath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
                     File.Copy(StorePath, bak, overwrite: true);
-                    TrimCorruptedBackups();
+                    Helpers.FileAtomic.TrimCorruptedBackups(StorePath);
                 }
                 catch { }
                 Helpers.AppLogger.Warn($"automations.json 加载失败，使用默认: {ex.Message}");
@@ -244,21 +236,6 @@ namespace StudyJourney.Avalonia.Models
             {
                 Helpers.AppLogger.Error("保存 automations.json 失败", ex);
             }
-        }
-
-        private static void TrimCorruptedBackups(int maxCount = 3)
-        {
-            try
-            {
-                var dir = Path.GetDirectoryName(StorePath);
-                if (string.IsNullOrEmpty(dir)) return;
-                Directory.GetFiles(dir, Path.GetFileName(StorePath) + ".corrupted.*")
-                    .OrderByDescending(f => f)
-                    .Skip(maxCount)
-                    .ToList()
-                    .ForEach(f => { try { File.Delete(f); } catch { } });
-            }
-            catch { }
         }
     }
 }

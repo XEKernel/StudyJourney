@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text.Json;
 
 namespace StudyJourney.Avalonia.Models;
@@ -84,12 +83,6 @@ public static class ListeningStore
 
     public static string FilePath => StorePath;
 
-    private static readonly JsonSerializerOptions _jsonOpts = new()
-    {
-        WriteIndented = true,
-        PropertyNameCaseInsensitive = true,
-    };
-
     public static ListeningData Load()
     {
         try
@@ -112,7 +105,7 @@ public static class ListeningStore
             {
                 var bak = StorePath + ".corrupted." + DateTime.Now.ToString("yyyyMMdd_HHmmss");
                 File.Copy(StorePath, bak, overwrite: true);
-                TrimCorruptedBackups();
+                Helpers.FileAtomic.TrimCorruptedBackups(StorePath);
             }
             catch { }
             Helpers.AppLogger.Warn($"listening.json 加载失败，使用默认: {ex.Message}");
@@ -131,20 +124,5 @@ public static class ListeningStore
         {
             Helpers.AppLogger.Error("保存 listening.json 失败", ex);
         }
-    }
-
-    private static void TrimCorruptedBackups(int maxCount = 3)
-    {
-        try
-        {
-            var dir = Path.GetDirectoryName(StorePath);
-            if (string.IsNullOrEmpty(dir)) return;
-            Directory.GetFiles(dir, Path.GetFileName(StorePath) + ".corrupted.*")
-                .OrderByDescending(f => f)
-                .Skip(maxCount)
-                .ToList()
-                .ForEach(f => { try { File.Delete(f); } catch { } });
-        }
-        catch { }
     }
 }

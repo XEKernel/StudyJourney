@@ -99,13 +99,6 @@ public sealed class ListeningService
         DataChanged?.Invoke();
     }
 
-    /// <summary>老师手动播了某个来源的文件 → 该来源成为活跃（"下次继续这套"）。一次性来源的清理由播完回退处理。</summary>
-    public void PromoteToActive(string? sourceId)
-    {
-        if (string.IsNullOrWhiteSpace(sourceId)) return;
-        SetActive(sourceId!);
-    }
-
     // ── 例外日 ──────────────────────────────────────────────
 
     /// <summary>当天课表里的考试科目里有没有英语（SkipIfExam 用）</summary>
@@ -258,13 +251,5 @@ public sealed class ListeningService
         _data.ActiveSourceId = src.Id;
         Save();
         DataChanged?.Invoke();
-    }
-
-    /// <summary>老师手动播了别的来源的文件 → 活跃来源跟随（"换了一套就继续这套"）</summary>
-    public void TouchManual(string sourceId, string file)
-    {
-        var src = FindSource(sourceId);
-        if (src == null) return;
-        MarkPlaying(sourceId, file);
     }
 }
