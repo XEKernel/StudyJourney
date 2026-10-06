@@ -254,8 +254,19 @@ internal sealed class ApiUploadResult
 /// API 响应的 JSON 源生成上下文。
 /// ⚠ 与域模型的 <see cref="Models.AppJsonContext"/> 分开：这边**不写缩进**（省流量、
 ///   与原先 `Results.Json(new {...})` 的输出一致），那边的本地配置文件才需要缩进便于人工查看。
+///
+/// ⚠⚠ **`PropertyNamingPolicy = CamelCase` 是必须的**（2026-10-06 修的真实 bug）：
+///   上面这些 DTO 都显式写了 `[JsonPropertyName]`，加不加策略都一样；**但嵌套的域模型没有** ——
+///   典型是 `ApiScheduleDay.Schedule`（类型 `Models.ScheduleData`）与它内部的
+///   `Entries / DayOfWeek / Period / Subject / TimeTemplates`。没有命名策略时它们**原样输出 PascalCase**，
+///   而网页端 console JS 全程按 camelCase 取值（`schedule.entries` / `e.dayOfWeek` / `t.startTime`）→
+///   **老师登录后课表表格整片空白**（`undefined || []` 静默退化成空数组），
+///   服务端 API 却返回 200 + 完整数据，两端都不报错 —— 属于最难查的那类"静默失灵"。
+///   ⚠ 当时自检没拦住：`SJ_SELFTEST=api` 只断言 **DTO 顶层键集合**，没往嵌套对象里看。
+///   ⚠ 这里必须用 `JsonKnownNamingPolicy`（枚举、编译期常量）—— 写成 `JsonNamingPolicy.CamelCase`
+///     会 CS0029 报错，并连带把 JsonSourceGenerator 打成 CS8785 NullReferenceException（两个上下文一起不生成）。
 /// </summary>
-[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSourceGenerationOptions(WriteIndented = false, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(ApiMsg))]
 [JsonSerializable(typeof(ApiOkError))]
 [JsonSerializable(typeof(ApiOkOnly))]

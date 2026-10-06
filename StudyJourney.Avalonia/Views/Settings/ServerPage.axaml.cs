@@ -20,9 +20,6 @@ public partial class ServerPage : UserControl, ISettingsPage
     /// <summary>老师账号编辑列表（Load 时复制，Apply 时写回，避免未保存即改动设置）</summary>
     private ObservableCollection<TeacherAccount> _teachers = new();
 
-    /// <summary>可选科目编辑列表（选科；Load 复制，Apply 写回）</summary>
-    private ObservableCollection<string> _subjects = new();
-
     /// <summary>复制老师账号（#4-阶段2：Password 明文绝不进编辑副本/表单，密码框恒空 = 「留空不改密码」；哈希非敏感可随副本往返）</summary>
     private static TeacherAccount Clone(TeacherAccount a) => new()
     {
@@ -63,9 +60,6 @@ public partial class ServerPage : UserControl, ISettingsPage
         TeacherListBox.ItemsSource = _teachers;
         ClearTeacherForm();
         RefreshTeacherRiskBanner();   // v2.29.0：进来就让老师看见"有哪些账号还在用公开默认密码"
-        _subjects = new ObservableCollection<string>(s.Subjects ?? new());
-        SubjectListBox.ItemsSource = _subjects;
-        NewSubjectBox.Text = "";
 
         var dir = s.CustomUploadDirectory ?? "";
         var presets = HttpServerService.GetUploadDirPresets();
@@ -95,23 +89,20 @@ public partial class ServerPage : UserControl, ISettingsPage
     }
 
     // ── #8 未保存修改检测（v2.22.0）────────────────────────────
-    // ⚠ 本页**只在 Apply 时才写回设置**（账号/科目改的是内存副本 `_teachers`/`_subjects`），
+    // ⚠ 本页**只在 Apply 时才写回设置**（账号改的是内存副本 `_teachers`），
     //   而设置窗口的兜底 `HasUnsavedSettings()` 比的是 `App.Settings` 的快照 ——
     //   它根本看不出这些改动 → 编辑账号后切页会**静默丢失**。
     //   所以这里按「载入快照 vs 当前界面」按需比对（不必给每个控件挂事件）。
     private (string ClassName, string TeacherName, bool AutoStart, string UploadDir,
-             List<(string U, string Dp, string Sj, string H)> Teachers,
-             List<string> Subjects)? _baseline;
+             List<(string U, string Dp, string Sj, string H)> Teachers)? _baseline;
 
     private (string ClassName, string TeacherName, bool AutoStart, string UploadDir,
-             List<(string U, string Dp, string Sj, string H)> Teachers,
-             List<string> Subjects) Snapshot()
+             List<(string U, string Dp, string Sj, string H)> Teachers) Snapshot()
         => (ClassNameBox.Text ?? "",
             TeacherNameBox.Text ?? "",
             AutoStartServerCheck.IsChecked == true,
             ResolveUploadDir(),
-            _teachers.Select(t => (t.Username, t.DisplayName, t.Subject, t.PasswordHash)).ToList(),
-            _subjects.ToList());
+            _teachers.Select(t => (t.Username, t.DisplayName, t.Subject, t.PasswordHash)).ToList());
 
     public bool IsDirty
     {
@@ -123,7 +114,6 @@ public partial class ServerPage : UserControl, ISettingsPage
                 || now.TeacherName != b.TeacherName
                 || now.AutoStart != b.AutoStart
                 || !string.Equals(now.UploadDir, b.UploadDir, StringComparison.OrdinalIgnoreCase)
-                || !now.Subjects.SequenceEqual(b.Subjects)
                 || !now.Teachers.SequenceEqual(b.Teachers);
         }
     }
@@ -138,27 +128,6 @@ public partial class ServerPage : UserControl, ISettingsPage
         var tn = TeacherNameBox.Text?.Trim();
         s.TeacherName = string.IsNullOrEmpty(tn) ? "老师" : tn;
         s.Teachers = _teachers.Select(Clone).ToList();   // 账号列表写回设置
-        s.Subjects = _subjects.ToList();                 // 可选科目（选科）写回设置
-    }
-
-    // ── 可选科目（选科）管理 ───────────────────────────────
-    private void AddSubjectBtn_Click(object? sender, RoutedEventArgs e)
-    {
-        var subject = NewSubjectBox.Text?.Trim() ?? "";
-        if (subject.Length == 0) return;
-        if (_subjects.Any(x => string.Equals(x, subject, StringComparison.OrdinalIgnoreCase)))
-        {
-            _ = App.ShowMessageAsync("可选科目", $"「{subject}」已在列表中。");
-            return;
-        }
-        _subjects.Add(subject);
-        NewSubjectBox.Text = "";
-    }
-
-    private void DeleteSubjectBtn_Click(object? sender, RoutedEventArgs e)
-    {
-        if (SubjectListBox.SelectedItem is string subject)
-            _subjects.Remove(subject);
     }
 
     // ── 老师账号管理（#4-阶段2：密码框恒空 = 不改密码；只读回显用户名/显示名/科目）──
@@ -369,7 +338,8 @@ public partial class ServerPage : UserControl, ISettingsPage
                 ServerToggle.IsEnabled = false;
                 ServerStatusTb.Text = "启动中…";
                 // #10 修复：异步启动，UI 不卡死（原 Start() 同步等待最长 5s，触屏上像死机）
-                await HttpServerService.StartAsync();
+                // 2026-10-06：StartAutoAsync —— 端口被占用时自动换下一个（状态栏会显示实际端口）
+                await HttpServerService.StartAutoAsync();
             }
             catch (Exception ex)
             {

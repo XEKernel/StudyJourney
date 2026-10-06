@@ -224,6 +224,50 @@ public static class HttpServerService
         await tcs.Task;
     }
 
+    /// <summary>默认起始端口（远程控制台地址 http://&lt;ip&gt;:8080）</summary>
+    public const int DefaultPort = 8080;
+
+    /// <summary>
+    /// 自动选端口启动（2026-10-06 修）：从 <paramref name="startPort"/> 起依次尝试，
+    /// **端口被占用就换下一个**，其它异常原样抛出（不掩盖真问题）。返回实际使用的端口。
+    ///
+    /// 起因（实测踩到）：端口写死 8080，任何占用该端口的程序（本机实测是另一个 web 项目）
+    /// 都会让远程服务**静默起不来** —— 老师访问 8080 看到的是**那个程序**的页面，
+    /// 登录进去自然没有课表；而日志里只有一行 ERROR、界面上毫无提示，排查成本极高。
+    /// </summary>
+    public static async Task<int> StartAutoAsync(int startPort = DefaultPort, int maxTries = 20)
+    {
+        Exception? lastError = null;
+        for (int port = startPort; port < startPort + maxTries; port++)
+        {
+            try
+            {
+                await StartAsync($"http://*:{port}");
+                if (port != startPort)
+                    Helpers.AppLogger.Info($"远程服务：起始端口 {startPort} 被占用，已改用 {port}");
+                return port;
+            }
+            catch (Exception ex) when (IsAddressInUse(ex))
+            {
+                lastError = ex;
+                Helpers.AppLogger.Warn($"远程服务：端口 {port} 已被占用，尝试 {port + 1}");
+            }
+        }
+        throw new IOException(
+            $"端口 {startPort}~{startPort + maxTries - 1} 全部被占用，远程服务无法启动", lastError);
+    }
+
+    /// <summary>是否为「地址已被占用」类异常（含内层 SocketException / IOException 文案判定）</summary>
+    private static bool IsAddressInUse(Exception? ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is SocketException se && se.SocketErrorCode == SocketError.AddressAlreadyInUse) return true;
+            if (e.Message.Contains("address already in use", StringComparison.OrdinalIgnoreCase)) return true;
+        }
+        return false;
+    }
+
     /// <summary>启动后台线程（Start / StartAsync 共用），已在运行返回 null</summary>
     private static TaskCompletionSource<bool>? BeginStart(string url)
     {
@@ -730,7 +774,7 @@ public static class HttpServerService
                 ClassName = App.Settings.ClassName,
                 TeacherName = GetCurrentDisplayName(request),
                 LoginUsername = GetCurrentUsername(request) ?? "",
-                Subjects = App.Settings.Subjects ?? new(),
+                Subjects = ScheduleSubjects(),
             }, ApiJsonContext.Default.ApiConfig));
 
             // ── 班级信息：PUT /api/config（需有效 Token）──
@@ -1698,6 +1742,10 @@ public static class HttpServerService
                 /* ── 初始化 ── */
                 loadTeachers();   // 未登录也能拉取老师账号下拉
                 if(token){showApp();loadAll();startStatusPolling();}
+                else{logout();}   // ⚠ 必须有这个 else：loginCard / appCard **初始都带 hidden**，
+                                  //   无 token 时不显式显示登录卡 = **整页空白**（2026-10-06 用户实测踩到：
+                                  //   页面只有顶栏和"仅供教师使用"提示，登录框压根不出现）。
+                                  //   logout() 的行为正是「显示登录卡 + 隐藏主界面 + 清账号显示」。
                 /* ── 下节课打开（2.5.9B）：指定文件 / 软件，未指定则按顺序记忆自动打开 ── */
                 let poData=null;
                 async function loadOpenTargets(){
@@ -1998,6 +2046,31 @@ public static class HttpServerService
     }
 
     /// <summary>从监听 URL 解析端口（http://*:8080 → 8080）</summary>
+    /// <summary>
+    /// 课表里实际出现的科目（去重，按课时数从多到少）。
+    ///
+    /// 2026-10-06 改：原来 /api/config 返回的是 `App.Settings.Subjects` —— 一份要老师在
+    /// **设置页手动维护**的"选科"清单，和真实课表脱节（课表里新加了科目、网页端下拉却还是老一套；
+    /// 反过来在课表里删掉科目、下拉里还留着）。用户实测指出这一点后，改为**以课表为唯一真源**，
+    /// 与桌面端「自动化 → 科目」下拉（`LoadSubjectCombo`）口径一致。
+    /// 网页端要给课表加一个全新科目时，编辑弹窗里仍有「自定义」输入框，不受影响。
+    /// </summary>
+    private static List<string> ScheduleSubjects()
+    {
+        try
+        {
+            return App.Schedule.Data.Entries
+                .Select(e => (e.Subject ?? "").Trim())
+                .Where(s => s.Length > 0)
+                .GroupBy(s => s)                          // 去重
+                .OrderByDescending(g => g.Count())        // 课时多的排前面（主科靠前，常用好点）
+                .ThenBy(g => g.Key, StringComparer.Ordinal)
+                .Select(g => g.Key)
+                .ToList();
+        }
+        catch { return new List<string>(); }   // 课表未就绪 → 空列表（网页端有内置兜底 COURSES）
+    }
+
     private static int ParsePort(string url)
     {
         try

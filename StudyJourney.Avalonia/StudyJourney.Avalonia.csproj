@@ -8,12 +8,14 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 3.0.3：代码审查 —— 清理死代码与冗余（界面与功能不变）。
+    <!-- 3.0.4：修教师端两个真 bug —— ①端口被占用时远程服务静默起不来（改自动换端口 + 通知）
+         ②课表接口嵌套字段是 PascalCase 而网页端按 camelCase 取值 → 登录后课表整片空白。
+         3.0.3：代码审查 —— 清理死代码与冗余（界面与功能不变）。
          3.0.2：升级路径加「必经门槛版本」（老版本先升到 3.0.1 再升更高）。
          3.0.1：修「AOT 被误判成框架依赖」（下次更新会下错包）+ 装错包保险。
          3.0.0：分发形态改为 NativeAOT（判据②：分发形态/运行环境变）→ X 位。
          AssemblyVersion 由 <Version> 派生；InformationalVersion 形如 3.0.3+{hash}（更新检查按 '+' 截断解析） -->
-    <Version>3.0.3</Version>
+    <Version>3.0.4</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 

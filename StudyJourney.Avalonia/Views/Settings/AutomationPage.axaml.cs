@@ -317,8 +317,8 @@ public partial class AutomationPage : UserControl, ISettingsPage
     private void LoadSubjectCombo(string? invalidSubject = null)
     {
         if (SubjectCombo == null) return;
-        // 2.5.7b：优先用课表里实际出现的科目（与真实课表一致，避免与"可选科目"配置脱节），
-        // 再并入设置页的可选科目补集，最后去重
+        // 2026-10-06：科目候选**只以课表为唯一真源**（原来还并上设置页那份手动维护的"选科"清单，
+        // 那份已随本次改动整体删除 —— 课表编辑器本来就是自由文本、网页端也带自定义输入，不需要补集）。
         var items = new List<string> { "全部科目（每一节都触发）" };
         var merged = new List<string>();
         try
@@ -327,8 +327,7 @@ public partial class AutomationPage : UserControl, ISettingsPage
                 .Select(e => e.Subject?.Trim() ?? "")
                 .Where(x => x.Length > 0));
         }
-        catch { /* 课表未就绪时退回设置里的科目 */ }
-        merged.AddRange(App.Settings.Subjects ?? new List<string>());
+        catch { /* 课表未就绪 → 只剩「全部科目」一项 */ }
         foreach (var subj in merged)
             if (!items.Contains(subj)) items.Add(subj);
 

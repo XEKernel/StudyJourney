@@ -291,8 +291,16 @@ public partial class App : Application
         try
         {
             await System.Threading.Tasks.Task.Delay(1500);
-            await HttpServerService.StartAsync();
-            Helpers.AppLogger.Info($"远程服务已自动启动，端口 {HttpServerService.Port}");
+            // 2026-10-06：改用 StartAutoAsync —— 8080 被别的程序占用时自动换端口，
+            // 不再静默失败（原实现只记一行日志，老师访问到的其实是占用者的页面）。
+            int port = await HttpServerService.StartAutoAsync();
+            Helpers.AppLogger.Info($"远程服务已自动启动，端口 {port}");
+            if (port != HttpServerService.DefaultPort)
+            {
+                var ip = HttpServerService.GetLocalIPv4Addresses().FirstOrDefault() ?? "127.0.0.1";
+                ShowSystemNotification("远程控制台",
+                    $"端口 {HttpServerService.DefaultPort} 被其他程序占用，已改用 {port}。\n请在浏览器访问 http://{ip}:{port}");
+            }
         }
         catch (Exception ex)
         {
@@ -1830,7 +1838,6 @@ public partial class App : Application
                     ClassName = "高三（1）班",
                     TeacherName = "王老师",
                     AutoStartHttpServer = true,
-                    Subjects = new List<string> { "语文", "数学" }
                 };
                 var svPage = new Views.Settings.ServerPage();
                 svPage.Load(svs);
@@ -2606,6 +2613,29 @@ public partial class App : Application
                     Models.AppJsonContext.Default.ScheduleData);
                 Check(JsonSerializer.Deserialize(dayJson, Models.AppJsonContext.Default.ScheduleData) != null,
                     "课表 ScheduleData 往返成功（PUT /api/schedule 收到的是 GET 的原样对象）");
+
+                // ⚠ 2026-10-06 补：GET /api/schedule 的**嵌套**课表字段必须是 camelCase ——
+                //   网页端 console JS 全程按 schedule.entries / e.dayOfWeek / t.startTime 取值；
+                //   一旦落回 PascalCase，老师登录后看到的课表表格就是整片空白（服务端 200、两端都不报错）。
+                //   原来只断言 DTO 顶层键集合、没往嵌套对象里看，所以漏掉了这个 bug。
+                var dayDto = new Services.ApiScheduleDay
+                {
+                    Ok = true,
+                    Date = "2026-10-06",
+                    Weekday = 2,
+                    Schedule = new Models.ScheduleData
+                    {
+                        Entries = { new Models.ScheduleEntry { DayOfWeek = 1, Period = 1, Subject = "zz" } },
+                        TimeTemplates = { new Models.TimeTemplate { Period = 1, StartTime = "07:00", EndTime = "07:50" } },
+                    },
+                };
+                string dayDtoJson = JsonSerializer.Serialize(dayDto, Services.ApiJsonContext.Default.ApiScheduleDay);
+                Check(dayDtoJson.Contains("\"entries\"") && dayDtoJson.Contains("\"dayOfWeek\"")
+                      && dayDtoJson.Contains("\"timeTemplates\"") && dayDtoJson.Contains("\"startTime\""),
+                    "课表响应嵌套字段为 camelCase（网页端 schedule.entries / e.dayOfWeek / t.startTime）");
+                Check(!dayDtoJson.Contains("\"Entries\"") && !dayDtoJson.Contains("\"DayOfWeek\"")
+                      && !dayDtoJson.Contains("\"TimeTemplates\""),
+                    "课表响应不得混入 PascalCase 字段名（否则老师端课表静默空白）");
             }
 
             sb.AppendLine("[APITEST] 结论：PASS");

@@ -460,16 +460,6 @@ namespace StudyJourney.Avalonia.Models
             acc.SetPassword(plainPassword);
             return acc;
         }
-        /// <summary>
-        /// 可选科目（选科）：课表编辑只在范围内选。默认物化生组合（语数英+物化生），不含政史地。
-        /// 可在设置页「服务器 → 可选科目」增删。
-        /// </summary>
-        public List<string> Subjects { get; set; } = new()
-        {
-            "语文", "数学", "英语", "物理", "化学", "生物",
-            "体育", "信息技术", "班会", "自习",
-        };
-
         public void Save()
         {
             try

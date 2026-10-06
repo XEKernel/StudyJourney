@@ -113,7 +113,6 @@ public static class SettingsReset
             "天气：开关状态、字号与颜色、刷新间隔、详细度",
             "更新：自动检查开关、加速镜像开关与前缀",
             "远程控制台：开机自动启动服务、内置 PDF 阅读器开关",
-            $"选科：恢复为默认 {defaults.Subjects.Count} 项（当前 {s.Subjects?.Count ?? 0} 项）",
         };
 
         if (s.DiagDesktopTreeDepth != defaults.DiagDesktopTreeDepth)
