@@ -8,12 +8,12 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 3.1.1：修「成绩模块在 AOT 发布版里打不开数据库」——
-         e_sqlite3.dll 是 DllImport 目标，PublishAot 【不会】把它复制进产物（实测 AOT 产物 9 个文件、
-         框架依赖产物 60 个文件，差的就是它）→ 老师机器上第一次开成绩库会 DllNotFoundException。
-         修法两条：① 显式把该 dll 复制进输出与发布目录（不依赖 SDK 的自动行为）；
-         ② 顺带把 Microsoft.Data.Sqlite 升到 10.0.12 —— 8.0.10 传递依赖的
-         SQLitePCLRaw.lib.e_sqlite3 2.1.6 命中 NU1903 高危漏洞公告（GHSA-2m69-gcr7-jv3q）。
+    <!-- 3.1.2：v3.1.1 的修法**没生效** —— `None` 的 `CopyToPublishDirectory` 会被 PublishAot
+         静默忽略（框架依赖发布产物里有 e_sqlite3.dll，PublishAot 产物里没有，CI 日志里一次都没出现）。
+         改用 `AfterTargets="Publish"` 目标直接拷进 $(PublishDir)，不依赖 SDK 的发布资产计算；
+         并给 CI 加硬门禁：清单里缺 e_sqlite3.dll 就直接 fail，不允许发出残包。
+         3.1.1：把 Microsoft.Data.Sqlite 升到 10.0.12 —— 8.0.10 传递依赖的
+         SQLitePCLRaw.lib.e_sqlite3 2.1.6 命中 NU1903 高危漏洞公告（GHSA-2m69-gcr7-jv3q），2.1.12 已修。
          3.1.0：新增「班级成绩分析」模块（用户可感知的新能力 → Y 位）。
          成绩可从 .xlsx 导入或手动录入；含班级排行榜（总分/单科/进步/退步 + 自定义列 + 前 N 名）、
          个人详情（雷达图对比班级平均 + 与上次逐项对比 + 本学期趋势）、单人 PK、小组 PK（权重可调）、
@@ -27,7 +27,7 @@
          3.0.1：修「AOT 被误判成框架依赖」（下次更新会下错包）+ 装错包保险。
          3.0.0：分发形态改为 NativeAOT（判据②：分发形态/运行环境变）→ X 位。
          AssemblyVersion 由 <Version> 派生；InformationalVersion 形如 3.0.3+{hash}（更新检查按 '+' 截断解析） -->
-    <Version>3.1.1</Version>
+    <Version>3.1.2</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
@@ -81,9 +81,25 @@
   <ItemGroup>
     <None Include="$(PkgSQLitePCLRaw_lib_e_sqlite3)/runtimes/win-x64/native/e_sqlite3.dll"
           CopyToOutputDirectory="PreserveNewest"
-          CopyToPublishDirectory="PreserveNewest"
           Visible="false" />
   </ItemGroup>
+
+  <!-- ⚠⚠ PublishAot 会【忽略】上面那个 None 的 CopyToPublishDirectory（2026-10-07 实测：
+       框架依赖发布产物里有 e_sqlite3.dll，PublishAot 产物里没有；CI 日志里它一次都没出现，
+       说明既没报错也没复制 —— 资产管道把它静默丢了）。
+       所以发布这一步**另起一个 AfterTargets 目标直接拷进$(PublishDir)**，
+       不依赖 SDK 的发布资产计算。AfterTargets="Publish" 对 dotnet publish 一定会执行。
+       路径取不到时 Copy 会直接报错 —— 这正是我们要的行为：宁可构建失败，
+       也不能悄悄产出一个「成绩模块打不开」的包。 -->
+  <Target Name="CopySqliteNativeToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_SqliteNativeAsset Include="$(PkgSQLitePCLRaw_lib_e_sqlite3)/runtimes/win-x64/native/e_sqlite3.dll" />
+    </ItemGroup>
+    <Error Condition="!Exists('@(_SqliteNativeAsset)')"
+           Text="找不到 SQLite 原生库 e_sqlite3.dll（路径：$(PkgSQLitePCLRaw_lib_e_sqlite3)）。发布包会缺它，成绩模块将无法打开数据库。" />
+    <Copy SourceFiles="@(_SqliteNativeAsset)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+    <Message Importance="high" Text="[publish] 已复制 SQLite 原生库到 $(PublishDir)" />
+  </Target>
 
   <!-- 远程管理：ASP.NET Core Minimal API（Kestrel 后台线程运行，不阻塞 UI 线程） -->
   <ItemGroup>

@@ -175,9 +175,9 @@ public static class UpdateService
                 if (!string.IsNullOrWhiteSpace(info)) return info.Trim();
             }
             var ver = asm.GetName().Version;
-            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "3.1.1";
+            return ver != null ? $"{ver.Major}.{ver.Minor}.{ver.Build}" : "3.1.2";
         }
-        catch { return "3.1.1"; }
+        catch { return "3.1.2"; }
     });
 
     public static string CurrentVersion => _currentVersion.Value;

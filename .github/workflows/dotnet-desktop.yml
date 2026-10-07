@@ -223,6 +223,14 @@ jobs:
             #   AOT 包本来就是"文件少"的形态，这正是它的优点 —— 门槛降到 5 仍能拦住
             #   "清单为空/几乎为空"这种真异常。
             if ($list.Count -lt 5) { throw "$d 文件数异常（$($list.Count)），清单不生成" }
+            # ⚠⚠ 成绩库依赖的 SQLite 原生库（e_sqlite3.dll，DllImport 目标，不是托管程序集）。
+            #   PublishAot 会静默丢掉它 —— v3.1.0 / v3.1.1 的包都缺它，老师机器上第一次打开
+            #   「班级成绩分析」就是 DllNotFoundException，而**编译 0 错 0 警、自检全绿、
+            #   IL2026/IL3050 = 0 一个都抓不到**（本地 bin 与框架依赖产物里它都在）。
+            #   所以在这里硬校验：缺了就直接 fail，不允许发出残包。
+            if ($list -notcontains 'e_sqlite3.dll') {
+              throw "$d 缺少 e_sqlite3.dll —— 成绩分析模块会打不开数据库（发布包不可用）"
+            }
             $out = Join-Path $root 'install-manifest.txt'
             # 显式用无 BOM 的 UTF8（更新器按行读，BOM 会污染第一行）
             [System.IO.File]::WriteAllLines($out, [string[]]$list, (New-Object System.Text.UTF8Encoding($false)))
