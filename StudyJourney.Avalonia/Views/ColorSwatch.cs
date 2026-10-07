@@ -74,19 +74,31 @@ public class ColorSwatch : Button
         set => _caption.Text = value;
     }
 
-    /// <summary>当前颜色（`#AARRGGBB` / `#RRGGBB`）。设置即刷新显示，不落盘（落盘由设置页 Apply 负责）</summary>
+    /// <summary>当前颜色（`#AARRGGBB` / `#RRGGBB`）。设置即刷新显示，不落盘（落盘由设置页 Apply 负责）。</summary>
+    /// <remarks>
+    /// 2026-10-06（成绩分析模块带动 MVVM 化）：这里原本是**普通 CLR 属性，无法参与绑定** ——
+    /// 设置页一旦改成绑定式 MVVM，色板就只能留在 code-behind 里手工双向同步，
+    /// 整个页就"半 MVVM 半命令式"，而且 ExamPage 有 14 个色板、天气页 4 个，复制粘贴必然出错。
+    /// 改成 StyledProperty 后才能绑定。
+    /// <para>⚠ <b>语义必须保持不变</b>：给 <see cref="Value"/> 赋值**不触发** <see cref="ValueChanged"/>，
+    /// 该事件只在用户点开色板选色后触发（见 <see cref="OnClick"/>）。
+    /// 这条区分是「Load 回填不算用户改过」的基础 —— 一起被触发会让设置页刚打开就被判定成"已修改"。</para>
+    /// </remarks>
+    public static readonly StyledProperty<string> ValueProperty =
+        AvaloniaProperty.Register<ColorSwatch, string>(nameof(Value), defaultValue: "");
+
+    static ColorSwatch()
+    {
+        // 赋同值不会触发 Changed（字符串默认相等比较）→ 天然省掉旧实现里那句 `if (_value == v) return;`
+        ValueProperty.Changed.AddClassHandler<ColorSwatch>((c, _) => c.ApplyVisual());
+    }
+
+    /// <summary>当前颜色。绑定方向：ViewModel 的 hex 字符串 ↔ 本属性（双向由页面显式接，或用 DataContext）。</summary>
     public string Value
     {
-        get => _value;
-        set
-        {
-            var v = value ?? "";
-            if (_value == v) return;      // Load 回填时不触发 ValueChanged，避免误判成"用户改过"
-            _value = v;
-            ApplyVisual();
-        }
+        get => GetValue(ValueProperty);
+        set => SetValue(ValueProperty, value ?? "");
     }
-    private string _value = "";
 
     /// <summary>用户**通过色板**改了颜色（Load 回填不触发）</summary>
     public event EventHandler? ValueChanged;
@@ -102,26 +114,26 @@ public class ColorSwatch : Button
 
     private void ApplyVisual()
     {
-        if (TryParse(_value, out var c))
+        if (TryParse(Value, out var c))
         {
             _chip.Background = new SolidColorBrush(c);
-            _hexText.Text = _value.Trim().ToUpperInvariant();
+            _hexText.Text = Value.Trim().ToUpperInvariant();
             ToolTip.SetTip(this, $"当前颜色：{_hexText.Text}（点一下改色）");
         }
         else
         {
             // 不装作正常：画成空心 + 明确文字，老师才能发现"这里配错了"
             _chip.Background = Brushes.Transparent;
-            _hexText.Text = string.IsNullOrWhiteSpace(_value)
+            _hexText.Text = string.IsNullOrWhiteSpace(Value)
                 ? "（未设置，点击选色）"
-                : $"{_value}（无法识别，点击重选）";
+                : $"{Value}（无法识别，点击重选）";
             ToolTip.SetTip(this, _hexText.Text);
         }
     }
 
     private void OnClick(object? sender, RoutedEventArgs e)
     {
-        var dlg = new ColorPickerDialog(string.IsNullOrWhiteSpace(_value) ? "#FFFFFFFF" : _value);
+        var dlg = new ColorPickerDialog(string.IsNullOrWhiteSpace(Value) ? "#FFFFFFFF" : Value);
         var owner = TopLevel.GetTopLevel(this) as Window;
         if (owner != null) dlg.ShowDialog(owner); else dlg.Show();
         dlg.Closed += (_, _) =>

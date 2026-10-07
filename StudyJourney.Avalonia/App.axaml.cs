@@ -253,6 +253,11 @@ public partial class App : Application
                 // 2026-10-01：内存画像（窗口开多后内存是否可回落 / 是否泄漏）
                 Dispatcher.UIThread.Post(RunMemorySelfTest, DispatcherPriority.Background);
                 break;
+            case "grade":
+                // 2026-10-06（v3.1.0）：成绩分析 —— 排名规则 / 同分链 / 缺考语义 / 小组快照 /
+                // 波动阈值 / 真造 xlsx 走导入链 / 主窗口实例化
+                Dispatcher.UIThread.Post(RunGradeSelfTest, DispatcherPriority.Background);
+                break;
             default:
                 Helpers.AppLogger.Warn($"未知自检模式：{mode}");
                 Environment.Exit(2);
@@ -743,6 +748,30 @@ public partial class App : Application
         // 有主窗口就挂在它下面（保持任务栏只有一个图标、跟随主窗最小化）
         if (Current is App app && app._mainWindow is { IsVisible: true } mw) _scheduleEditor.Show(mw);
         else _scheduleEditor.Show();
+    }
+
+    // ── 班级成绩分析（v3.1.0）──────────────────────────────
+    // 单例由窗口自身维护（全部页面共用一套排行榜视图，开多份会让该语义分裂）
+
+    /// <summary>统一入口：打开班级成绩分析（托盘 / 主窗口菜单共用）</summary>
+    public static void OpenGradeAnalysisGlobal()
+        => Views.GradeAnalysis.GradeAnalysisWindow.ShowOrActivate();
+
+    /// <summary>
+    /// 成绩分析自检（SJ_SELFTEST=grade）。逻辑本体在
+    /// <see cref="Helpers.GradeAnalysis.GradeSelfTest.Run"/> 里，这里只负责落盘与退出。
+    /// </summary>
+    private static void RunGradeSelfTest()
+    {
+        ArmSelfTestWatchdog(120);
+
+        var report = Helpers.GradeAnalysis.GradeSelfTest.Run();
+
+        Helpers.AppLogger.Info(report);
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            report);
+        Environment.Exit(0);
     }
 
     // ── 白板（PLANNING 2.4）──────────────────────────────────
@@ -2157,6 +2186,61 @@ public partial class App : Application
                 Check(lw.Title == "听力播放", "听力播放器窗口可实例化（可视树建起来没抛异常）");
                 lw.Close();
 
+                // ⑥-1 全部设置页实例化 + Load/Apply 往返（2026-10-06 补）
+                // 起因：原来这个自检只对**部分**页面（考试/提醒/服务器/自动化）断言了 Load/Apply，
+                // 其余页面（含倒计时页）从没被实例化过 —— 也就是说「改设置页有安全网」这句话当时是假的。
+                // 现在把 7 个页面全部拉一遍：能构造、Load 不抛、Apply 不抛、Load 后不是「未保存」。
+                var sweepSettings = new Models.AppSettings();
+                (string Name, Views.Settings.ISettingsPage Page)[] settingsPages =
+                {
+                    ("倒计时页", new Views.Settings.CountdownPage()),
+                    ("考试页", new Views.Settings.ExamPage()),
+                    ("课表页", new Views.Settings.SchedulePage()),
+                    ("位置页", new Views.Settings.PositionPage()),
+                    ("远程页", new Views.Settings.ServerPage()),
+                    ("接口页", new Views.Settings.ApiPage()),
+                    ("自动化页", new Views.Settings.AutomationPage()),
+                    ("关于页", new Views.Settings.AboutPage()),
+                };
+                foreach (var (pname, pg) in settingsPages)
+                {
+                    pg.Load(sweepSettings);
+                    pg.Apply(new Models.AppSettings());
+                    Check(!pg.IsDirty, $"{pname} 实例化 + Load/Apply 往返正常，且 Load 后不是「未保存」");
+                }
+
+                // ⑥-2 倒计时页往返的**语义**断言（不是只测"没抛异常"）
+                // 该页已 MVVM 化（ViewModels/Settings/CountdownPageViewModel），
+                // 但对外契约仍是 ISettingsPage 的 Load/Apply —— 这里守住契约，防止后续改动悄悄写坏设置。
+                var cdSettings = new Models.AppSettings
+                {
+                    FontFamily = "Microsoft YaHei",
+                    FontSize = 17,
+                    OverallOpacity = 0.55,
+                    // 秒故意给 37：老师改别的设置时不该把它悄悄变成 00
+                    GaokaoDateStr = "2027-06-07 09:00:37",
+                    CustomCountdowns = new System.Collections.Generic.List<Models.CustomCountdown>
+                    {
+                        new Models.CustomCountdown { Name = "期末考试", DateStr = "2026-07-01" },
+                    },
+                };
+                var cdPage = new Views.Settings.CountdownPage();
+                cdPage.Load(cdSettings);
+                Check(!cdPage.IsDirty, "倒计时页 Load 后不应是「未保存」");
+
+                // ⚠⚠ Load 与 Apply 必须作用在**同一个** AppSettings 实例上 —— 这就是 SettingsWindow 的用法，
+                //    也是 ISettingsPage 的隐含契约。目标时刻的「秒」靠 PreserveSecond 保留，
+                //    而它是读 Apply 传入对象里的现值的；换个对象 Apply，秒必然丢（2026-10-06 实测）。
+                cdPage.Apply(cdSettings);
+                Check(cdSettings.FontSize == 17, $"倒计时页往返：字号应 17，实际 {cdSettings.FontSize}");
+                Check(Math.Abs(cdSettings.OverallOpacity - 0.55) < 1e-9,
+                    $"倒计时页往返：透明度应 0.55，实际 {cdSettings.OverallOpacity}");
+                Check(cdSettings.FontFamily == "Microsoft YaHei", $"倒计时页往返：字体应原样保留，实际「{cdSettings.FontFamily}」");
+                Check(cdSettings.CustomCountdowns is { Count: 1 } && cdSettings.CustomCountdowns[0].Name == "期末考试",
+                    "倒计时页往返：自定义倒计时应原样写回");
+                Check(cdSettings.GaokaoDateStr.Contains("09:00:37"),
+                    $"倒计时页往返：目标时刻的秒应被保留（09:00:37），实际 {cdSettings.GaokaoDateStr}");
+
                 var lsp = new Views.Settings.SchedulePage();
                 lsp.Load(new Models.AppSettings());
                 Check(lsp.ListeningSourceList != null && lsp.ListeningAutoCloseBox != null &&
@@ -3229,6 +3313,10 @@ public partial class App : Application
             var listeningItem = new NativeMenuItem("听力播放器（Ctrl+Shift+L）");
             listeningItem.Click += (_, _) => OpenListeningPlayerGlobal();
 
+            // 班级成绩分析（v3.1.0）。入口沿用「托盘菜单 + 主窗右键」双入口约定。
+            var gradeItem = new NativeMenuItem("班级成绩分析");
+            gradeItem.Click += (_, _) => OpenGradeAnalysisGlobal();
+
             var settingsItem = new NativeMenuItem("打开设置");
             settingsItem.Click += (_, _) => OpenSettingsGlobal();
 
@@ -3245,6 +3333,7 @@ public partial class App : Application
             menu.Add(annotItem);
             menu.Add(pdfItem);
             menu.Add(listeningItem);
+            menu.Add(gradeItem);
             menu.Add(scheduleItem);
             menu.Add(settingsItem);
             menu.Add(new NativeMenuItemSeparator());

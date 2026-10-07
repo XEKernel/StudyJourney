@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using StudyJourney.Avalonia.Models.GradeAnalysis;
 
 namespace StudyJourney.Avalonia.Models;
 
@@ -60,6 +61,10 @@ namespace StudyJourney.Avalonia.Models;
 [JsonSerializable(typeof(ListeningSource))]
 // ── PDF 续读状态 ──
 [JsonSerializable(typeof(PdfReadingStateData))]
+// ── 班级成绩分析（v3.1.0）──
+// 配置存在成绩库自己的 app_kv 表里（不进 settings.json），但序列化仍走本上下文 ——
+// AOT 下反射序列化被禁用，任何走 JsonSerializer 的类型都必须在这里登记。
+[JsonSerializable(typeof(GradeAnalysisSettings))]
 // ── 其它（泛型组合）──
 [JsonSerializable(typeof(Dictionary<string, Services.HttpServerService.TokenInfo>))]
 [JsonSerializable(typeof(Dictionary<string, System.DateTime>))]

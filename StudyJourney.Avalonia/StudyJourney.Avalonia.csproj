@@ -38,6 +38,24 @@
            2.2.1 的 net6.0 组含 Core/Wasapi/WinMM（不含 WinForms），已验证：restore/build 0 警、
            PublishAot 后 IL2026/IL3050 = 0。详见 PITFALLS §G。 -->
     <PackageReference Include="NAudio" Version="2.2.1" />
+    <!-- ── 班级成绩分析模块（v3.1.0）────────────────────────────────────────────
+         ① Microsoft.Data.Sqlite：成绩库落盘。它只是 ADO.NET 门 + SQLitePCLRaw 的
+            DllImport 封装（原生 e_sqlite3 随包分发），**无反射** → AOT 友好。
+            版本刻意用 8.0.10：本机 ~/.nuget/packages 已有全部传递依赖
+            （sqlitepclraw.bundle_e_sqlite3 2.1.6 / core / lib.e_sqlite3 / provider.e_sqlite3），
+            离线即可还原（本机 api.nuget.org 被拦截）。
+         ② CommunityToolkit.Mvvm：本模块内的 MVVM。选它而非 ReactiveUI 的唯一理由是
+            AOT —— 它的 [ObservableProperty]/[RelayCommand] 全是**源生成器**，运行期零反射；
+            ReactiveUI 依赖 Expression 树编译与反射绑定，AOT 下需额外注解且易踩坑。
+            ⚠ 只用 ObservableObject / ObservableProperty / RelayCommand；
+              **不要用 ObservableValidator**（内部走反射校验），也不要做后期绑定。
+         ③ 图表**不引第三方库**（LiveCharts2 已实测否决：其 Avalonia 包依赖 Avalonia 11
+            + SkiaSharp 2.88.9，与本项目 Avalonia 12 + SkiaSharp 3.119 双重主版本错位，
+            NuGet 会静默升级 SkiaSharp 而让问题逃过构建门禁）。改为手绘 —— 项目既有
+            InkCanvas / WhiteboardWindow / BoardRenderer 都是 DrawingContext 手绘，风格一致。
+         详见 .workbuddy/GRADE_ANALYSIS_PLAN.md 与 PITFALLS §G。 -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
   </ItemGroup>
 
   <!-- 远程管理：ASP.NET Core Minimal API（Kestrel 后台线程运行，不阻塞 UI 线程） -->

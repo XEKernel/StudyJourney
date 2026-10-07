@@ -1,0 +1,599 @@
+<Window x:Class="StudyJourney.Avalonia.Views.GradeAnalysis.GradeAnalysisWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:StudyJourney.Avalonia.ViewModels.GradeAnalysis"
+        xmlns:g="using:StudyJourney.Avalonia.Helpers.GradeAnalysis"
+        xmlns:m="using:StudyJourney.Avalonia.Models.GradeAnalysis"
+        x:DataType="vm:GradeAnalysisViewModel"
+        Title="班级成绩分析"
+        Width="1320" Height="880"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Styles>
+        <!-- 悬停高亮：作用在**没有本地 Background 值**的内层 Border 上，
+             否则样式会被绑定值压过去（Avalonia 里本地值优先级高于样式）。 -->
+        <Style Selector="Border.rowhover"><Setter Property="Background" Value="Transparent"/></Style>
+        <Style Selector="Border.rowhover:pointerover"><Setter Property="Background" Value="#22FFFFFF"/></Style>
+        <Style Selector="TextBlock.h"><Setter Property="FontSize" Value="12"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="#8B949E"/></Style>
+        <Style Selector="TextBlock.c"><Setter Property="FontSize" Value="13"/><Setter Property="Foreground" Value="#C9D1D9"/><Setter Property="VerticalAlignment" Value="Center"/><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
+        <Style Selector="TextBlock.hd"><Setter Property="FontSize" Value="15"/><Setter Property="FontWeight" Value="SemiBold"/><Setter Property="Foreground" Value="#C9D1D9"/></Style>
+        <Style Selector="TextBlock.sub"><Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="#8B949E"/><Setter Property="TextWrapping" Value="Wrap"/></Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- ══ 顶部：考试选择 ══ -->
+        <Border DockPanel.Dock="Top" Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,0,1" Padding="16,10">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="当前考试" Classes="c" VerticalAlignment="Center"/>
+                <ComboBox Width="240"
+                          ItemsSource="{Binding Exams}" SelectedItem="{Binding SelectedExam}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="m:Exam">
+                            <TextBlock Text="{Binding DisplayName}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <TextBlock Text="{Binding StatusText}" Classes="sub" VerticalAlignment="Center" Margin="12,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ══ 底部：错误提示 ══ -->
+        <Border DockPanel.Dock="Bottom" IsVisible="{Binding ErrorText.Length}" Background="#3D1418" BorderBrush="#F85149" BorderThickness="0,1,0,0" Padding="16,8">
+            <TextBlock Text="{Binding ErrorText}" FontSize="12" Foreground="#F85149" TextWrapping="Wrap"/>
+        </Border>
+
+        <TabControl Margin="8,8,8,0">
+
+            <!-- ═══════════════════ 页签 1：班级排行榜 ═══════════════════ -->
+            <TabItem Header="班级排行榜">
+                <Grid RowDefinitions="Auto,*" Margin="4">
+                    <!-- 工具条 -->
+                    <StackPanel Grid.Row="0" Spacing="8">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="榜单" Classes="c" VerticalAlignment="Center"/>
+                            <ComboBox Width="110" ItemsSource="{Binding BoardKinds}" SelectedIndex="{Binding SelectedBoardKind}"/>
+                            <TextBlock Text="科目" Classes="c" VerticalAlignment="Center"/>
+                            <ComboBox Width="110" ItemsSource="{Binding SubjectChoices}" SelectedItem="{Binding LeaderboardSubject}"/>
+                            <TextBlock Text="搜索" Classes="c" VerticalAlignment="Center"/>
+                            <TextBox Width="150" Text="{Binding LeaderboardSearch}" PlaceholderText="姓名或学号"/>
+                            <TextBlock Text="只显示前" Classes="c" VerticalAlignment="Center"/>
+                            <NumericUpDown Width="110" Minimum="0" Maximum="200" Increment="5" Value="{Binding LeaderboardTopN}"/>
+                            <TextBlock Text="名（0 = 不限制）" Classes="c" VerticalAlignment="Center"/>
+                            <Button Content="恢复默认视图" Command="{Binding ResetViewCommand}" Margin="8,0,0,0"/>
+                        </StackPanel>
+
+                        <!-- 自定义列（全班共用一套视图） -->
+                        <WrapPanel Orientation="Horizontal">
+                            <TextBlock Text="显示列：" Classes="sub" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <CheckBox Content="班级排名" IsChecked="{Binding ShowRank}"/>
+                            <CheckBox Content="姓名" IsChecked="{Binding ShowName}"/>
+                            <CheckBox Content="学号" IsChecked="{Binding ShowStudentNo}"/>
+                            <CheckBox Content="总分" IsChecked="{Binding ShowTotal}"/>
+                            <CheckBox IsChecked="{Binding ShowSubject1}" Content="{Binding SubHeader1}"/>
+                            <CheckBox IsChecked="{Binding ShowSubject2}" Content="{Binding SubHeader2}"/>
+                            <CheckBox IsChecked="{Binding ShowSubject3}" Content="{Binding SubHeader3}"/>
+                            <CheckBox IsChecked="{Binding ShowSubject4}" Content="{Binding SubHeader4}"/>
+                            <CheckBox IsChecked="{Binding ShowSubject5}" Content="{Binding SubHeader5}"/>
+                            <CheckBox IsChecked="{Binding ShowSubject6}" Content="{Binding SubHeader6}"/>
+                            <CheckBox Content="年级排名" IsChecked="{Binding ShowGradeRank}"/>
+                            <CheckBox Content="较上次班级" IsChecked="{Binding ShowRankDelta}"/>
+                            <CheckBox Content="较上次总分" IsChecked="{Binding ShowTotalDelta}"/>
+                            <CheckBox Content="波动标签" IsChecked="{Binding ShowTrend}"/>
+                        </WrapPanel>
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1" Margin="0,8,0,0">
+                        <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding LeaderboardTitle}" Classes="hd" Margin="2,0,0,4"/>
+
+                            <!-- 表头（宽度必须与行模板逐列一致，否则列会错位） -->
+                            <Border Background="#161B22" CornerRadius="4" Padding="0,7">
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Classes="h" Width="46" Text="名次" IsVisible="{Binding ShowRank}"/>
+                                    <TextBlock Classes="h" Width="104" Text="姓名" IsVisible="{Binding ShowName}"/>
+                                    <TextBlock Classes="h" Width="96" Text="学号" IsVisible="{Binding ShowStudentNo}"/>
+                                    <TextBlock Classes="h" Width="72" Text="总分" IsVisible="{Binding ShowTotal}"/>
+                                    <TextBlock Classes="h" Width="68" Text="{Binding SubHeader1}" IsVisible="{Binding ShowSubject1}"/>
+                                    <TextBlock Classes="h" Width="68" Text="{Binding SubHeader2}" IsVisible="{Binding ShowSubject2}"/>
+                                    <TextBlock Classes="h" Width="68" Text="{Binding SubHeader3}" IsVisible="{Binding ShowSubject3}"/>
+                                    <TextBlock Classes="h" Width="68" Text="{Binding SubHeader4}" IsVisible="{Binding ShowSubject4}"/>
+                                    <TextBlock Classes="h" Width="68" Text="{Binding SubHeader5}" IsVisible="{Binding ShowSubject5}"/>
+                                    <TextBlock Classes="h" Width="68" Text="{Binding SubHeader6}" IsVisible="{Binding ShowSubject6}"/>
+                                    <TextBlock Classes="h" Width="124" Text="年级排名" IsVisible="{Binding ShowGradeRank}"/>
+                                    <TextBlock Classes="h" Width="96" Text="较上次班级" IsVisible="{Binding ShowRankDelta}"/>
+                                    <TextBlock Classes="h" Width="96" Text="较上次总分" IsVisible="{Binding ShowTotalDelta}"/>
+                                    <TextBlock Classes="h" Width="84" Text="波动标签" IsVisible="{Binding ShowTrend}"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- 数据行 -->
+                            <ItemsControl ItemsSource="{Binding LeaderboardRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LeaderboardRow">
+                                        <Border Background="{Binding Background}" CornerRadius="3">
+                                            <Border Classes="rowhover" CornerRadius="3" Padding="0,6">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Classes="c" Width="46" Text="{Binding RankText}" IsVisible="{Binding ShowRank}"/>
+                                                    <TextBlock Classes="c" Width="104" Text="{Binding Name}" IsVisible="{Binding ShowName}"/>
+                                                    <TextBlock Classes="c" Width="96" Text="{Binding StudentNo}" IsVisible="{Binding ShowStudentNo}"/>
+                                                    <TextBlock Classes="c" Width="72" Text="{Binding TotalText}" IsVisible="{Binding ShowTotal}"/>
+                                                    <TextBlock Classes="c" Width="68" Text="{Binding S1}" IsVisible="{Binding ShowS1}"/>
+                                                    <TextBlock Classes="c" Width="68" Text="{Binding S2}" IsVisible="{Binding ShowS2}"/>
+                                                    <TextBlock Classes="c" Width="68" Text="{Binding S3}" IsVisible="{Binding ShowS3}"/>
+                                                    <TextBlock Classes="c" Width="68" Text="{Binding S4}" IsVisible="{Binding ShowS4}"/>
+                                                    <TextBlock Classes="c" Width="68" Text="{Binding S5}" IsVisible="{Binding ShowS5}"/>
+                                                    <TextBlock Classes="c" Width="68" Text="{Binding S6}" IsVisible="{Binding ShowS6}"/>
+                                                    <TextBlock Classes="c" Width="124" Text="{Binding GradeRankText}" IsVisible="{Binding ShowGradeRank}"/>
+                                                    <TextBlock Classes="c" Width="96" Text="{Binding RankDeltaText}" Foreground="{Binding RankDeltaBrush}" IsVisible="{Binding ShowRankDelta}"/>
+                                                    <TextBlock Classes="c" Width="96" Text="{Binding TotalDeltaText}" IsVisible="{Binding ShowTotalDelta}"/>
+                                                    <TextBlock Classes="c" Width="84" Text="{Binding TrendText}" Foreground="{Binding TrendBrush}" IsVisible="{Binding ShowTrend}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- 不参与排名的学生单独列在底部 -->
+                            <TextBlock Text="{Binding NotRankedHeader}" Classes="sub" Margin="2,14,0,4"/>
+                            <ItemsControl ItemsSource="{Binding NotRankedRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:LeaderboardRow">
+                                        <Border Background="#14FFFFFF" CornerRadius="3" Padding="0,6">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Classes="c" Width="46" Text="—" Foreground="#8B949E"/>
+                                                <TextBlock Classes="c" Width="104" Text="{Binding Name}"/>
+                                                <TextBlock Classes="c" Width="72" Text="{Binding TotalText}"/>
+                                                <TextBlock Classes="c" Width="260" Text="{Binding Note}" Foreground="#D29922"/>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Classes="sub" Margin="2,20,0,0"
+                                       Text="提示：同分时按「姓氏笔画 → 名字笔画 → 学号」排序；笔画未填的学生会被排在同分组的最后。"
+                                       />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══════════════════ 页签 2：个人详情 ═══════════════════ -->
+            <TabItem Header="个人详情">
+                <ScrollViewer>
+                    <StackPanel Spacing="10" Margin="4">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <TextBlock Text="学生" Classes="c" VerticalAlignment="Center"/>
+                            <ComboBox Width="200" ItemsSource="{Binding Students}" SelectedItem="{Binding DetailStudent}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="m:Student">
+                                        <TextBlock Text="{Binding DisplayName}"/>
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </StackPanel>
+
+                        <WrapPanel Orientation="Horizontal">
+                            <Border Background="#161B22" CornerRadius="4" Padding="14,10" Margin="0,0,8,8" MinWidth="180">
+                                <StackPanel><TextBlock Text="总分" Classes="sub"/><TextBlock Text="{Binding DetailTotalText}" Classes="hd"/></StackPanel>
+                            </Border>
+                            <Border Background="#161B22" CornerRadius="4" Padding="14,10" Margin="0,0,8,8" MinWidth="140">
+                                <StackPanel><TextBlock Text="班级排名" Classes="sub"/><TextBlock Text="{Binding DetailClassRankText}" Classes="hd"/></StackPanel>
+                            </Border>
+                            <Border Background="#161B22" CornerRadius="4" Padding="14,10" Margin="0,0,8,8" MinWidth="200">
+                                <StackPanel><TextBlock Text="年级排名" Classes="sub"/><TextBlock Text="{Binding DetailGradeRankText}" Classes="hd"/></StackPanel>
+                            </Border>
+                            <Border Background="#161B22" CornerRadius="4" Padding="14,10" Margin="0,0,8,8" MinWidth="240">
+                                <StackPanel><TextBlock Text="较上次" Classes="sub"/><TextBlock Text="{Binding DetailDeltaText}" Classes="hd" Foreground="{Binding DetailDeltaBrush}"/></StackPanel>
+                            </Border>
+                        </WrapPanel>
+
+                        <Grid ColumnDefinitions="*,*" >
+                            <!-- 雷达图 -->
+                            <Border Grid.Column="0" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0" MinHeight="320">
+                                <StackPanel>
+                                    <TextBlock Text="六科得分率 · 本人 vs 班级平均" Classes="h" Margin="12,10,0,0"/>
+                                    <g:RadarChart Height="300" Series="{Binding DetailRadarSeries}" AxisLabels="{Binding DetailAxisLabels}"/>
+                                </StackPanel>
+                            </Border>
+                            <!-- 各科明细 -->
+                            <Border Grid.Column="1" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Margin="6,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="各科明细" Classes="h" Margin="12,10,0,0"/>
+                                    <Border Background="#161B22" CornerRadius="4" Padding="10,6" Margin="10,6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Classes="h" Width="60" Text="科目"/>
+                                            <TextBlock Classes="h" Width="70" Text="分数"/>
+                                            <TextBlock Classes="h" Width="60" Text="满分"/>
+                                            <TextBlock Classes="h" Width="80" Text="得分率"/>
+                                            <TextBlock Classes="h" Width="80" Text="班级排名"/>
+                                            <TextBlock Classes="h" Width="80" Text="班级平均"/>
+                                            <TextBlock Classes="h" Width="60" Text="状态"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ItemsControl ItemsSource="{Binding DetailSubjectRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:SubjectRow">
+                                                <Border Padding="10,5">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Classes="c" Width="60" Text="{Binding Subject}"/>
+                                                        <TextBlock Classes="c" Width="70" Text="{Binding ScoreText}"/>
+                                                        <TextBlock Classes="c" Width="60" Text="{Binding FullText}"/>
+                                                        <TextBlock Classes="c" Width="80" Text="{Binding RateText}"/>
+                                                        <TextBlock Classes="c" Width="80" Text="{Binding RankText}"/>
+                                                        <TextBlock Classes="c" Width="80" Text="{Binding ClassAvgText}"/>
+                                                        <TextBlock Classes="c" Width="60" Text="{Binding StatusText}" Foreground="{Binding StatusBrush}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" MinHeight="220">
+                            <StackPanel>
+                                <TextBlock Text="本学期总分趋势" Classes="h" Margin="12,10,0,0"/>
+                                <g:TrendChart Height="200" Series="{Binding DetailTrendSeries}" XLabels="{Binding DetailTrendLabels}" YAxisTitle="总分"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" MinHeight="160">
+                            <StackPanel>
+                                <TextBlock Text="与上一次考试对比" Classes="h" Margin="12,10,0,0"/>
+                                <Border Background="#161B22" CornerRadius="4" Padding="10,6" Margin="10,6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Classes="h" Width="220" Text="项目"/>
+                                        <TextBlock Classes="h" Width="100" Text="上次"/>
+                                        <TextBlock Classes="h" Width="100" Text="本次"/>
+                                        <TextBlock Classes="h" Width="100" Text="变化"/>
+                                    </StackPanel>
+                                </Border>
+                                <ItemsControl ItemsSource="{Binding DetailCompareRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CompareRow">
+                                            <Border Padding="10,5">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Classes="c" Width="220" Text="{Binding Label}"/>
+                                                    <TextBlock Classes="c" Width="100" Text="{Binding LastText}"/>
+                                                    <TextBlock Classes="c" Width="100" Text="{Binding NowText}"/>
+                                                    <TextBlock Classes="c" Width="100" Text="{Binding DeltaText}" Foreground="{Binding DeltaBrush}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══════════════════ 页签 3：单人 PK ═══════════════════ -->
+            <TabItem Header="单人 PK">
+                <Grid RowDefinitions="Auto,*" Margin="4">
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                        <ComboBox Width="190" ItemsSource="{Binding Students}" SelectedItem="{Binding PkStudentA}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="m:Student"><TextBlock Text="{Binding DisplayName}"/></DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <Button Content="⇄ 交换" Command="{Binding SwapPkCommand}"/>
+                        <ComboBox Width="190" ItemsSource="{Binding Students}" SelectedItem="{Binding PkStudentB}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="m:Student"><TextBlock Text="{Binding DisplayName}"/></DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
+
+                    <Grid Grid.Row="1" ColumnDefinitions="*,*" Margin="0,10,0,0">
+                        <Border Grid.Column="0" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0" MinHeight="360">
+                            <StackPanel>
+                                <TextBlock Text="得分率雷达对比" Classes="h" Margin="12,10,0,0"/>
+                                <g:RadarChart Height="340" Series="{Binding PkRadarSeries}" AxisLabels="{Binding PkAxisLabels}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Grid.Column="1" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Margin="6,0,0,0">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Top" Text="{Binding PkSummaryText}" Classes="hd" Margin="12,10,12,6" TextWrapping="Wrap"/>
+                                <ScrollViewer>
+                                    <StackPanel>
+                                        <Border Background="#161B22" CornerRadius="4" Padding="10,6" Margin="10,0,10,4">
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock Classes="h" Width="170" Text="对比项"/>
+                                                <TextBlock Classes="h" Width="150" Text="甲"/>
+                                                <TextBlock Classes="h" Width="150" Text="乙"/>
+                                            </StackPanel>
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding PkRows}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:PkRow">
+                                                    <Border Padding="10,3">
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Classes="c" Width="170" Text="{Binding Label}"/>
+                                                            <Border Background="{Binding BrushA}" CornerRadius="3" Width="150" Padding="6,3">
+                                                                <TextBlock Classes="c" Text="{Binding ValueA}"/>
+                                                            </Border>
+                                                            <Border Background="{Binding BrushB}" CornerRadius="3" Width="150" Padding="6,3">
+                                                                <TextBlock Classes="c" Text="{Binding ValueB}"/>
+                                                            </Border>
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </DockPanel>
+                        </Border>
+                    </Grid>
+                </Grid>
+            </TabItem>
+
+            <!-- ═══════════════════ 页签 4：小组 PK ═══════════════════ -->
+            <TabItem Header="小组 PK">
+                <ScrollViewer>
+                    <StackPanel Spacing="10" Margin="4">
+                        <Border Background="#161B22" CornerRadius="4" Padding="14,10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="综合分权重（自动归一化，不必凑成 100）" Classes="h"/>
+                                <Grid ColumnDefinitions="120,*,60" Margin="0,2,0,0">
+                                    <TextBlock Text="平均总分" Classes="c"/>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding WeightAvgScore}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding WeightAvgScore, StringFormat={}{0:0}}" Classes="c" HorizontalAlignment="Right"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="120,*,60">
+                                    <TextBlock Text="进步率" Classes="c"/>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding WeightProgress}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding WeightProgress, StringFormat={}{0:0}}" Classes="c" HorizontalAlignment="Right"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="120,*,60">
+                                    <TextBlock Text="稳定度" Classes="c"/>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="100" Value="{Binding WeightStability}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding WeightStability, StringFormat={}{0:0}}" Classes="c" HorizontalAlignment="Right"/>
+                                </Grid>
+                                <TextBlock Text="{Binding WeightSummary}" Classes="sub"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,*">
+                            <Border Grid.Column="0" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0" MinHeight="320">
+                                <StackPanel>
+                                    <TextBlock Text="小组各科平均得分率" Classes="h" Margin="12,10,0,0"/>
+                                    <g:RadarChart Height="300" Series="{Binding GroupRadarSeries}" AxisLabels="{Binding GroupAxisLabels}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Margin="6,0,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="小组排名（按综合分降序）" Classes="h" Margin="12,10,0,0"/>
+                                    <Border Background="#161B22" CornerRadius="4" Padding="10,6" Margin="10,6">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Classes="h" Width="40" Text="名次"/>
+                                            <TextBlock Classes="h" Width="90" Text="小组"/>
+                                            <TextBlock Classes="h" Width="54" Text="人数"/>
+                                            <TextBlock Classes="h" Width="86" Text="平均总分"/>
+                                            <TextBlock Classes="h" Width="80" Text="平均排名"/>
+                                            <TextBlock Classes="h" Width="70" Text="进步率"/>
+                                            <TextBlock Classes="h" Width="70" Text="稳定度"/>
+                                            <TextBlock Classes="h" Width="80" Text="综合分"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <ItemsControl ItemsSource="{Binding GroupRows}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:GroupRow">
+                                                <Border Background="{Binding Background}" CornerRadius="3" Padding="10,6">
+                                                    <StackPanel>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <TextBlock Classes="c" Width="40" Text="{Binding RankText}"/>
+                                                            <TextBlock Classes="c" Width="90" Text="{Binding Name}" Foreground="{Binding ColorBrush}"/>
+                                                            <TextBlock Classes="c" Width="54" Text="{Binding MemberCountText}"/>
+                                                            <TextBlock Classes="c" Width="86" Text="{Binding AvgTotalText}"/>
+                                                            <TextBlock Classes="c" Width="80" Text="{Binding AvgRankText}"/>
+                                                            <TextBlock Classes="c" Width="70" Text="{Binding ProgressText}"/>
+                                                            <TextBlock Classes="c" Width="70" Text="{Binding StabilityText}"/>
+                                                            <TextBlock Classes="c" Width="80" Text="{Binding CompositeText}" FontWeight="SemiBold"/>
+                                                        </StackPanel>
+                                                        <TextBlock Text="{Binding DetailText}" Classes="sub" Margin="0,2,0,0"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border Background="#161B22" CornerRadius="4" Padding="14,10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="新建小组（成员自「当前考试」起生效；换人请再建新组或追加成员）" Classes="h"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBox Width="180" Text="{Binding NewGroupName}" PlaceholderText="小组名称，如 第一组"/>
+                                    <TextBox Width="420" Text="{Binding NewGroupMembers}" PlaceholderText="成员：姓名或学号，逗号分隔"/>
+                                    <Button Content="新建" Command="{Binding AddGroupCommand}"/>
+                                </StackPanel>
+                                <TextBlock Classes="sub" Text="成员变动按「快照」记录：每次考试按当时的成员计算，之后换人不会改变历史考试的成绩。"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══════════════════ 页签 5：波动分析 ═══════════════════ -->
+            <TabItem Header="波动分析">
+                <ScrollViewer>
+                    <StackPanel Spacing="10" Margin="4">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <TextBlock Text="学生" Classes="c" VerticalAlignment="Center"/>
+                            <ComboBox Width="200" ItemsSource="{Binding Students}" SelectedItem="{Binding FluctStudent}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="m:Student"><TextBlock Text="{Binding DisplayName}"/></DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                            <Border Background="#161B22" CornerRadius="4" Padding="12,6">
+                                <TextBlock Text="{Binding FluctKindText}" FontSize="15" FontWeight="SemiBold" Foreground="{Binding FluctKindBrush}"/>
+                            </Border>
+                        </StackPanel>
+
+                        <Border Background="#161B22" CornerRadius="4" Padding="14,10">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="判定阈值（老师可调）" Classes="h"/>
+                                <Grid ColumnDefinitions="260,*,70">
+                                    <TextBlock Text="排名标准差阈值（稳定 / 波动）" Classes="c"/>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="20" Value="{Binding ThresholdStdDev}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding ThresholdStdDev, StringFormat={}{0:0.0}}" Classes="c" HorizontalAlignment="Right"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="260,*,70">
+                                    <TextBlock Text="前后半段名次差阈值（上升 / 下降）" Classes="c"/>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="15" Value="{Binding ThresholdHalfDelta}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding ThresholdHalfDelta, StringFormat={}{0:0.0}}" Classes="c" HorizontalAlignment="Right"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="260,*,70">
+                                    <TextBlock Text="科目极差阈值（偏科，百分点）" Classes="c"/>
+                                    <Slider Grid.Column="1" Minimum="0" Maximum="60" Value="{Binding ThresholdSubjectBias}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding ThresholdSubjectBias, StringFormat={}{0:0.0}}" Classes="c" HorizontalAlignment="Right"/>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <Grid ColumnDefinitions="*,*">
+                            <Border Grid.Column="0" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Margin="0,0,6,0" MinHeight="210">
+                                <StackPanel>
+                                    <TextBlock Text="总分趋势" Classes="h" Margin="12,10,0,0"/>
+                                    <g:TrendChart Height="190" Series="{Binding FluctTotalSeries}" XLabels="{Binding FluctLabels}" YAxisTitle="总分"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Grid.Column="1" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Margin="6,0,0,0" MinHeight="210">
+                                <StackPanel>
+                                    <TextBlock Text="班级排名趋势（越靠上越好）" Classes="h" Margin="12,10,0,0"/>
+                                    <g:TrendChart Height="190" Series="{Binding FluctRankSeries}" XLabels="{Binding FluctLabels}" InvertY="True" YAxisTitle="班级排名"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" MinHeight="260">
+                            <StackPanel>
+                                <TextBlock Text="六科得分率趋势（%）" Classes="h" Margin="12,10,0,0"/>
+                                <g:TrendChart Height="240" Series="{Binding FluctSubjectSeries}" XLabels="{Binding FluctLabels}" YAxisTitle="得分率 %"/>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4">
+                            <StackPanel>
+                                <TextBlock Text="波动统计" Classes="h" Margin="12,10,0,0"/>
+                                <ItemsControl ItemsSource="{Binding FluctStatRows}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:StatRow">
+                                            <Border Padding="12,5">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <TextBlock Classes="c" Width="240" Text="{Binding Label}"/>
+                                                    <TextBlock Classes="c" Text="{Binding Value}" Foreground="{Binding ValueBrush}"/>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ═══════════════════ 页签 6：数据导入 ═══════════════════ -->
+            <TabItem Header="数据导入">
+                <TabControl x:Name="ImportTabs" Margin="4">
+                    <TabItem Header="从 Excel 导入">
+                        <StackPanel Spacing="10" Margin="4">
+                            <Border Background="#161B22" CornerRadius="4" Padding="14,10">
+                                <StackPanel Spacing="8">
+                                    <TextBlock Text="选择成绩表（.xlsx）" Classes="h"/>
+                                    <TextBlock Classes="sub" Text="预期列：学号、姓名、班级、考试名称、考试日期、语文、数学、英语、物理、化学、生物、特殊状态（可选，如「数学缺考」）。另可选「年级排名」「姓氏笔画」「名字笔画」列。"/>
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Button Content="选择文件…" Command="{Binding PickFileCommand}"/>
+                                        <Button Content="开始导入" Classes="accent" Command="{Binding RunImportCommand}"/>
+                                        <TextBlock Text="{Binding ImportFilePath}" Classes="c" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="720"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" MinHeight="200">
+                                <StackPanel>
+                                    <TextBlock Text="导入诊断" Classes="h" Margin="12,10,0,0"/>
+                                    <ItemsControl ItemsSource="{Binding Diagnostics}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="x:String">
+                                                <TextBlock Text="{Binding}" Classes="sub" Margin="12,2,12,0"/>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </TabItem>
+
+                    <TabItem Header="手动录入">
+                        <ScrollViewer>
+                            <StackPanel Spacing="10" Margin="4">
+                                <Border Background="#161B22" CornerRadius="4" Padding="14,10">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="录入一名学生的某次考试成绩" Classes="h"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBox Width="140" Text="{Binding ManualStudentNo}" PlaceholderText="学号"/>
+                                            <TextBox Width="140" Text="{Binding ManualName}" PlaceholderText="姓名"/>
+                                            <TextBox Width="140" Text="{Binding ManualClassName}" PlaceholderText="班级"/>
+                                            <TextBox Width="180" Text="{Binding ManualExamName}" PlaceholderText="考试名称，如 期中考试"/>
+                                            <DatePicker SelectedDate="{Binding ManualExamDate}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBox Width="110" Text="{Binding ManualScore1}" PlaceholderText="{Binding SubHeader1}"/>
+                                            <TextBox Width="110" Text="{Binding ManualScore2}" PlaceholderText="{Binding SubHeader2}"/>
+                                            <TextBox Width="110" Text="{Binding ManualScore3}" PlaceholderText="{Binding SubHeader3}"/>
+                                            <TextBox Width="110" Text="{Binding ManualScore4}" PlaceholderText="{Binding SubHeader4}"/>
+                                            <TextBox Width="110" Text="{Binding ManualScore5}" PlaceholderText="{Binding SubHeader5}"/>
+                                            <TextBox Width="110" Text="{Binding ManualScore6}" PlaceholderText="{Binding SubHeader6}"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBox Width="420" Text="{Binding ManualSpecialStatus}" PlaceholderText="特殊状态（可留空）：如「数学缺考；英语作弊」"/>
+                                            <Button Content="保存这一条" Classes="accent" Command="{Binding AddManualCommand}"/>
+                                        </StackPanel>
+                                        <TextBlock Classes="sub" Text="分数格留空按 0 分记；也可以直接在分数格里写「缺考 / 免考 / 作弊」。"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#161B22" CornerRadius="4" Padding="14,10">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="学生笔画（同分排序依据：姓氏笔画 → 名字笔画 → 学号）" Classes="h"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <ComboBox Width="220" ItemsSource="{Binding ManualStudents}" SelectedItem="{Binding SelectedStudentForEdit}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate x:DataType="m:Student"><TextBlock Text="{Binding DisplayName}"/></DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                            <TextBox Width="120" Text="{Binding EditSurnameStrokes}" PlaceholderText="姓氏笔画"/>
+                                            <TextBox Width="120" Text="{Binding EditGivenStrokes}" PlaceholderText="名字笔画"/>
+                                            <Button Content="保存" Command="{Binding SaveStudentEditCommand}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Background="#161B22" CornerRadius="4" Padding="14,10">
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="当前考试的年级总人数（用于「第 X 名 / 共 Y 人」）" Classes="h"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <NumericUpDown Width="140" Minimum="0" Maximum="5000" Increment="10" Value="{Binding ExamGradeTotalInput}"/>
+                                            <Button Content="保存" Command="{Binding SaveExamMetaCommand}"/>
+                                            <Button Content="删除这次考试及其成绩" Command="{Binding DeleteExamCommand}" Foreground="#F85149"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</Window>
