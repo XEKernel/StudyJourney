@@ -8,7 +8,13 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 3.1.0：新增「班级成绩分析」模块（用户可感知的新能力 → Y 位）。
+    <!-- 3.1.1：修「成绩模块在 AOT 发布版里打不开数据库」——
+         e_sqlite3.dll 是 DllImport 目标，PublishAot 【不会】把它复制进产物（实测 AOT 产物 9 个文件、
+         框架依赖产物 60 个文件，差的就是它）→ 老师机器上第一次开成绩库会 DllNotFoundException。
+         修法两条：① 显式把该 dll 复制进输出与发布目录（不依赖 SDK 的自动行为）；
+         ② 顺带把 Microsoft.Data.Sqlite 升到 10.0.12 —— 8.0.10 传递依赖的
+         SQLitePCLRaw.lib.e_sqlite3 2.1.6 命中 NU1903 高危漏洞公告（GHSA-2m69-gcr7-jv3q）。
+         3.1.0：新增「班级成绩分析」模块（用户可感知的新能力 → Y 位）。
          成绩可从 .xlsx 导入或手动录入；含班级排行榜（总分/单科/进步/退步 + 自定义列 + 前 N 名）、
          个人详情（雷达图对比班级平均 + 与上次逐项对比 + 本学期趋势）、单人 PK、小组 PK（权重可调）、
          波动分析（趋势图 + 稳定/波动/上升/下降/偏科判定，阈值可调）。
@@ -21,7 +27,7 @@
          3.0.1：修「AOT 被误判成框架依赖」（下次更新会下错包）+ 装错包保险。
          3.0.0：分发形态改为 NativeAOT（判据②：分发形态/运行环境变）→ X 位。
          AssemblyVersion 由 <Version> 派生；InformationalVersion 形如 3.0.3+{hash}（更新检查按 '+' 截断解析） -->
-    <Version>3.1.0</Version>
+    <Version>3.1.1</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
@@ -47,9 +53,10 @@
     <!-- ── 班级成绩分析模块（v3.1.0）────────────────────────────────────────────
          ① Microsoft.Data.Sqlite：成绩库落盘。它只是 ADO.NET 门 + SQLitePCLRaw 的
             DllImport 封装（原生 e_sqlite3 随包分发），**无反射** → AOT 友好。
-            版本刻意用 8.0.10：本机 ~/.nuget/packages 已有全部传递依赖
-            （sqlitepclraw.bundle_e_sqlite3 2.1.6 / core / lib.e_sqlite3 / provider.e_sqlite3），
-            离线即可还原（本机 api.nuget.org 被拦截）。
+            10.0.12（2026-10-07 从 8.0.10 升）：8.0.10 传递依赖的
+            `SQLitePCLRaw.lib.e_sqlite3 2.1.6` 命中 **NU1903 高危漏洞公告**
+            （GHSA-2m69-gcr7-jv3q），2.1.12 已修；且 10.x 与本项目 .NET 10 同代。
+            依赖全部落到仓库根的 local-nupkg 本地源（本机 api.nuget.org 被拦截）。
          ② CommunityToolkit.Mvvm：本模块内的 MVVM。选它而非 ReactiveUI 的唯一理由是
             AOT —— 它的 [ObservableProperty]/[RelayCommand] 全是**源生成器**，运行期零反射；
             ReactiveUI 依赖 Expression 树编译与反射绑定，AOT 下需额外注解且易踩坑。
@@ -60,8 +67,22 @@
             NuGet 会静默升级 SkiaSharp 而让问题逃过构建门禁）。改为手绘 —— 项目既有
             InkCanvas / WhiteboardWindow / BoardRenderer 都是 DrawingContext 手绘，风格一致。
          详见 .workbuddy/GRADE_ANALYSIS_PLAN.md 与 PITFALLS §G。 -->
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.3.2" />
+    <!-- ② SQLite 的**原生库**是 DllImport 目标，AOT 发布【不会】自动把它复制进产物
+         （2026-10-07 实测：框架依赖发布有 e_sqlite3.dll，PublishAot 产物里没有 →
+         v3.1.0 的成绩模块在老师机器上第一次开库就会 DllNotFoundException）。
+         所以这里显式引用该包拿它的路径，再由下面的 ItemGroup 显式复制。 -->
+    <PackageReference Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" GeneratePathProperty="true" />
+  </ItemGroup>
+
+  <!-- 把 e_sqlite3.dll 钉进输出与发布目录。⚠ 故意不写 Condition：路径取不到时应当
+       构建报错，而不是静默跳过（静默跳过就等于把这个 bug 原样带进下一个版本）。 -->
+  <ItemGroup>
+    <None Include="$(PkgSQLitePCLRaw_lib_e_sqlite3)/runtimes/win-x64/native/e_sqlite3.dll"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest"
+          Visible="false" />
   </ItemGroup>
 
   <!-- 远程管理：ASP.NET Core Minimal API（Kestrel 后台线程运行，不阻塞 UI 线程） -->
