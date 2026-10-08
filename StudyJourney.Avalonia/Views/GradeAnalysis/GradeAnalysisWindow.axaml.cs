@@ -60,6 +60,14 @@ public partial class GradeAnalysisWindow : Window
         // 任意「显示列」开关变动 → 刷新榜面并保存视图。
         // VM 内部用 _suspendRefresh 挡住了装载期的批量赋值，所以这里不会连环触发。
         _vm.PropertyChanged += OnVmPropertyChanged;
+
+        // 破坏性操作（删除学生 / 移出小组成员 / 删除小组）的确认框由视图注入。
+        // 不用 App.ConfirmAsync 那个不带 owner 的老入口 —— 那个的弹窗不跟随本窗口居中。
+        _vm.ConfirmAsync = (title, message) => Helpers.DialogHelper.ShowConfirmAsync(this, title, message);
+
+        // 小组配色：VM → 色板方向由 XAML 绑定完成；色板 → VM 方向必须挂事件 ——
+        // ColorSwatch.ValueChanged **只在用户点色板时触发**（赋 Value 不触发，这是它的既定语义）。
+        GroupColorSwatch.ValueChanged += (_, _) => _vm.SelectedGroupColorHex = GroupColorSwatch.Value;
     }
 
     private void OnVmPropertyChanged(object? sender, PropertyChangedEventArgs e)

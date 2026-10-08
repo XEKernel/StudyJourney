@@ -213,6 +213,50 @@ public static class GradeSelfTest
             Check(sb, gres[0].Name == "第一组", "第一组（含李四/王五/孙七）综合分应最高");
 
             // ══════════════════════════════════════════════════════════
+            //  ③-2 小组的界面化增删成员（2026-10-08）
+            // ══════════════════════════════════════════════════════════
+            // 关键语义：换人 = **追加**快照（只影响之后的考试）；移出 = **删掉那条快照**（退回上一条的效果）。
+            // 这两条是新界面的行为基础，算错的话老师会看到"历史考试成绩被改了"。
+            var recsAtExam1 = Services.GradeAnalysis.GradeAnalysisEngine.ResolveMemberRecords(ds, members2, exam1Row.Id);
+            var recsAtExam2 = Services.GradeAnalysis.GradeAnalysisEngine.ResolveMemberRecords(ds, members2, exam2Row.Id);
+            Check(sb, recsAtExam1[groupA].Count == 2, "期中（换人前）第一组应 2 人");
+            Check(sb, recsAtExam2[groupA].Count == 3, "期末（换人后）第一组应 3 人");
+
+            var sunRec = recsAtExam2[groupA].FirstOrDefault(r => r.StudentId == sunId);
+            Check(sb, sunRec is not null, "期末成员里应能取到孙七那条**快照记录本身**（界面靠它的 id 做「移出小组」）");
+            Check(sb, sunRec!.EffectiveExamId == exam2Row.Id, "孙七那条快照的生效考试应为期末");
+
+            db.DeleteGroupMember(sunRec.Id);   // 模拟界面上的「移出小组」
+            var membersAfterRemove = db.GetGroupMembers();
+            var recsAfterRemove = Services.GradeAnalysis.GradeAnalysisEngine.ResolveMemberRecords(
+                ds, membersAfterRemove, exam2Row.Id);
+            Check(sb, recsAfterRemove[groupA].Count == 2,
+                "移出成员后应退回 2 人（**退回上一条记录的效果**，而不是把人永久清空）");
+            sb.AppendLine($"{P} 小组换人/移出：期中 {recsAtExam1[groupA].Count} 人 → 期末 {recsAtExam2[groupA].Count} 人 → 移出后 {recsAfterRemove[groupA].Count} 人");
+
+            // ══════════════════════════════════════════════════════════
+            //  ③-3 学生删除的级联（2026-10-08）
+            // ══════════════════════════════════════════════════════════
+            var zhaoId = loadedStudents.First(s => s.Name == "赵六").Id;
+            Check(sb, db.GetAllScores().Any(x => x.StudentId == zhaoId), "删除前赵六应有成绩");
+            Check(sb, db.GetGroupMembers().Any(m => m.StudentId == zhaoId), "删除前赵六应在小组里");
+            db.DeleteStudent(zhaoId);
+            Check(sb, db.GetStudents().All(x => x.Id != zhaoId), "学生本身应已删除");
+            Check(sb, !db.GetAllScores().Any(x => x.StudentId == zhaoId),
+                "删除学生应**级联**删掉他的成绩（外键 ON DELETE CASCADE + PRAGMA foreign_keys=ON）");
+            Check(sb, !db.GetGroupMembers().Any(m => m.StudentId == zhaoId), "删除学生应级联删掉他的小组成员记录");
+
+            // ══════════════════════════════════════════════════════════
+            //  ③-4 考试属性可改（原来名称打错只能把整场删掉重导）
+            // ══════════════════════════════════════════════════════════
+            db.UpdateExamMeta(exam1Row.Id, "期中考试（更名）", new DateTime(2026, 5, 12), 480);
+            var exam1After = db.GetExams().First(e => e.Id == exam1Row.Id);
+            Check(sb, exam1After.Name == "期中考试（更名）"
+                      && exam1After.ExamDate == new DateTime(2026, 5, 12)
+                      && exam1After.GradeTotalCount == 480,
+                $"考试名称/日期/年级总人数应可修改，实际 {exam1After.Name}/{exam1After.ExamDate:yyyy-MM-dd}/{exam1After.GradeTotalCount}");
+
+            // ══════════════════════════════════════════════════════════
             //  ④ 波动分析：阈值联动
             // ══════════════════════════════════════════════════════════
             // 李四：期中第 3 → 期末第 1，半段差 = 2，默认阈值 2 时**不**算上升（要求严格大于）

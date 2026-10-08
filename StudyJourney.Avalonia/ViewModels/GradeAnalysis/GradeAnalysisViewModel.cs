@@ -11,6 +11,7 @@ using StudyJourney.Avalonia.Helpers.GradeAnalysis;
 using StudyJourney.Avalonia.Models;
 using StudyJourney.Avalonia.Models.GradeAnalysis;
 using StudyJourney.Avalonia.Services.GradeAnalysis;
+using StudyJourney.Avalonia.Views;   // ColorSwatch（小组配色）
 
 namespace StudyJourney.Avalonia.ViewModels.GradeAnalysis;
 
@@ -119,6 +120,23 @@ public sealed class StatRow
     public IBrush ValueBrush { get; init; } = ChartPalette.TextBrush;
 }
 
+/// <summary>小组的一个**当前有效成员**（对应一条成员快照记录）。</summary>
+public sealed class GroupMemberRow
+{
+    /// <summary>快照记录自身的 id —— 「移出小组」删的就是这一条。</summary>
+    public long Id { get; init; }
+    public long StudentId { get; init; }
+    public string Name { get; init; } = "";
+    public string StudentNo { get; init; } = "";
+    /// <summary>这条记录从哪次考试起生效。老师据此判断"删了会退回什么状态"。</summary>
+    public string EffectiveExamText { get; init; } = "";
+    public string Display => string.IsNullOrEmpty(StudentNo) ? Name : $"{Name}（{StudentNo}）";
+
+    /// <summary>行内「移出小组」。**命令挂在行模型上**，XAML 里就不需要
+    /// <c>$parent[ItemsControl].DataContext</c> 那种绕路绑定（那种写法在编译绑定下又长又脆）。</summary>
+    public IRelayCommand? RemoveCommand { get; set; }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// <summary>
@@ -137,6 +155,10 @@ public partial class GradeAnalysisViewModel : ObservableObject
 
     /// <summary>由视图注入的文件选择器（VM 不直接碰 Avalonia 的窗口/存储 API）。</summary>
     public Func<Task<string?>>? PickExcelFileAsync { get; set; }
+
+    /// <summary>由视图注入的「确认」对话框。删除学生 / 移出小组成员 / 删除小组都要先问一句 ——
+    /// VM 不直接调静态 UI API，否则它就没法在无 UI 的自检里跑。</summary>
+    public Func<string, string, Task<bool>>? ConfirmAsync { get; set; }
 
     public GradeAnalysisViewModel(GradeDatabase db)
     {
@@ -184,18 +206,37 @@ public partial class GradeAnalysisViewModel : ObservableObject
             _ds = GradeDataset.Build(_settings, students, exams, scores, gradeRanks);
 
             _suspendRefresh = true;
+
+            // 记住各处的当前选择（按 Id），重建列表后再恢复 ——
+            // 否则老师每改一次东西（加个成员、改个颜色）界面就跳回默认项，等于没法连续操作。
+            var keepExamId = SelectedExam?.Id;
+            var keepGroupId = SelectedGroup?.Id;
+            var keepDetailId = DetailStudent?.Id;
+            var keepPkA = PkStudentA?.Id;
+            var keepPkB = PkStudentB?.Id;
+            var keepFluctId = FluctStudent?.Id;
+            var keepEditId = SelectedStudentForEdit?.Id;
+
             Exams.Clear();
             foreach (var e in _ds.Exams) Exams.Add(e);
             Students.Clear();
             foreach (var s in _ds.Students.OrderBy(s => s.StudentNo, StringComparer.Ordinal)) Students.Add(s);
+            Groups.Clear();
+            foreach (var g in _groups) Groups.Add(g);
 
             var headers = _settings.SubjectNames;
             SubHeader1 = At(headers, 0); SubHeader2 = At(headers, 1); SubHeader3 = At(headers, 2);
             SubHeader4 = At(headers, 3); SubHeader5 = At(headers, 4); SubHeader6 = At(headers, 5);
 
-            var keepId = SelectedExam?.Id;
-            SelectedExam = _ds.Exams.LastOrDefault();          // 默认看最近一次考试
-            if (keepId is not null && _ds.ExamById.TryGetValue(keepId.Value, out var kept)) SelectedExam = kept;
+            SelectedExam = Pick(Exams, keepExamId, e => e.Id) ?? _ds.Exams.LastOrDefault(); // 默认看最近一次
+            SelectedGroup = Pick(Groups, keepGroupId, g => g.Id);
+            DetailStudent = Pick(Students, keepDetailId, s => s.Id);
+            PkStudentA = Pick(Students, keepPkA, s => s.Id);
+            PkStudentB = Pick(Students, keepPkB, s => s.Id);
+            FluctStudent = Pick(Students, keepFluctId, s => s.Id);
+            SelectedStudentForEdit = Pick(Students, keepEditId, s => s.Id);
+
+            SyncExamInputs();
 
             HasData = _ds.Students.Count > 0 && _ds.Exams.Count > 0;
             IsEmpty = !HasData;
@@ -215,7 +256,24 @@ public partial class GradeAnalysisViewModel : ObservableObject
 
     private static string At(string[] arr, int i) => i < arr.Length ? arr[i] : "";
 
-    partial void OnSelectedExamChanged(Exam? value) { if (!_suspendRefresh) RefreshAll(); }
+    /// <summary>重建列表后按 Id 找回原来选中的那一项；找不到返回 null（交给调用方兜底默认值）。</summary>
+    private static T? Pick<T>(IEnumerable<T> items, long? id, Func<T, long> idOf) where T : class
+        => id is null ? null : items.FirstOrDefault(x => idOf(x) == id.Value);
+
+    /// <summary>把当前考试的名称 / 日期 / 年级总人数回填到编辑框。</summary>
+    private void SyncExamInputs()
+    {
+        ExamNameInput = SelectedExam?.Name ?? "";
+        ExamDateInput = SelectedExam is null ? null : new DateTimeOffset(SelectedExam.ExamDate);
+        ExamGradeTotalInput = SelectedExam?.GradeTotalCount ?? 0;
+    }
+
+    partial void OnSelectedExamChanged(Exam? value)
+    {
+        if (_suspendRefresh) return;
+        SyncExamInputs();
+        RefreshAll();
+    }
 
     /// <summary>菜单/热键进入时调用的轻量刷新：只重建缓存，不重查学生与考试列表。</summary>
     public void RefreshFromExternalChange() => LoadFromDatabase();
@@ -232,6 +290,7 @@ public partial class GradeAnalysisViewModel : ObservableObject
         RefreshDetail();
         RefreshPk();
         RefreshGroups();
+        RefreshGroupMembers();
         RefreshFluctuation();
         RefreshImportLists();
     }
@@ -745,6 +804,141 @@ public partial class GradeAnalysisViewModel : ObservableObject
     [ObservableProperty] private string _newGroupName = "";
     [ObservableProperty] private string _newGroupMembers = "";
 
+    // ── 小组的界面化成员管理（2026-10-08）──────────────────────────────
+    // 原来只能「建组时用逗号输一串成员」，换人得重建小组 —— 而成绩分析里换人是常态。
+    // 现在：选组 → 看到该组在**当前考试**时的成员 → 加人 / 移出 / 改颜色 / 删组。
+    public ObservableCollection<StudentGroup> Groups { get; } = new();
+    public ObservableCollection<GroupMemberRow> GroupMemberRows { get; } = new();
+
+    [ObservableProperty] private StudentGroup? _selectedGroup;
+    [ObservableProperty] private string _selectedGroupColorHex = "";
+    [ObservableProperty] private Student? _memberCandidate;
+    [ObservableProperty] private string _groupHintText = "";
+    [ObservableProperty] private string _groupMemberCountText = "";
+
+    partial void OnSelectedGroupChanged(StudentGroup? value)
+    {
+        SelectedGroupColorHex = value?.Color ?? "";
+        if (!_suspendRefresh) RefreshGroupMembers();
+    }
+
+    /// <summary>列出选中小组在**当前考试**时的成员（对应各自的快照记录）。</summary>
+    private void RefreshGroupMembers()
+    {
+        GroupMemberRows.Clear();
+        GroupHintText = "";
+        GroupMemberCountText = "";
+        if (_ds is null || SelectedGroup is null) return;
+        if (SelectedExam is null) { GroupHintText = "请先在顶部选一次考试。"; return; }
+
+        var resolved = GradeAnalysisEngine.ResolveMemberRecords(_ds, _members, SelectedExam.Id);
+        if (!resolved.TryGetValue(SelectedGroup.Id, out var recs) || recs.Count == 0)
+        {
+            GroupHintText = $"「{SelectedGroup.Name}」在「{SelectedExam.DisplayName}」时还没有成员。"
+                          + "用右边的下拉框把学生加进来。";
+            return;
+        }
+
+        foreach (var rec in recs)
+        {
+            if (!_ds.StudentById.TryGetValue(rec.StudentId, out var stu)) continue;
+            var effText = _ds.ExamById.TryGetValue(rec.EffectiveExamId, out var effExam)
+                ? effExam.DisplayName
+                : "（已删除的考试）";
+            var row = new GroupMemberRow
+            {
+                Id = rec.Id,
+                StudentId = stu.Id,
+                Name = stu.Name,
+                StudentNo = stu.StudentNo,
+                EffectiveExamText = effText,
+            };
+            row.RemoveCommand = new AsyncRelayCommand(() => RemoveGroupMemberAsync(row));
+            GroupMemberRows.Add(row);
+        }
+
+        GroupMemberCountText = $"{GroupMemberRows.Count} 人";
+        GroupHintText = $"「{SelectedGroup.Name}」在「{SelectedExam.DisplayName}」时的成员。"
+                      + "加人 = 自当前考试起生效；移出 = 删掉那条记录，会退回上一条记录的效果（历史考试不受影响）。";
+    }
+
+    [RelayCommand]
+    private async Task AddGroupMemberAsync()
+    {
+        ErrorText = "";
+        if (SelectedGroup is null) { ErrorText = "请先选择一个小组。"; return; }
+        if (SelectedExam is null) { ErrorText = "请先选择一次考试。"; return; }
+        if (MemberCandidate is null) { ErrorText = "请先选择要加入的学生。"; return; }
+        if (GroupMemberRows.Any(r => r.StudentId == MemberCandidate.Id))
+        {
+            ErrorText = $"{MemberCandidate.Name} 已经在这个小组里了。";
+            return;
+        }
+
+        var name = MemberCandidate.Name;
+        _db.AddGroupMember(SelectedGroup.Id, MemberCandidate.Id, SelectedExam.Id);
+        StatusText = $"已把 {name} 加入「{SelectedGroup.Name}」，自「{SelectedExam.DisplayName}」起生效。";
+        MemberCandidate = null;
+        ReloadPreserving();
+        await Task.CompletedTask;
+    }
+
+    [RelayCommand]
+    private async Task RemoveGroupMemberAsync(GroupMemberRow? row)
+    {
+        ErrorText = "";
+        if (row is null || SelectedGroup is null) return;
+        var ok = ConfirmAsync is null || await ConfirmAsync("移出小组",
+            $"把 {row.Name} 从「{SelectedGroup.Name}」移出？\n\n"
+            + $"这会删掉「自 {row.EffectiveExamText} 起加入」这条记录 —— "
+            + "该生效考试之后的考试就不再把他算进这个组；\n"
+            + "如果他之前还加入过，会**退回上一条记录**的效果。\n"
+            + "已发生的历史考试，小组构成与成绩都不受影响。");
+        if (!ok) return;
+
+        _db.DeleteGroupMember(row.Id);
+        StatusText = $"已把 {row.Name} 移出「{SelectedGroup.Name}」。";
+        ReloadPreserving();
+    }
+
+    [RelayCommand]
+    private void SaveGroupColor()
+    {
+        ErrorText = "";
+        if (SelectedGroup is null) { ErrorText = "请先选择小组。"; return; }
+        if (!ColorSwatch.TryParse(SelectedGroupColorHex, out _))
+        {
+            ErrorText = $"颜色无法识别：{SelectedGroupColorHex}";
+            return;
+        }
+        SelectedGroup.Color = SelectedGroupColorHex;
+        _db.UpsertGroup(SelectedGroup);
+        // 同步内存里的那份，让排行榜 / 雷达图立刻换色（不然要等下一次重建）
+        var idx = _groups.FindIndex(g => g.Id == SelectedGroup.Id);
+        if (idx >= 0) _groups[idx].Color = SelectedGroupColorHex;
+        StatusText = $"已更新「{SelectedGroup.Name}」的颜色。";
+        RefreshGroups();
+    }
+
+    [RelayCommand]
+    private async Task DeleteGroupAsync()
+    {
+        ErrorText = "";
+        if (SelectedGroup is null) return;
+        var name = SelectedGroup.Name;
+        var ok = ConfirmAsync is null || await ConfirmAsync("删除小组",
+            $"删除小组「{name}」？\n\n它的成员记录会一并删除。已发生的考试成绩不受影响。");
+        if (!ok) return;
+
+        _db.DeleteGroup(SelectedGroup.Id);
+        SelectedGroup = null;
+        StatusText = $"已删除小组「{name}」。";
+        ReloadPreserving();
+    }
+
+    /// <summary>重建界面数据并**保住当前选择**（不这样做，改一次成员界面就跳回默认项）。</summary>
+    private void ReloadPreserving() => LoadFromDatabase();
+
     [RelayCommand]
     private void AddGroup()
     {
@@ -776,6 +970,8 @@ public partial class GradeAnalysisViewModel : ObservableObject
         NewGroupName = "";
         NewGroupMembers = "";
         LoadFromDatabase();
+        // 新建完直接选中它 —— 接着就能在下面的成员区继续加人，不用再去下拉框里找一遍
+        SelectedGroup = Groups.FirstOrDefault(g => g.Id == id);
     }
 
     // ────────────────────────────────────────────────────────────────────────
@@ -897,6 +1093,9 @@ public partial class GradeAnalysisViewModel : ObservableObject
     [ObservableProperty] private string _editSurnameStrokes = "";
     [ObservableProperty] private string _editGivenStrokes = "";
     [ObservableProperty] private int _examGradeTotalInput;
+    // 考试的「可改属性」（2026-10-08）：以前只能改年级总人数，考试名打错了只能把整场删掉重导
+    [ObservableProperty] private string _examNameInput = "";
+    [ObservableProperty] private DateTimeOffset? _examDateInput;
 
     public ObservableCollection<string> Diagnostics { get; } = new();
     public ObservableCollection<Student> ManualStudents { get; } = new();
@@ -1029,13 +1228,61 @@ public partial class GradeAnalysisViewModel : ObservableObject
         EditGivenStrokes = value?.GivenNameStrokes.ToString(CultureInfo.InvariantCulture) ?? "";
     }
 
-    /// <summary>设置当前考试的「年级总人数」（年级排名要显示「第 X / 共 Y」，Y 是手填的）。</summary>
+    /// <summary>
+    /// 删除学生。**破坏性且级联**：他的成绩、年级排名、小组成员记录都会一并删除（DB 上是 ON DELETE CASCADE）。
+    /// 所以必须先问一句，并把"会删掉多少条成绩"写进确认框 —— 老师才知道后果有多大。
+    /// </summary>
+    [RelayCommand]
+    private async Task DeleteStudentAsync()
+    {
+        ErrorText = "";
+        if (SelectedStudentForEdit is null) { ErrorText = "请先选择要删除的学生。"; return; }
+        var s = SelectedStudentForEdit;
+
+        int scoreCount = 0;
+        if (_ds is not null)
+            foreach (var byStudent in _ds.Scores.Values)
+                if (byStudent.TryGetValue(s.Id, out var bySubject)) scoreCount += bySubject.Count;
+
+        var ok = ConfirmAsync is null || await ConfirmAsync("删除学生",
+            $"删除 {s.Name}（{s.StudentNo}）？\n\n"
+            + $"会同时删除他的 {scoreCount} 条成绩与年级排名记录（小组成员记录也会一并删除）。\n"
+            + "**此操作不可撤销**，只应在录错了人的时候用。\n"
+            + "如果只是想让他不参与某次考试，请改用「特殊状态」标缺考。");
+        if (!ok) return;
+
+        _db.DeleteStudent(s.Id);
+        SelectedStudentForEdit = null;
+        StatusText = $"已删除学生 {s.Name}（{s.StudentNo}），连同 {scoreCount} 条成绩。";
+        LoadFromDatabase();
+    }
+
+    /// <summary>保存考试属性：名称 / 日期 / 年级总人数（年级排名要显示「第 X / 共 Y」，Y 是手填的）。</summary>
     [RelayCommand]
     private void SaveExamMeta()
     {
+        ErrorText = "";
         if (SelectedExam is null) { ErrorText = "请先选择一次考试。"; return; }
-        _db.UpdateExamMeta(SelectedExam.Id, SelectedExam.Name, SelectedExam.ExamDate, ExamGradeTotalInput);
-        StatusText = $"已把「{SelectedExam.Name}」的年级总人数设为 {ExamGradeTotalInput}。";
+
+        var name = ExamNameInput.Trim();
+        if (name.Length == 0) { ErrorText = "考试名称不能为空。"; return; }
+        var date = (ExamDateInput ?? DateTimeOffset.Now).Date;
+
+        // exams 表上是 UNIQUE(name, exam_date)：撞了会在 SQLite 层抛异常，老师看不懂那句英文。
+        // 提前拦下并说清"和哪一场撞了"。
+        if (_ds is not null)
+        {
+            var clash = _ds.Exams.FirstOrDefault(e =>
+                e.Id != SelectedExam.Id && e.Name == name && e.ExamDate.Date == date);
+            if (clash is not null)
+            {
+                ErrorText = $"已经有一场「{name}」（{date:yyyy-MM-dd}）了 —— 两场考试同名又同天无法区分，请改名称或日期。";
+                return;
+            }
+        }
+
+        _db.UpdateExamMeta(SelectedExam.Id, name, date, ExamGradeTotalInput);
+        StatusText = $"已更新考试「{name}」（{date:yyyy-MM-dd}），年级总人数 {ExamGradeTotalInput}。";
         LoadFromDatabase();
     }
 

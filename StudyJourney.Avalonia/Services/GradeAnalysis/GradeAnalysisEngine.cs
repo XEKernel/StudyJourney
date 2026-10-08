@@ -309,14 +309,18 @@ public static class GradeAnalysisEngine
     // ────────────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 解析某场考试的小组构成。一条 <see cref="GroupMember"/> 表示「自 effective_exam_id 起该生属于该组」，
+    /// 解析某场考试的小组构成，返回**被选中的那几条快照记录本身**（而不是只给 id）。
+    /// <para>为什么要返回记录：界面上的「移出小组」要删的正是这条记录。只给 id 的话还得反查，
+    /// 而反查在「同一学生有多条快照」时是有歧义的。</para>
+    /// <para>规则：一条 <see cref="GroupMember"/> 表示「自 effective_exam_id 起该生属于该组」，
     /// 所以某场考试的成员 = 对每个 (组, 学生) 取「生效考试顺序 ≤ 目标考试顺序」里最大的那一条。
-    /// <para>⚠ 不能用「最新一条」简化：那会让历史考试的小组构成随之后的换人而变化。</para>
+    /// ⚠ 不能用「最新一条」简化：那会让历史考试的小组构成随之后的换人而变化。</para>
     /// </summary>
-    public static Dictionary<long, List<long>> ResolveMembers(GradeDataset ds, IReadOnlyList<GroupMember> members, long examId)
+    public static Dictionary<long, List<GroupMember>> ResolveMemberRecords(
+        GradeDataset ds, IReadOnlyList<GroupMember> members, long examId)
     {
         int targetOrder = ds.OrderOf(examId);
-        var picked = new Dictionary<(long GroupId, long StudentId), int>(); // 已选记录的生效顺序
+        var picked = new Dictionary<(long GroupId, long StudentId), (GroupMember Rec, int Order)>();
 
         foreach (var m in members)
         {
@@ -326,15 +330,26 @@ public static class GradeAnalysisEngine
             if (targetOrder >= 0 && eff > targetOrder) continue;
 
             var key = (m.GroupId, m.StudentId);
-            if (!picked.TryGetValue(key, out var cur) || eff > cur) picked[key] = eff;
+            if (!picked.TryGetValue(key, out var cur) || eff > cur.Order) picked[key] = (m, eff);
         }
 
-        var result = new Dictionary<long, List<long>>();
+        var result = new Dictionary<long, List<GroupMember>>();
         foreach (var kv in picked)
         {
-            if (!result.TryGetValue(kv.Key.GroupId, out var list)) result[kv.Key.GroupId] = list = new List<long>();
-            list.Add(kv.Key.StudentId);
+            if (!result.TryGetValue(kv.Key.GroupId, out var list)) result[kv.Key.GroupId] = list = new List<GroupMember>();
+            list.Add(kv.Value.Rec);
         }
+        return result;
+    }
+
+    /// <summary>解析某场考试的小组构成 → 组 id → 学生 id 列表。</summary>
+    public static Dictionary<long, List<long>> ResolveMembers(
+        GradeDataset ds, IReadOnlyList<GroupMember> members, long examId)
+    {
+        // 只是上面那个的投影 —— 刻意只留一份实现，免得两条路径对「快照语义」的理解慢慢跑偏
+        var result = new Dictionary<long, List<long>>();
+        foreach (var kv in ResolveMemberRecords(ds, members, examId))
+            result[kv.Key] = kv.Value.Select(r => r.StudentId).ToList();
         return result;
     }
 
