@@ -31,10 +31,6 @@ public sealed class ImportOutcome
     /// <summary>缺少的必要列（用于给出「请补上 XX 列」的明确提示）。</summary>
     public List<string> MissingColumns { get; init; } = new();
     public string SheetName { get; init; } = "";
-
-    public IEnumerable<string> Errors => Diagnostics.Where(d => d.Severity == ImportSeverity.Error).Select(d => d.ToLine());
-    public IEnumerable<string> Warnings => Diagnostics.Where(d => d.Severity == ImportSeverity.Warning).Select(d => d.ToLine());
-    public bool HasErrors => Diagnostics.Any(d => d.Severity == ImportSeverity.Error);
 }
 
 /// <summary>待入库的成绩行（还没换成数据库自增 id，靠学号 + 考试键引用）。</summary>
@@ -74,7 +70,7 @@ public static class GradeImporter
         ["考试名称"] = new[] { "考试名称", "考试", "考试名", "场次" },
         ["考试日期"] = new[] { "考试日期", "日期", "考试时间", "时间" },
         ["特殊状态"] = new[] { "特殊状态", "状态", "备注", "异常状态", "缺考情况" },
-        ["年级排名"] = new[] { "年级排名", "校排名", "年级名次", "全校排名", "年级名次" },
+        ["年级排名"] = new[] { "年级排名", "校排名", "年级名次", "全校排名" },
         ["姓氏笔画"] = new[] { "姓氏笔画", "姓笔画", "姓的笔画", "姓画" },
         ["名字笔画"] = new[] { "名字笔画", "名笔画", "名的笔画", "名画" },
     };
@@ -151,7 +147,7 @@ public static class GradeImporter
         diags.Add(new ImportDiagnostic
         {
             Severity = ImportSeverity.Info,
-            Message = $"表头在第 {headerRow + 1} 行，识别到科目列：{string.Join("、", mappedSubjects)}。",
+            Message = $"表头在第 {sheet.ExcelRowOf(headerRow)} 行，识别到科目列：{string.Join("、", mappedSubjects)}。",
         });
 
         // ── 3. 逐行解析 ────────────────────────────────────────────────
@@ -165,7 +161,7 @@ public static class GradeImporter
 
         for (int r = headerRow + 1; r < sheet.Rows.Count; r++)
         {
-            int excelRow = r + 1;
+            int excelRow = sheet.ExcelRowOf(r);   // 用真实 Excel 行号（Excel 省略空行，下标 ≠ 行号）
 
             var no = Cell(sheet, r, map, "学号");
             var name = Cell(sheet, r, map, "姓名");
@@ -473,6 +469,8 @@ public static class GradeImporter
 /// <summary>列键的小工具（科目列用前缀区分，避免与固定列重名）。</summary>
 public static class RollCall
 {
-    public const string SubjectPrefix = "subject:";
+    /// <summary>科目列的前缀。**直接复用** <see cref="RankingColumns.SubjectPrefix"/> ——
+    /// 两处原本各写一份字面量 <c>"subject:"</c>，改一处忘另一处会让键静默错位。</summary>
+    public const string SubjectPrefix = RankingColumns.SubjectPrefix;
     public static string SubjectKey(string subject) => SubjectPrefix + subject;
 }

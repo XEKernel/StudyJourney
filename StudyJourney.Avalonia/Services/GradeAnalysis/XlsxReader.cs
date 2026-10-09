@@ -15,6 +15,13 @@ public sealed class XlsxSheet
     public List<string[]> Rows { get; } = new();
     public int MaxColumns { get; internal set; }
 
+    /// <summary>
+    /// 每一行对应的 **Excel 行号（1 起）**。
+    /// <para>⚠ Excel 会**省略整行空行**（`<row>` 元素根本不出现），所以「第几个 &lt;row&gt;」≠ Excel 行号。
+    /// 诊断里报「第 N 行」必须用这个映射，否则中间一旦有空行，后面所有提示的行号都会偏小。</para>
+    /// </summary>
+    public List<int> ExcelRowNumbers { get; } = new();
+
     /// <summary>取某行某列（越界返回 ""）。</summary>
     public string At(int row, int col)
     {
@@ -22,6 +29,10 @@ public sealed class XlsxSheet
         var r = Rows[row];
         return col >= 0 && col < r.Length ? r[col] : "";
     }
+
+    /// <summary>行下标 → Excel 行号（1 起）；信息缺失时退回下标 + 1。</summary>
+    public int ExcelRowOf(int row)
+        => row >= 0 && row < ExcelRowNumbers.Count ? ExcelRowNumbers[row] : row + 1;
 }
 
 /// <summary>
@@ -50,34 +61,6 @@ public static class XlsxReader
         DtdProcessing = DtdProcessing.Prohibit, // 防 XXE：绝不解析外部实体
         XmlResolver = null,
     };
-
-    /// <summary>列出工作簿内所有工作表名（按工作簿里的顺序）。</summary>
-    public static List<string> ListSheetNames(string path)
-    {
-        var names = new List<string>();
-        try
-        {
-            using var fs = OpenRead(path);
-            using var zip = new ZipArchive(fs, ZipArchiveMode.Read);
-            var wb = zip.GetEntry("xl/workbook.xml");
-            if (wb is null) return names;
-            using var reader = XmlReader.Create(wb.Open(), Settings);
-            while (reader.Read())
-            {
-                if (reader.NodeType == XmlNodeType.Element && reader.LocalName == "sheet")
-                {
-                    var n = reader.GetAttribute("name");
-                    if (!string.IsNullOrEmpty(n)) names.Add(n);
-                }
-            }
-        }
-        catch { /* 列不出就返回空，调用方按「第一张表」兜底 */ }
-        return names;
-    }
-
-    /// <summary>读取第一张工作表。失败时 <paramref name="error"/> 是给老师看的中文原因。</summary>
-    public static bool TryReadFirstSheet(string path, out XlsxSheet sheet, out string error)
-        => TryReadSheet(path, null, out sheet, out error);
 
     /// <summary>读取指定工作表（<paramref name="sheetName"/> 为 null 时取第一张）。</summary>
     public static bool TryReadSheet(string path, string? sheetName, out XlsxSheet sheet, out string error)
@@ -212,6 +195,7 @@ public static class XlsxReader
 
         List<string>? rowAcc = null;
         int colIndex = -1;
+        int currentRowNumber = 0;   // 当前 <row> 的 r 属性（Excel 行号，1 起）
         string cellType = "";
         var valueBuf = new StringBuilder();
         var inlineBuf = new StringBuilder();
@@ -240,6 +224,7 @@ public static class XlsxReader
                     {
                         case "row":
                             rowAcc = new List<string>();
+                            currentRowNumber = ParseRowNumber(reader.GetAttribute("r"));
                             break;
                         case "c":
                             colIndex = ColumnIndex(reader.GetAttribute("r"));
@@ -278,7 +263,12 @@ public static class XlsxReader
                         case "c": FlushCell(); break;
                         case "row":
                             // 补到统一列宽，方便调用方按下标取（列数不一致时也不越界）
-                            if (rowAcc is not null) sheet.Rows.Add(rowAcc.ToArray());
+                            if (rowAcc is not null)
+                            {
+                                sheet.Rows.Add(rowAcc.ToArray());
+                                // 记住真实 Excel 行号：Excel 会省略空行，下标 ≠ 行号（诊断行号依赖它）
+                                sheet.ExcelRowNumbers.Add(currentRowNumber > 0 ? currentRowNumber : sheet.Rows.Count);
+                            }
                             rowAcc = null;
                             break;
                     }
@@ -306,6 +296,10 @@ public static class XlsxReader
         }
         return letters == 0 ? -1 : col - 1;
     }
+
+    /// <summary>"&lt;row r="12"&gt;" 的 r 属性 → 12（Excel 行号，1 起）。解析失败返回 0。</summary>
+    private static int ParseRowNumber(string? raw)
+        => int.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var n) && n > 0 ? n : 0;
 }
 
 /// <summary>

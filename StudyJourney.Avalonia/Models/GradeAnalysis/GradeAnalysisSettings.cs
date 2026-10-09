@@ -140,20 +140,4 @@ public static class RankingColumns
         list.Add(RankDelta);
         return list;
     }
-
-    /// <summary>列键 → 表头文字。</summary>
-    public static string HeaderOf(string key) => key switch
-    {
-        Rank => "班级排名",
-        Name => "姓名",
-        StudentNo => "学号",
-        Total => "总分",
-        GradeRank => "年级排名",
-        RankDelta => "较上次班级",
-        TotalDelta => "较上次总分",
-        Trend => "波动标签",
-        _ => key.StartsWith(SubjectPrefix, StringComparison.Ordinal)
-                ? key[SubjectPrefix.Length..]
-                : key,
-    };
 }

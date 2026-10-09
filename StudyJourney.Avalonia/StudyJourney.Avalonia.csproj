@@ -8,7 +8,15 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 3.2.0：成绩模块完善（用户可感知的新能力 → Y 位）——
+    <!-- 3.2.1：代码审查（成绩模块）修复与清理 ——
+         ① 修：删除考试补二次确认（此前点了即删、级联清空该场全部成绩且不可撤销，
+            与删学生/移出成员/删小组不一致）；
+         ② 清理 10 个未接线成员（ClearAnalysisCache / NextExam / GetScoresForExam /
+            BulkUpsertScores / BulkSetGradeRanks / ListSheetNames / TryReadFirstSheet /
+            RankingColumns.HeaderOf / ImportOutcome.{Errors,Warnings,HasErrors}）；
+         ③ 导入诊断的「第 N 行」改用真实 Excel 行号（原来按 <row> 序号推、遇整行空行会偏小）；
+         ④ 低优先级：科目列前缀常量去重 / 列别名表去重 / 悬空 doc 引用与注释订正 / 清理死代码。
+         3.2.0：成绩模块完善（用户可感知的新能力 → Y 位）——
          ① 小组界面化增删成员：选组 → 看它在**当前考试**时的成员 → 加入/移出/改配色/删组。
             ⚠ 语义：换人 = **追加**快照（只影响之后的考试）；移出 = **删掉那条记录**（退回上一条记录的效果），
             历史考试的小组构成与成绩都不受影响。
@@ -30,7 +38,7 @@
          3.0.1：修「AOT 被误判成框架依赖」（下次更新会下错包）+ 装错包保险。
          3.0.0：分发形态改为 NativeAOT（判据②：分发形态/运行环境变）→ X 位。
          AssemblyVersion 由 <Version> 派生；InformationalVersion 形如 3.0.3+{hash}（更新检查按 '+' 截断解析） -->
-    <Version>3.2.0</Version>
+    <Version>3.2.1</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 

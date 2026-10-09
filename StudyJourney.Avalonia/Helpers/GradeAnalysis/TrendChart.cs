@@ -194,7 +194,6 @@ public class TrendChart : Control
         // ── 图例（右上，横排）────────────────────────────────────
         if (ShowLegend && _series.Count > 1)
         {
-            var ft = new FormattedText("  ".PadRight(0), CultureInfo.CurrentCulture, FlowDirection.LeftToRight, typeface, 11, ChartPalette.MutedBrush);
             double x = plot.Right - 4;
             for (int i = _series.Count - 1; i >= 0; i--)
             {
@@ -207,7 +206,6 @@ public class TrendChart : Control
                 ctx.FillRectangle(ChartPalette.Brush(s.Color), new Rect(x - 10, bounds.Y + 9, 10, 3), 1.5f);
                 x -= 16;
             }
-            _ = ft;
         }
     }
 

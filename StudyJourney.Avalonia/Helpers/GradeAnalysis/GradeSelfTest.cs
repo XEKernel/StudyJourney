@@ -353,6 +353,26 @@ public static class GradeSelfTest
             // ══════════════════════════════════════════════════════════
             var win = new Views.GradeAnalysis.GradeAnalysisWindow(db);
             win.Show();
+
+            // ⑦-1 删除考试**必须二次确认**（2026-10-09 补：此前它是唯一漏网、点了即删的破坏性操作）
+            // 语义与「删学生 / 移出成员 / 删小组」一致：取消 → 一条都不删；确认 → 才真正级联删除。
+            var vm = (ViewModels.GradeAnalysis.GradeAnalysisViewModel)win.DataContext!;
+            vm.SelectedExam = vm.Exams.FirstOrDefault();
+            Check(sb, vm.SelectedExam is not null, "自检窗口应能选中一场考试");
+            long examIdBefore = vm.SelectedExam!.Id;
+            int examsBefore = db.GetExams().Count;
+
+            bool confirmAsked = false;
+            vm.ConfirmAsync = (_, _) => { confirmAsked = true; return System.Threading.Tasks.Task.FromResult(false); };
+            vm.DeleteExamCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            Check(sb, confirmAsked, "删除考试**必须**先弹二次确认框（与删学生/移出成员/删小组一致）");
+            Check(sb, db.GetExams().Any(e => e.Id == examIdBefore), "确认框选择「取消」时不应删除考试");
+
+            vm.ConfirmAsync = (_, _) => System.Threading.Tasks.Task.FromResult(true);
+            vm.DeleteExamCommand.ExecuteAsync(null).GetAwaiter().GetResult();
+            Check(sb, !db.GetExams().Any(e => e.Id == examIdBefore), "确认后应真正删除该场考试");
+            sb.AppendLine($"{P} 删除考试确认：考试数 {examsBefore} → {db.GetExams().Count}（取消不删 / 确认才删）");
+
             win.Close();
             sb.AppendLine($"{P} 主窗口实例化 + 显示 + 关闭：OK");
 

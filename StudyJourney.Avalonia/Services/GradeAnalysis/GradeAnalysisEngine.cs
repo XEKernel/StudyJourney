@@ -37,8 +37,6 @@ public sealed class GradeDataset
 
     internal void StoreAnalysis(long examId, ExamAnalysis analysis) => _analysisCache[examId] = analysis;
 
-    internal void ClearAnalysisCache() => _analysisCache.Clear();
-
     public static GradeDataset Build(
         GradeAnalysisSettings settings,
         IEnumerable<Student> students,
@@ -82,12 +80,6 @@ public sealed class GradeDataset
     {
         int i = OrderOf(examId);
         return i > 0 ? Exams[i - 1] : null;
-    }
-
-    public Exam? NextExam(long examId)
-    {
-        int i = OrderOf(examId);
-        return i >= 0 && i < Exams.Count - 1 ? Exams[i + 1] : null;
     }
 }
 

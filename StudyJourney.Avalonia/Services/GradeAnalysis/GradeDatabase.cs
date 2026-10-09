@@ -333,34 +333,6 @@ public sealed class GradeDatabase
     //  成绩
     // ────────────────────────────────────────────────────────────────────────
 
-    /// <summary>取某场考试的全部成绩行（键 = (studentId, subject)）。</summary>
-    public List<ScoreRecord> GetScoresForExam(long examId)
-    {
-        var list = new List<ScoreRecord>();
-        using var conn = Open();
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = """
-            SELECT id, student_id, exam_id, subject, score, full_score, status
-            FROM scores WHERE exam_id = $eid;
-            """;
-        cmd.Parameters.AddWithValue("$eid", examId);
-        using var r = cmd.ExecuteReader();
-        while (r.Read())
-        {
-            list.Add(new ScoreRecord
-            {
-                Id = r.GetInt64(0),
-                StudentId = r.GetInt64(1),
-                ExamId = r.GetInt64(2),
-                Subject = r.GetString(3),
-                Score = r.GetDouble(4),
-                FullScore = r.GetDouble(5),
-                Status = (ScoreStatus)r.GetInt32(6),
-            });
-        }
-        return list;
-    }
-
     /// <summary>取成绩全表（跨考试）。成绩分析是「整学期」视角，一次读全表比按考试循环查更省心；
     /// 一个班一学期约 6 科 × 6 场 × 50 人 ≈ 1800 行，量级完全不必优化。</summary>
     public List<ScoreRecord> GetAllScores()
@@ -405,17 +377,6 @@ public sealed class GradeDatabase
         cmd.ExecuteNonQuery();
     }
 
-    /// <summary>批量写成绩（导入用，一个事务）。返回写入行数。</summary>
-    public int BulkUpsertScores(IReadOnlyList<ScoreRecord> rows)
-    {
-        if (rows.Count == 0) return 0;
-        using var conn = Open();
-        using var tx = conn.BeginTransaction();
-        foreach (var row in rows) UpsertScore(conn, tx, row);
-        tx.Commit();
-        return rows.Count;
-    }
-
     // ────────────────────────────────────────────────────────────────────────
     //  年级排名（录入值）
     // ────────────────────────────────────────────────────────────────────────
@@ -451,28 +412,6 @@ public sealed class GradeDatabase
         cmd.Parameters.AddWithValue("$sid", studentId);
         cmd.Parameters.AddWithValue("$eid", examId);
         cmd.ExecuteNonQuery();
-    }
-
-    /// <summary>批量写入年级排名（导入带「年级排名」列时用）。</summary>
-    public void BulkSetGradeRanks(IReadOnlyDictionary<long, int> byStudentId, long examId)
-    {
-        if (byStudentId.Count == 0) return;
-        using var conn = Open();
-        using var tx = conn.BeginTransaction();
-        foreach (var kv in byStudentId)
-        {
-            using var cmd = conn.CreateCommand();
-            cmd.Transaction = tx;
-            cmd.CommandText = """
-                INSERT INTO grade_ranks (student_id, exam_id, grade_rank) VALUES ($sid, $eid, $rank)
-                ON CONFLICT(student_id, exam_id) DO UPDATE SET grade_rank = excluded.grade_rank;
-                """;
-            cmd.Parameters.AddWithValue("$sid", kv.Key);
-            cmd.Parameters.AddWithValue("$eid", examId);
-            cmd.Parameters.AddWithValue("$rank", kv.Value);
-            cmd.ExecuteNonQuery();
-        }
-        tx.Commit();
     }
 
     // ────────────────────────────────────────────────────────────────────────

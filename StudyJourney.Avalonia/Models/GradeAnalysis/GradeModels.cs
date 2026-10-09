@@ -10,7 +10,7 @@ namespace StudyJourney.Avalonia.Models.GradeAnalysis;
 /// 绝不能重排或删除已有项 —— 与 <c>AutomationRule</c> 的 Trigger/Action 同一纪律。</para>
 /// <para>语义：<b>正常</b>参与一切排名；<b>缺考/免考/作弊</b>三者的单科不参与单科排名，
 /// 且会使该生**本次考试的总分整体不参与班级排名与年级排名**（但总分仍计算并显示，
-/// 界面需标注「含特殊科目，不参与排名」）。见 <see cref="Analysis.GradeAnalysisEngine"/>。</para>
+/// 界面需标注「含特殊科目，不参与排名」）。见 <c>GradeAnalysisEngine</c>。</para>
 /// </summary>
 public enum ScoreStatus
 {
@@ -119,7 +119,7 @@ public sealed class GroupMember
     public long Id { get; set; }
     public long GroupId { get; set; }
     public long StudentId { get; set; }
-    /// <summary>生效考试 Id。指向的考试顺序由 <see cref="Analysis.ExamOrder"/> 统一折算。</summary>
+    /// <summary>生效考试 Id。指向的考试顺序由 <c>GradeDataset.OrderOf</c> 统一折算。</summary>
     public long EffectiveExamId { get; set; }
 }
 

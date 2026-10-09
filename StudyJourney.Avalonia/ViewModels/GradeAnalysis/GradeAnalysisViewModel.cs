@@ -1286,11 +1286,29 @@ public partial class GradeAnalysisViewModel : ObservableObject
         LoadFromDatabase();
     }
 
+    /// <summary>
+    /// 删除考试。**破坏性且级联**：这场考试的全部成绩与年级排名都会一并删除
+    /// （DB 上是 ON DELETE CASCADE）。所以必须与「删学生 / 移出成员 / 删小组」一致，
+    /// 先问一句并把"会删掉多少条成绩"写进确认框 —— 否则老师误点一下，整场数据就没了。
+    /// <para>⚠ 方法名带 Async 后缀，源生成器产出的命令名仍是 <c>DeleteExamCommand</c>（XAML 绑定不变）。</para>
+    /// </summary>
     [RelayCommand]
-    private void DeleteExam()
+    private async Task DeleteExamAsync()
     {
-        if (SelectedExam is null) return;
+        ErrorText = "";
+        if (SelectedExam is null) { ErrorText = "请先选择一次考试。"; return; }
         var name = SelectedExam.DisplayName;
+
+        int scoreCount = 0;
+        if (_ds is not null && _ds.Scores.TryGetValue(SelectedExam.Id, out var byStudent))
+            scoreCount = byStudent.Sum(x => x.Value.Count);
+
+        var ok = ConfirmAsync is null || await ConfirmAsync("删除考试",
+            $"删除「{name}」？\n\n"
+            + $"会同时删除这场考试的 {scoreCount} 条成绩与年级排名记录。\n"
+            + "**此操作不可撤销**，只应在整场录错的时候用。");
+        if (!ok) return;
+
         _db.DeleteExam(SelectedExam.Id);
         StatusText = $"已删除考试「{name}」及其全部成绩。";
         LoadFromDatabase();

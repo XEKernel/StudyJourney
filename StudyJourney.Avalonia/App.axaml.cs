@@ -2189,7 +2189,7 @@ public partial class App : Application
                 // ⑥-1 全部设置页实例化 + Load/Apply 往返（2026-10-06 补）
                 // 起因：原来这个自检只对**部分**页面（考试/提醒/服务器/自动化）断言了 Load/Apply，
                 // 其余页面（含倒计时页）从没被实例化过 —— 也就是说「改设置页有安全网」这句话当时是假的。
-                // 现在把 7 个页面全部拉一遍：能构造、Load 不抛、Apply 不抛、Load 后不是「未保存」。
+                // 现在把 8 个页面全部拉一遍：能构造、Load 不抛、Apply 不抛、Load 后不是「未保存」。
                 var sweepSettings = new Models.AppSettings();
                 (string Name, Views.Settings.ISettingsPage Page)[] settingsPages =
                 {
