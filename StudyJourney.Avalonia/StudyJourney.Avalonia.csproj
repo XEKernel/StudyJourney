@@ -8,7 +8,18 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 3.2.1：代码审查（成绩模块）修复与清理 ——
+    <!-- 3.2.2：代码审查（成绩模块以外全功能）修复与清理 ——
+         ① 修：「设置 → 关于」三处开关（启动时自动检查更新 / 加速镜像开关 / 镜像前缀）
+            改完切页或关窗**静默丢弃**（该页原先没实现 IsDirty，兜底快照也比不出控件里的改动）。
+         ② 修：课表显示时间加固 —— 模板时间为空时不再退化成「-」（原先 `??` 只处理 null，
+            "按天作息"里没填时间的时段会让格子右下角显示成 "-"，而提醒读的是条目时间、一切正常，
+            于是出现"显示不对、通知正常"）。同时给 StartTime 补宽松解析（与 EndTime 对称）。
+         ③ 修：白板「清空/删页」、PDF「清空批注」、屏幕批注「清空」四处破坏性操作补二次确认
+            （`InkDocument.Clear()` 不可撤销，其文档注释本就把"是否询问"交给宿主窗口，四处都漏了）。
+         ④ 清理：11 处 XML doc 摘要挂错成员、CloseApp 补引号剥离（与 SystemShutdown 对齐）、
+            TimeTemplate.TimeDisplay/Label 补 [JsonIgnore]（原来被冗余序列化进 schedule.json）。
+         ⑤ 工具：修 scan_settings_usage.py 的系统性误报（它排除了整个 App.axaml.cs → 6 个假警报）。
+         3.2.1：代码审查（成绩模块）修复与清理 ——
          ① 修：删除考试补二次确认（此前点了即删、级联清空该场全部成绩且不可撤销，
             与删学生/移出成员/删小组不一致）；
          ② 清理 10 个未接线成员（ClearAnalysisCache / NextExam / GetScoresForExam /
@@ -38,7 +49,7 @@
          3.0.1：修「AOT 被误判成框架依赖」（下次更新会下错包）+ 装错包保险。
          3.0.0：分发形态改为 NativeAOT（判据②：分发形态/运行环境变）→ X 位。
          AssemblyVersion 由 <Version> 派生；InformationalVersion 形如 3.0.3+{hash}（更新检查按 '+' 截断解析） -->
-    <Version>3.2.1</Version>
+    <Version>3.2.2</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 

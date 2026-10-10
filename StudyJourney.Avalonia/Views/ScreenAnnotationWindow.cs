@@ -593,10 +593,24 @@ public sealed class ScreenAnnotationWindow : Window, IUnsavedWork
         }
     }
 
-    private void ClearAll()
+    /// <summary>
+    /// 清空全部圈画。⚠ **不可撤销**（`Clear()` 一并清掉撤销栈）→ 先确认（2026-10-10 补）。
+    /// </summary>
+    private async void ClearAll()
     {
-        _ink.Document.Clear();
-        UpdateUndoButtons();
+        try
+        {
+            if (!_ink.Document.HasStrokes) return;
+            bool ok = await DialogHelper.ShowConfirmAsync(this, "清空批注",
+                $"清除屏幕上的全部圈画（{_ink.Document.Strokes.Count} 笔）？\n\n**此操作不可撤销。**");
+            if (!ok) return;
+            _ink.Document.Clear();
+            UpdateUndoButtons();
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn($"清空屏幕批注失败: {ex.Message}");
+        }
     }
 }
 

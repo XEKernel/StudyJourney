@@ -25,7 +25,8 @@
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="4">
                     <TextBlock Text="更新" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,8"/>
-                    <CheckBox x:Name="AutoCheckUpdateCheck" Content="启动时自动检查更新"/>
+                    <CheckBox x:Name="AutoCheckUpdateCheck" Content="启动时自动检查更新"
+                              IsCheckedChanged="AutoCheckUpdate_Changed"/>
                     <TextBlock Text="发现新版本后会弹出对话框提示" FontSize="11"
                                Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                Margin="24,0,0,0" TextWrapping="Wrap"/>

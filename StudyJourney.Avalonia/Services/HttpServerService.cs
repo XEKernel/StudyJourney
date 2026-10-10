@@ -2045,7 +2045,6 @@ public static class HttpServerService
         return 1;
     }
 
-    /// <summary>从监听 URL 解析端口（http://*:8080 → 8080）</summary>
     /// <summary>
     /// 课表里实际出现的科目（去重，按课时数从多到少）。
     ///
@@ -2071,6 +2070,7 @@ public static class HttpServerService
         catch { return new List<string>(); }   // 课表未就绪 → 空列表（网页端有内置兜底 COURSES）
     }
 
+    /// <summary>从监听 URL 解析端口（http://*:8080 → 8080）</summary>
     private static int ParsePort(string url)
     {
         try

@@ -76,6 +76,10 @@ namespace StudyJourney.Avalonia.Models
             get
             {
                 if (TimeSpan.TryParseExact(StartTimeStr, new[] { @"hh\:mm", @"h\:mm" }, null, out var t)) return t;
+                // ⚠ 与 EndTime 对称：再走一次宽松解析，容忍 "07:00:00" / "7:00:00" 等带秒写法。
+                //   原来只有 TryParseExact 两格式 —— 老师从别处粘来的 "07:00:00" 会被**静默**当成 08:00，
+                //   而 EndTime 却能解析出真实值 → 该节课的时长/进度/「当前课」判定全部错位（且不报错）。
+                if (TimeSpan.TryParse(StartTimeStr, out t)) return t;
                 // 解析失败：记录一次警告（避免静默错误），返回安全默认 08:00
                 System.Diagnostics.Debug.WriteLine($"[ScheduleEntry] 上课时间解析失败: '{StartTimeStr}' (科目: {Subject})");
                 return TimeSpan.FromHours(8);
@@ -166,8 +170,13 @@ namespace StudyJourney.Avalonia.Models
         public string EndTime { get; set; } = "08:45";
         public PeriodType Type { get; set; } = PeriodType.Normal;
 
-        public string TimeDisplay => $"{StartTime}-{EndTime}";
-        public string Label => $"第{Period}节 {TimeDisplay}";
+        // ⚠ 必须 [JsonIgnore]（2026-10-10 补）：这两个是**只读计算属性**，但 System.Text.Json
+        //   默认会把带 public getter 的属性写进 JSON —— schedule.json 里因此长期躺着一份
+        //   `"TimeDisplay": "07:00-07:50"` 的冗余副本（反序列化时又读不回来）。
+        //   危险在于：模板时间一旦为空，它会被序列化成 `"-"` 并**持久化**，
+        //   老师手翻文件时看到的"时间"是假的，排查时极易误判。
+        [JsonIgnore] public string TimeDisplay => $"{StartTime}-{EndTime}";
+        [JsonIgnore] public string Label => $"第{Period}节 {TimeDisplay}";
     }
 
     // ── 课程表网格行（仅用于 UI DataGrid 绑定）─────────────

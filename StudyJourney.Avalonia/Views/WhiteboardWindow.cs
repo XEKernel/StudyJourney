@@ -475,22 +475,41 @@ public sealed class WhiteboardWindow : Window, IUnsavedWork
         SwitchPage(_pages.Count - 1);
     }
 
-    private void DeletePage()
+    /// <summary>
+    /// 删除当前页（只剩一页时等于清空）。⚠ **不可撤销** → 先确认（2026-10-10 补）。
+    /// </summary>
+    private async void DeletePage()
     {
-        if (_pages.Count <= 1)
+        try
         {
-            // 只剩一页时"删除"= 清空
-            CurrentDoc.Clear();
-            return;
+            if (_pages.Count <= 1)
+            {
+                // 只剩一页时"删除"= 清空
+                if (!CurrentDoc.HasStrokes) return;
+                bool okClear = await DialogHelper.ShowConfirmAsync(this, "清空板书",
+                    "只剩一页了，所以「删除」等于清空当前页的全部板书。\n\n**此操作不可撤销。**");
+                if (!okClear) return;
+                CurrentDoc.Clear();
+                return;
+            }
+
+            bool ok = await DialogHelper.ShowConfirmAsync(this, "删除这一页",
+                $"删除第 {_pageIndex + 1} 页（共 {_pages.Count} 页）？该页板书会一起删除。\n\n**此操作不可撤销。**");
+            if (!ok) return;
+
+            var i = _pageIndex;
+            _pages[i].Changed -= UpdateUndoButtons;
+            _pages.RemoveAt(i);
+            _pageIndex = Math.Min(i, _pages.Count - 1);
+            _pages[_pageIndex].Changed += UpdateUndoButtons;
+            _ink.Document = _pages[_pageIndex];
+            UpdatePageLabel();
+            UpdateUndoButtons();
         }
-        var i = _pageIndex;
-        _pages[i].Changed -= UpdateUndoButtons;
-        _pages.RemoveAt(i);
-        _pageIndex = Math.Min(i, _pages.Count - 1);
-        _pages[_pageIndex].Changed += UpdateUndoButtons;
-        _ink.Document = _pages[_pageIndex];
-        UpdatePageLabel();
-        UpdateUndoButtons();
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn($"删除白板页失败: {ex.Message}");
+        }
     }
 
     // ── 命令 ─────────────────────────────────────────────────
@@ -498,11 +517,24 @@ public sealed class WhiteboardWindow : Window, IUnsavedWork
     private void Undo_Click() => CurrentDoc.Undo();
     private void Redo_Click() => CurrentDoc.Redo();
 
-    private void Clear_Click()
+    /// <summary>
+    /// 清空当前页板书。⚠ **不可撤销**（`Clear()` 一并清掉撤销栈）→ 先确认（2026-10-10 补）。
+    /// </summary>
+    private async void Clear_Click()
     {
-        if (!CurrentDoc.HasStrokes) return;
-        CurrentDoc.Clear();
-        UpdateUndoButtons();
+        try
+        {
+            if (!CurrentDoc.HasStrokes) return;
+            bool ok = await DialogHelper.ShowConfirmAsync(this, "清空板书",
+                $"清除当前页的全部板书（{CurrentDoc.Strokes.Count} 笔）？\n\n**此操作不可撤销。**");
+            if (!ok) return;
+            CurrentDoc.Clear();
+            UpdateUndoButtons();
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn($"清空板书失败: {ex.Message}");
+        }
     }
 
     private async void Export_Click()

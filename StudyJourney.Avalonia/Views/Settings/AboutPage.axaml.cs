@@ -12,6 +12,23 @@ public partial class AboutPage : UserControl, ISettingsPage
     private const string RepoOwner = "XEKernel";
     private const string RepoName = "StudyJourney";
 
+    /// <summary>本页有未保存修改（#8 契约）。
+    /// ⚠ 2026-10-10 补：本页此前**没有实现 IsDirty** → 用接口默认的 false，
+    ///   而「启动时自动检查更新 / 加速镜像开关 / 镜像前缀」三项**只在 Apply 时**才写回 AppSettings，
+    ///   设置窗口的兜底 `HasUnsavedSettings()`（比 `App.Settings` 序列化）因此看不出控件里的改动
+    ///   → **改完切页/关窗会静默丢弃**。与 ServerPage 早已修过的坑完全同源。</summary>
+    private bool _dirty;
+
+    /// <summary>Load 期间给控件赋初值会触发 Changed → 必须挡住，否则一进页面就被判成「已修改」</summary>
+    private bool _ready;
+
+    public bool IsDirty => _dirty;
+
+    private void MarkDirty()
+    {
+        if (_ready) _dirty = true;
+    }
+
     public AboutPage()
     {
         InitializeComponent();
@@ -20,30 +37,39 @@ public partial class AboutPage : UserControl, ISettingsPage
     /// <summary>页面加载时由 SettingsWindow 调用</summary>
     public void Load(AppSettings s)
     {
-        AutoCheckUpdateCheck.IsChecked = s.AutoCheckUpdate;
-
-        UseProxyCheck.IsChecked = s.UpdateUseProxy;
-        ProxyPrefixBox.Text = s.UpdateProxyPrefix;
-        ProxyBoxPanel.IsVisible = s.UpdateUseProxy;
-
-        // 诊断与记录（2026-09-24）
-        RecordActivityCheck.IsChecked = s.RecordActivity;
-
-        // 诊断包选项：回显（用 _loadingDiagOptions 挡住赋值自身触发的事件，免得 Load 时就写盘）
-        _loadingDiagOptions = true;
+        _ready = false;
         try
         {
-            int idx = Array.IndexOf(DiagDepths, s.DiagDesktopTreeDepth);
-            DiagDepthCombo.SelectedIndex = idx >= 0 ? idx : 1;      // 认不出就用「5 层」
-            DiagCoursewareTreeCheck.IsChecked = s.DiagIncludeCoursewareTree;
-            DiagExtraDirsBox.Text = s.DiagExtraDirs ?? "";
-        }
-        finally { _loadingDiagOptions = false; }
+            AutoCheckUpdateCheck.IsChecked = s.AutoCheckUpdate;
 
-        var ver = UpdateService.CurrentVersion;
-        bool isPre = System.Text.RegularExpressions.Regex.IsMatch(
-            ver, @"(alpha|beta|rc|pre)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-        VersionTb.Text = isPre ? $"版本 {ver}（预发布测试版）" : $"版本 {ver}";
+            UseProxyCheck.IsChecked = s.UpdateUseProxy;
+            ProxyPrefixBox.Text = s.UpdateProxyPrefix;
+            ProxyBoxPanel.IsVisible = s.UpdateUseProxy;
+
+            // 诊断与记录（2026-09-24）
+            RecordActivityCheck.IsChecked = s.RecordActivity;
+
+            // 诊断包选项：回显（用 _loadingDiagOptions 挡住赋值自身触发的事件，免得 Load 时就写盘）
+            _loadingDiagOptions = true;
+            try
+            {
+                int idx = Array.IndexOf(DiagDepths, s.DiagDesktopTreeDepth);
+                DiagDepthCombo.SelectedIndex = idx >= 0 ? idx : 1;      // 认不出就用「5 层」
+                DiagCoursewareTreeCheck.IsChecked = s.DiagIncludeCoursewareTree;
+                DiagExtraDirsBox.Text = s.DiagExtraDirs ?? "";
+            }
+            finally { _loadingDiagOptions = false; }
+
+            var ver = UpdateService.CurrentVersion;
+            bool isPre = System.Text.RegularExpressions.Regex.IsMatch(
+                ver, @"(alpha|beta|rc|pre)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            VersionTb.Text = isPre ? $"版本 {ver}（预发布测试版）" : $"版本 {ver}";
+        }
+        finally
+        {
+            _ready = true;
+            _dirty = false;   // 刚载入 = 干净，与新基线对齐
+        }
     }
 
     public void Apply(AppSettings s)
@@ -64,7 +90,12 @@ public partial class AboutPage : UserControl, ISettingsPage
         s.DiagDesktopTreeDepth = SelectedDepth();
         s.DiagIncludeCoursewareTree = DiagCoursewareTreeCheck.IsChecked != false;
         s.DiagExtraDirs = DiagExtraDirsBox.Text ?? "";
+
+        _dirty = false;   // 已写回设置 → 干净（否则关窗还会再问一次）
     }
+
+    // ── 未保存标记（#8）：三项「只在 Apply 时写回」的控件必须各自通知 ──
+    private void AutoCheckUpdate_Changed(object? sender, RoutedEventArgs e) => MarkDirty();
 
     // ── 诊断包选项（2026-09-24）─────────────────────────────
     // 这几个值只是"生成诊断包时的参数"，改了就该生效 —— 让老师还要记得点「保存」才生效，
@@ -140,6 +171,7 @@ public partial class AboutPage : UserControl, ISettingsPage
     {
         if (ProxyBoxPanel == null) return;
         ProxyBoxPanel.IsVisible = UseProxyCheck.IsChecked == true;
+        MarkDirty();   // #8：这一项只在 Apply 时写回 → 必须记脏，否则切页静默丢弃
     }
 
     /// <summary>镜像地址清空时给回默认值，避免老师误删后更新直接失败</summary>
@@ -149,6 +181,7 @@ public partial class AboutPage : UserControl, ISettingsPage
         var t = ProxyPrefixBox.Text?.Trim() ?? "";
         if (t.Length == 0 && UseProxyCheck.IsChecked == true)
             ProxyPrefixBox.Text = UpdateService.DefaultProxyPrefix;
+        MarkDirty();   // #8：同上（递归只发生一次：补完默认值后文本非空）
     }
 
     private void GitHubRepoBtn_Click(object? sender, RoutedEventArgs e)

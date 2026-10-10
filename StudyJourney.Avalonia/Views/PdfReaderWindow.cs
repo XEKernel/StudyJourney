@@ -1042,11 +1042,27 @@ public sealed class PdfReaderWindow : Window, IUnsavedWork
 
     // ── 批注 ─────────────────────────────────────────────────
 
-    private void ClearInk_Click()
+    /// <summary>
+    /// 清空全部批注。⚠ **不可撤销**（`InkDocument.Clear()` 会一并清掉撤销栈）→ 必须先确认。
+    /// `InkDocument.Clear` 的文档注释把"是否询问"明确交给了宿主窗口，本处补上（2026-10-10）。
+    /// </summary>
+    private async void ClearInk_Click()
     {
-        InkDoc.Clear();
-        _dirtyInk = false;
-        UpdateUndoButtons();
+        try
+        {
+            if (!InkDoc.HasStrokes) return;
+            bool ok = await DialogHelper.ShowConfirmAsync(this, "清空批注",
+                $"清除当前 PDF 上的全部批注（{InkDoc.Strokes.Count} 笔）？\n\n"
+                + "**此操作不可撤销** —— 右侧的「撤销」按钮也救不回来。");
+            if (!ok) return;
+            InkDoc.Clear();
+            _dirtyInk = false;
+            UpdateUndoButtons();
+        }
+        catch (Exception ex)
+        {
+            Helpers.AppLogger.Warn($"清空批注失败: {ex.Message}");
+        }
     }
 
     // ── 导出当前页（页面 + 批注）─────────────────────────────

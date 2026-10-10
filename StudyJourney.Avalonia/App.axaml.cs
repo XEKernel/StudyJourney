@@ -816,7 +816,6 @@ public partial class App : Application
 
     private static PdfReaderWindow? _pdfReader;
 
-    /// <summary>统一入口：打开 PDF 阅读器（托盘 / 全局快捷键 / 主窗口菜单共用）</summary>
     /// <summary>
     /// 按"课件打开方式"打开一个课件路径：若开启「用内置阅读器打开 PDF」且确实是 .pdf，
     /// 就交给内置阅读器并返回 true —— 调用方**不要**再 Process.Start（否则会同时开两个）。
@@ -845,6 +844,7 @@ public partial class App : Application
         }
     }
 
+    /// <summary>统一入口：打开 PDF 阅读器（托盘 / 全局快捷键 / 主窗口菜单共用）</summary>
     public static void OpenPdfReaderGlobal(string? path = null)
     {
         if (_pdfReader is { IsVisible: true })
@@ -1136,32 +1136,6 @@ public partial class App : Application
         System.IO.File.WriteAllText(path, sb.ToString(), System.Text.Encoding.ASCII);
     }
 
-    /// <summary>
-    /// 纯逻辑自检（SJ_SELFTEST=update）：课件序号解析（含中文数字）+ 更新下载通道。
-    ///
-    /// 这些都是"错了也不会崩、只会静默做错事"的逻辑（序号排错 → 课件顺序错；
-    /// 下载通道错 → 更新永远失败），所以专门用断言把它们钉住。
-    /// 其中更新通道会**真的走一次镜像下载**（用别家仓库的小 zip），端到端验证代理可用。
-    /// </summary>
-    /// <summary>
-    /// 课间静音语义自检（SJ_SELFTEST=reminder）。
-    ///
-    /// 2026-09-18 用户反馈"连堂中间的通知太吵"（晚读↔晚自习、中午听力↔下午第一节）。
-    /// 这类课间语义属于"改错了也不会崩、只会默默变吵"的逻辑，必须用断言钉住：
-    ///   · 自习类（早自习/晚读/午休/晚自习）之后的边界 → SelfStudyBoundary（该边界全部静音）
-    ///   · 普通课之间的短/中/长间隔 → 仍按原语义分类（**不能**把正常课间也静音掉）
-    ///   · 长间隔（≥60 分钟）优先 → 保住「上午放学」那条语义
-    /// </summary>
-    /// <summary>
-    /// JSON 源生成器自检（SJ_SELFTEST=json）。
-    ///
-    /// 源生成器最大的风险不是"编不过"，而是**生成的 JSON 格式和原来不一样** ——
-    /// 那会让老师现有的 settings.json / 课表读不出来（退化成默认值）或写坏。
-    /// 所以这里用**仓库里真实的配置文件**做往返验证：
-    ///   读 → 反序列化（必须能读出真值）→ 再序列化 → 顶层字段集合必须与原文一致。
-    ///
-    /// 同时确认源生成器确实接管了：走的是 AppJsonContext（编译期元数据），不是反射。
-    /// </summary>
     /// <summary>
     /// 诊断包 + 课件序号解析自检（SJ_SELFTEST=diag）。
     ///
@@ -2209,6 +2183,26 @@ public partial class App : Application
                     Check(!pg.IsDirty, $"{pname} 实例化 + Load/Apply 往返正常，且 Load 后不是「未保存」");
                 }
 
+                // ⑥-1b｜「改了必须变脏」（2026-10-10 补）
+                // ⚠ 上面那条只断言"Load 后不脏"——**抓不到 `IsDirty` 恒为 false 的页**
+                //   （永远返回 false 的页照样通过）。AboutPage 原先正是如此：三项只在 Apply 时
+                //   才写回设置，而兜底快照比的是 App.Settings → 改完切页**静默丢弃**且无任何提示。
+                //   这里用「真的去改一个控件」来钉住它。
+                {
+                    var aboutPage = new Views.Settings.AboutPage();
+                    aboutPage.Load(new Models.AppSettings { AutoCheckUpdate = true, UpdateUseProxy = true });
+                    Check(!aboutPage.IsDirty, "关于页 Load 后不应是「未保存」");
+                    // ⚠ 必须写 global:: —— 本文件在 StudyJourney.Avalonia.* 命名空间下，
+                    //    直接写 Avalonia.Controls 会被解析成 StudyJourney.Avalonia.Avalonia.Controls（CS0234）
+                    var autoChk = aboutPage.FindControl<global::Avalonia.Controls.CheckBox>("AutoCheckUpdateCheck");
+                    Check(autoChk != null, "关于页应能找到 AutoCheckUpdateCheck");
+                    autoChk!.IsChecked = false;   // 模拟老师取消「启动时自动检查更新」
+                    Check(aboutPage.IsDirty,
+                        "关于页改动「启动时自动检查更新」后必须变「未保存」——否则切页/关窗会静默丢弃该改动");
+                    aboutPage.Apply(new Models.AppSettings());
+                    Check(!aboutPage.IsDirty, "关于页 Apply 写回后应回到「干净」");
+                }
+
                 // ⑥-2 倒计时页往返的**语义**断言（不是只测"没抛异常"）
                 // 该页已 MVVM 化（ViewModels/Settings/CountdownPageViewModel），
                 // 但对外契约仍是 ISettingsPage 的 Load/Apply —— 这里守住契约，防止后续改动悄悄写坏设置。
@@ -2737,6 +2731,16 @@ public partial class App : Application
         Environment.Exit(0);
     }
 
+    /// <summary>
+    /// JSON 源生成器自检（SJ_SELFTEST=json）。
+    ///
+    /// 源生成器最大的风险不是"编不过"，而是**生成的 JSON 格式和原来不一样** ——
+    /// 那会让老师现有的 settings.json / 课表读不出来（退化成默认值）或写坏。
+    /// 所以这里用**仓库里真实的配置文件**做往返验证：
+    ///   读 → 反序列化（必须能读出真值）→ 再序列化 → 顶层字段集合必须与原文一致。
+    ///
+    /// 同时确认源生成器确实接管了：走的是 AppJsonContext（编译期元数据），不是反射。
+    /// </summary>
     private static void RunJsonSelfTest()
     {
         var sb = new System.Text.StringBuilder();
@@ -2893,6 +2897,15 @@ public partial class App : Application
         Environment.Exit(0);
     }
 
+    /// <summary>
+    /// 课间静音语义自检（SJ_SELFTEST=reminder）。
+    ///
+    /// 2026-09-18 用户反馈"连堂中间的通知太吵"（晚读↔晚自习、中午听力↔下午第一节）。
+    /// 这类课间语义属于"改错了也不会崩、只会默默变吵"的逻辑，必须用断言钉住：
+    ///   · 自习类（早自习/晚读/午休/晚自习）之后的边界 → SelfStudyBoundary（该边界全部静音）
+    ///   · 普通课之间的短/中/长间隔 → 仍按原语义分类（**不能**把正常课间也静音掉）
+    ///   · 长间隔（≥60 分钟）优先 → 保住「上午放学」那条语义
+    /// </summary>
     private static void RunReminderSelfTest()
     {
         var sb = new System.Text.StringBuilder();
@@ -3037,6 +3050,13 @@ public partial class App : Application
         Environment.Exit(0);
     }
 
+    /// <summary>
+    /// 纯逻辑自检（SJ_SELFTEST=update）：课件序号解析（含中文数字）+ 更新下载通道。
+    ///
+    /// 这些都是"错了也不会崩、只会静默做错事"的逻辑（序号排错 → 课件顺序错；
+    /// 下载通道错 → 更新永远失败），所以专门用断言把它们钉住。
+    /// 其中更新通道会**真的走一次镜像下载**（用别家仓库的小 zip），端到端验证代理可用。
+    /// </summary>
     private static async System.Threading.Tasks.Task RunUpdateSelfTestAsync()
     {
         var sb = new System.Text.StringBuilder();

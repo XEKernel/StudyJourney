@@ -714,6 +714,12 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
         return m != null ? (m.StartTime, m.EndTime, m.Type) : null;
     }
 
+    /// <summary>取第一个非空白串（`??` 只处理 null，不处理空串 —— 时间字段的空串必须回退）。</summary>
+    private static string FirstNonEmpty(string? first, string? second, string fallback)
+        => !string.IsNullOrWhiteSpace(first) ? first!
+         : !string.IsNullOrWhiteSpace(second) ? second!
+         : fallback;
+
     /// <summary>
     /// #9 修复：把周视图 rows 同步到 Entries（按 星期+节次 逐格 upsert/删除）。
     /// 原实现 Entries.Clear()+全量重建 —— 会覆盖用户在 DataGrid 里直改的内容（双入口互相覆盖）。
@@ -817,8 +823,12 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
                 ScheduleEntry? entry = null;
                 dayMap?.TryGetValue(period, out entry);
                 bool hasTime = tpl != null || entry != null;
-                string s = tpl?.start ?? entry?.StartTimeStr ?? "08:00";
-                string e2 = tpl?.end ?? entry?.EndTimeStr ?? "08:45";
+                // ⚠ 用 FirstNonEmpty 而不是 `??`：模板时间是**空串**时也必须回退到条目自己的时间。
+                //   `??` 只处理 null —— 若「按天作息」里新建了时段却没填时间，s/e2 会变成 ""，
+                //   格子右下角就渲染成 "-"（看起来像 "--"），而**提醒/自动化读的是条目时间（正常）**，
+                //   于是出现"显示不对、通知正常"的怪象（2026-10-10 用户报的正是这个）。
+                string s = FirstNonEmpty(tpl?.start, entry?.StartTimeStr, "08:00");
+                string e2 = FirstNonEmpty(tpl?.end, entry?.EndTimeStr, "08:45");
                 var type = tpl?.type ?? entry?.Type ?? PeriodType.Normal;
 
                 var slot = new CourseSlot

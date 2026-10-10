@@ -45,7 +45,6 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow, I
     /// <summary>#8 修复：允许关窗的标记（用户已在确认框选择保存/放弃后置位，避免二次拦截）</summary>
     private bool _closeConfirmed;
 
-    /// <summary>#8 修复：关窗前若当前页有未保存修改 → 三选一（保存并关闭 / 放弃修改 / 取消）</summary>
     /// <summary>设置窗口有未保存的修改（自动更新重启前要问，见 IUnsavedWork）</summary>
     public bool HasUnsavedWork =>
         !_closeConfirmed &&
@@ -53,6 +52,7 @@ public partial class SettingsWindow : FluentAvalonia.UI.Windowing.FAAppWindow, I
 
     public string UnsavedWorkHint => "设置页有未保存的修改";
 
+    /// <summary>#8 修复：关窗前若当前页有未保存修改 → 三选一（保存并关闭 / 放弃修改 / 取消）</summary>
     private async void OnClosing(object? sender, WindowClosingEventArgs e)
     {
         if (_closeConfirmed) return;

@@ -481,31 +481,6 @@ public class AutomationService : IDisposable
     }
 
     /// <summary>
-    /// 解析并打开目标文件：
-    ///   目标优先级 = 教师端指定（一次性） &gt; 顺序记忆指针（AutoAdvance 时取序列下一份） &gt; 初始候选
-    ///   初始候选   = 科目课件 → 目录内编号第一份；文件/音频 → 老师填的路径（不存在再退编号第一份）
-    ///   连堂幂等   = 目标已开着 → 跳过（或激活到前台，看规则开关 ActivateIfOpen）
-    /// 打开成功后记入跟踪表（进程 Id，供幂等判断）并更新记忆指针。
-    /// </summary>
-    /// <summary>
-    /// 课件顺序状态（2026-09-23），供主窗口胶囊栏显示 **今天已打开哪份 / 下一份该打开哪份**。
-    ///
-    /// 2026-09-24 按用户反馈修两处：
-    ///
-    /// ① **不在上课时间段内不显示**。原来无条件显示，"今天没有这门课/还没到上课时间"时
-    ///    也会挂在胶囊栏上，纯属噪音。现在要求：**当前正在上课**（<see cref="ScheduleManager.GetCurrentEntry"/>
-    ///    含 2 分钟预备铃）+ 这条规则**今天会触发**（<see cref="DayMatches"/>）+ **适用课程是当前这门课**
-    ///    （规则没填适用课程则不限）。三者任一不满足就不显示。
-    ///
-    /// ② **软件不能被当成"课件序列"**。原来把 OpenFile 也算进来，而
-    ///    <see cref="ResolveDirectory"/> 对非课件类规则返回的是**目标文件所在目录** ——
-    ///    规则指向 `某软件.exe` 时那就是**软件安装目录**，于是把安装目录里的 dll 当成了"下一份课件"
-    ///    （用户实际看到的怪异现象）。现在 OpenFile 只在目标**是文档类**时才参与，
-    ///    可执行程序/快捷方式一律排除。
-    ///
-    /// ⚠ 会枚举目录（ListCandidates），调用方**不要每秒调**（主窗口按 5 秒节流）。
-    /// </summary>
-    /// <summary>
     /// 列出所有"打开类"规则涉及的课件目录（去重、已校验存在）。
     ///
     /// 供诊断包生成**课件目录树**（2026-09-24）：分析"老师实际按什么顺序打开课件"时，
@@ -542,6 +517,24 @@ public class AutomationService : IDisposable
         return result;
     }
 
+    /// <summary>
+    /// 课件顺序状态（2026-09-23），供主窗口胶囊栏显示 **今天已打开哪份 / 下一份该打开哪份**。
+    ///
+    /// 2026-09-24 按用户反馈修两处：
+    ///
+    /// ① **不在上课时间段内不显示**。原来无条件显示，"今天没有这门课/还没到上课时间"时
+    ///    也会挂在胶囊栏上，纯属噪音。现在要求：**当前正在上课**（<see cref="ScheduleManager.GetCurrentEntry"/>
+    ///    含 2 分钟预备铃）+ 这条规则**今天会触发**（<see cref="DayMatches"/>）+ **适用课程是当前这门课**
+    ///    （规则没填适用课程则不限）。三者任一不满足就不显示。
+    ///
+    /// ② **软件不能被当成"课件序列"**。原来把 OpenFile 也算进来，而
+    ///    <see cref="ResolveDirectory"/> 对非课件类规则返回的是**目标文件所在目录** ——
+    ///    规则指向 `某软件.exe` 时那就是**软件安装目录**，于是把安装目录里的 dll 当成了"下一份课件"
+    ///    （用户实际看到的怪异现象）。现在 OpenFile 只在目标**是文档类**时才参与，
+    ///    可执行程序/快捷方式一律排除。
+    ///
+    /// ⚠ 会枚举目录（ListCandidates），调用方**不要每秒调**（主窗口按 5 秒节流）。
+    /// </summary>
     public (string RuleName, string Subject, string Opened, string Next)? GetCoursewareStatus()
     {
         try
@@ -612,7 +605,13 @@ public class AutomationService : IDisposable
         };
     }
 
-    /// <summary>解析并打开目标。返回是否"确实执行了"（没目标 / 打开失败 = false，供临时任务判定）。</summary>
+    /// <summary>
+    /// 解析并打开目标文件。返回是否"确实执行了"（没目标 / 打开失败 = false，供临时任务判定）：
+    ///   目标优先级 = 教师端指定（一次性） &gt; 顺序记忆指针（AutoAdvance 时取序列下一份） &gt; 初始候选
+    ///   初始候选   = 科目课件 → 目录内编号第一份；文件/音频 → 老师填的路径（不存在再退编号第一份）
+    ///   连堂幂等   = 目标已开着 → 跳过（或激活到前台，看规则开关 ActivateIfOpen）
+    /// 打开成功后记入跟踪表（进程 Id，供幂等判断）并更新记忆指针。
+    /// </summary>
     private bool OpenResolved(AutomationRule rule, string? subject)
     {
         // ① 教师端网页指定优先（一次性消费）：软件 → 直接启动；文件 → 作为本次目标
@@ -816,8 +815,8 @@ public class AutomationService : IDisposable
         return files;
     }
 
-    /// <summary>按教师端指定启动软件（2.5.9B 的"软件"分支）：直接拉起，不参与顺序记忆</summary>
-    /// <summary>教师端指定的"启动软件"。返回是否真的执行了（已开着也算完成）。</summary>
+    /// <summary>按教师端指定启动软件（2.5.9B 的"软件"分支）：直接拉起，不参与顺序记忆。
+    /// 返回是否真的执行了（本来就开着也算完成）。</summary>
     private static bool LaunchPendingApp(AutomationRule rule, PendingOpen pending)
     {
         var path = pending.Path?.Trim() ?? "";
@@ -901,11 +900,14 @@ public class AutomationService : IDisposable
     }
 
     /// <summary>关闭软件（2.5.7）：按进程名 taskkill。**不带 /F** —— 走 WM_CLOSE 让程序自己弹"是否保存"，
-    /// 避免强杀导致 Office 未保存内容丢失；程序自身与资源管理器拒绝作为目标。</summary>
-    /// <summary>请求关闭软件。返回是否真的发出了关闭请求（供临时任务判定）。</summary>
+    /// 避免强杀导致 Office 未保存内容丢失；程序自身与资源管理器拒绝作为目标。
+    /// 返回是否真的发出了关闭请求（供临时任务判定）。</summary>
     private static bool CloseApp(AutomationRule rule)
     {
-        var name = (rule.CloseTarget ?? "").Trim();
+        // ⚠ 剥离双引号（与 SystemShutdown 的 A8 修复同理，2026-10-10 对齐）：
+        //   目标名会拼进 taskkill 的 /IM 参数，含双引号会破坏参数解析；
+        //   先剥离再判"受保护进程"，避免用带引号的名字绕过 explorer.exe 检查。
+        var name = (rule.CloseTarget ?? "").Replace("\"", "").Trim();
         if (name.Length == 0)
         {
             Helpers.AppLogger.Warn($"自动化「{rule.Name}」：未指定要关闭的软件");

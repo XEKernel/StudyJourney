@@ -5,6 +5,17 @@ using StudyJourney.Avalonia.Models;
 
 namespace StudyJourney.Avalonia.Helpers;
 
+/// <summary>一次性迁移要做什么（v2.29.0 安全加固）</summary>
+public enum AccountMigrationAction
+{
+    /// <summary>已初始化过 → 什么都不做</summary>
+    None,
+    /// <summary>只补标记（账号表里已经有老师自己的账号）</summary>
+    MarkOnly,
+    /// <summary>补标记 + 把内置账号写进账号表（否则老用户升级后会突然登不进）</summary>
+    MarkAndSeed,
+}
+
 /// <summary>
 /// 教师账号登录判定（v2.29.0 安全加固）——**全是纯函数**，便于自检钉住。
 ///
@@ -21,17 +32,6 @@ namespace StudyJourney.Avalonia.Helpers;
 ///
 /// ⚠ 不能拿"账号表是否为空"当判据：老师**故意删光**账号时它就是空的，而那种情况恰恰**必须**不兜底。
 /// </summary>
-/// <summary>一次性迁移要做什么（v2.29.0 安全加固）</summary>
-public enum AccountMigrationAction
-{
-    /// <summary>已初始化过 → 什么都不做</summary>
-    None,
-    /// <summary>只补标记（账号表里已经有老师自己的账号）</summary>
-    MarkOnly,
-    /// <summary>补标记 + 把内置账号写进账号表（否则老用户升级后会突然登不进）</summary>
-    MarkAndSeed,
-}
-
 public static class TeacherAuthRules
 {
     /// <summary>历史内置账号用的公开密码（只用于"是否仍在使用默认密码"的风险提示，不参与登录）</summary>
