@@ -134,6 +134,11 @@ public partial class App : Application
         Helpers.AppLogger.Info("学程 Avalonia 启动");
         Mark("进入应用初始化（=运行时自举已花掉的时间）");
 
+        // Windows 10 的窗口标题栏补丁（2026-10-12）：Avalonia 只在 Win11 设暗色标题栏，
+        // Win10 下子窗口（课表编辑器/成绩分析/PDF…）顶部会是一条亮色白条。
+        // 必须在**任何窗口 Show 之前**注册（主窗口在下面几行才创建/显示）。
+        Helpers.WindowChromeHelper.HookAllWindows();
+
         Settings = AppSettings.Load();
         Mark("settings.json 加载完成");
 
@@ -2201,6 +2206,25 @@ public partial class App : Application
                         "关于页改动「启动时自动检查更新」后必须变「未保存」——否则切页/关窗会静默丢弃该改动");
                     aboutPage.Apply(new Models.AppSettings());
                     Check(!aboutPage.IsDirty, "关于页 Apply 写回后应回到「干净」");
+                }
+
+                // ⑥-1c｜窗口暗色标题栏（2026-10-12 补）
+                // Win10 下子窗口顶部是一条**亮色白条** —— 根因是 Avalonia 只在 Win11 才设
+                // DWMWA_USE_IMMERSIVE_DARK_MODE（源码 WindowImpl.SetFrameThemeVariant 里
+                // `if (Build >= 22000)`），Win10 从没人设过。见 Helpers/WindowChromeHelper。
+                // ⚠ 这里要**两件事一起断言**：
+                //   ① 窗口一打开钩子真的触发了（只断言手工调用成功，抓不到"钩子没接上"）；
+                //   ② 手工调用也成功（证明 DWM 接受了该属性 —— 属性号在 Win10 上有 20/19 两版，
+                //      用错只会返回 E_INVALIDARG 静默失效，正是最需要钉住的一步）。
+                {
+                    int beforeApplied = Helpers.WindowChromeHelper.AppliedCount;
+                    var chromeWin = new Views.ScheduleEditorWindow();
+                    chromeWin.Show();
+                    Check(Helpers.WindowChromeHelper.AppliedCount > beforeApplied,
+                        "窗口打开时自动套上暗色标题栏（钩子确实接上了，不是只写了个没人调的方法）");
+                    Check(Helpers.WindowChromeHelper.ApplyDarkTitleBar(chromeWin),
+                        "DWM 接受暗色标题栏属性（Win10 的 20/19 属性号回退链可用）");
+                    chromeWin.Close();
                 }
 
                 // ⑥-2 倒计时页往返的**语义**断言（不是只测"没抛异常"）

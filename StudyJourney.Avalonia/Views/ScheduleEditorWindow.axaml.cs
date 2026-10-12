@@ -156,8 +156,11 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
             DayOfWeek = day,
             Period = nextPeriod,
             Subject = src.Subject,
-            StartTimeStr = tpl?.StartTime ?? src.StartTimeStr,
-            EndTimeStr = tpl?.EndTime ?? src.EndTimeStr,
+            // ⚠ 用 FirstNonEmpty 而不是 `??`：模板时间是**空串**时也必须有回退 ——
+            //   否则会把 "" 写进 Entries，而**提醒/自动化读的正是条目自己的时间** →
+            //   这一节的提醒会静默失效（与 2026-10-10 用户报的"显示不对"同源，只是后果更重）。
+            StartTimeStr = FirstNonEmpty(tpl?.StartTime, src.StartTimeStr, "08:00"),
+            EndTimeStr = FirstNonEmpty(tpl?.EndTime, src.EndTimeStr, "08:45"),
             Type = tpl?.Type ?? src.Type,
         });
         data.SortEntries();
@@ -640,6 +643,15 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
     private CourseSlot? _swapTarget;
     private readonly Dictionary<CourseSlot, Border> _slotBorders = new();
 
+    // ── 双击进编辑时用于"回滚这一串点击造成的换课选择"（2026-10-12）──
+    // 双击的第 1 下必然先走单击逻辑（按下时就选了源/目标），若不回滚，
+    // 老师"双击改课名"之后窗口里会莫名留下一个源或目标，下一次单击就可能误触发调课。
+    // ⚠ 快照声明成**可空**而不是给默认值：万一某种输入后端对双击只发一次 ClickCount=2 的按下
+    //   （没有 ClickCount=1 那一次），快照就是"从未赋值"。这时绝不能回滚 ——
+    //   否则会把老师之前**本来就有**的选源/选目标给清掉（比"留下选择"更糟）。
+    private CourseSlot? _clickedSlot;
+    private (CourseSlot? Source, CourseSlot? Target)? _swapBeforeClick;
+
     // ── 网格构建（#按天作息：行 = 默认 ∪ 独立天模板节次并集；每格时间按当天模板取）──
     private List<TimetableRow> BuildTimetableRows()
     {
@@ -898,22 +910,46 @@ public partial class ScheduleEditorWindow : Window, IUnsavedWork
                 //   ① 只挂 TextBox 时，点在格子边缘/边框那一圈落空，什么都不发生；
                 //   ② TextBox 的类处理器可能把 PointerPressed 标记为已处理，`+=` 注册的实例处理器
                 //      默认收不到已处理事件（DoubleTapped 是另一个事件，所以双击一直正常）。
+                // ⚠ 2026-10-12 定论：这里**不能弹窗** —— 曾经用 ShowStatus（模态对话框）回话，
+                //   结果"单击弹窗挡住窗口、双击改课名失效"。状态反馈一律走行内 SwapHintTb。
                 border.AddHandler(InputElement.PointerPressedEvent,
                     (_, e) =>
                     {
                         if (!e.GetCurrentPoint(border).Properties.IsLeftButtonPressed) return;
+                        // 双击的第 2 次按下**不再改选择**：否则会把下面的回滚快照覆盖成"已选中"，
+                        // 于是双击编辑完就清不掉刚落下的源/目标了。
+                        if (e.ClickCount > 1) return;
+
+                        _swapBeforeClick = (_swapSource, _swapTarget);
+                        _clickedSlot = slot;
+
                         string before = _swapSource?.Display ?? "";
                         SelectSlot(slot, border);
-                        // 状态条明确回话 —— 光靠格子淡色高亮，老师常常看不出来点了没生效
-                        ShowStatus(_swapSource?.Display == before
-                            ? $"该格已是源：{slot.Display}（点其它格子选目标，或用右侧「清除选择」取消）"
-                            : $"已选源：{slot.Display} → 再点一个格子选目标");
+                        // 明确回话 —— 光靠格子淡色高亮，老师常常看不出来点了没生效。
+                        // ⚠ 必须写右侧的**行内提示**，绝不能用 ShowStatus：它是模态对话框，
+                        //   弹出来会挡住窗口、并吞掉紧随其后的第 2 下点击 → 老师双击改课名失效，
+                        //   而且每点一格弹一次窗（2026-10-12 用户报的正是这个）。
+                        SwapHintTb.Text = _swapSource?.Display == before
+                            ? $"该格已是源：{slot.Display}（点其它格子选目标，或用「清除选择」取消）"
+                            : $"已选源：{slot.Display} → 再点一个格子选目标";
                     },
                     RoutingStrategies.Bubble, handledEventsToo: true);
                 // 交互修复：双击才进入文字编辑（单击保持"选源/选目标"语义）
                 tb.DoubleTapped += (_, e) =>
                 {
                     if (!hasTime) return;
+                    // 双击 = 改课名。把这一串点击**刚造成的换课选择回滚**回点击前的状态，
+                    // 否则双击编辑完会莫名留下一个源/目标，下一次单击就可能误触发调课。
+                    // ⚠ `_swapBeforeClick is { } snap` 这个判据不能省：只有真经历过"第 1 下单击"才回滚。
+                    if (ReferenceEquals(_clickedSlot, slot) && _swapBeforeClick is { } snap)
+                    {
+                        _swapSource = snap.Source;
+                        _swapTarget = snap.Target;
+                        _clickedSlot = null;
+                        _swapBeforeClick = null;
+                        UpdateSwapLabels();
+                        HighlightSlots();
+                    }
                     tb.Focusable = true;
                     tb.IsReadOnly = false;
                     tb.Focus();
