@@ -8,7 +8,22 @@
     <RootNamespace>StudyJourney.Avalonia</RootNamespace>
     <AssemblyName>StudyJourneyAvalonia</AssemblyName>
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
-    <!-- 3.2.3：两处用户反馈的缺陷修复 ——
+    <!-- 3.3.0：自动化功能收敛（⚗ 实验性分组）+ 「打开文件」严格按路径打开 ——
+         ① **行为变更**：拼图里**明确填了文件路径**的动作（打开文件 / 播放音频）**一律按路径打开**，
+            不再被"上次那份"（顺序记忆）顶掉。新增契约 `AutomationService.SequenceMemoryApplies`
+            = `RememberLast && ActionKind == OpenCourseware`（**顺序记忆只对「打开科目课件」生效** ——
+            它给的是文件夹，本来就没有"具体哪一份"）。
+            ⚠ 代价：以前"指向文件夹里第一份 + 靠顺序记忆往下翻"的「打开文件」用法不再翻页，
+              要翻页请改用「打开科目课件」。主窗口课件顺序胶囊同步收窄到该作用域
+              （否则界面显示"下一份"而自动化根本不会去开它）。
+         ② 「⚗ 实验性」分组：把已知有 BUG / 即将改设计的能力集中标注（**只标注、不禁用**，已有规则照常跑）——
+            · 动作「播放听力（内置播放器）」、触发「课表听力节次」（播放器以后会直接做进主窗口胶囊，不再单开窗口）
+            ·「智能打开」里的「记住上次那份」「每次自动开下一份」（移进折叠区，只对「打开科目课件」出现）
+            · 课表页「听力播放器」卡片加 ⚗ 标注与警示
+            做法：下拉文案加 `⚗【实验性】` 前缀（**只改文字、绝不动顺序** —— 索引直接强转枚举）、
+            选中时参数面板出橙色警示条、页首加默认折叠的说明卡。
+         ③ 清理：`AutomationRule.MemoryHint()`（打开文件/播放音频不再有记忆提示 → 该方法无人引用，删掉）。
+         3.2.3：两处用户反馈的缺陷修复 ——
          ① 修：课表编辑时单击格子会弹出**模态提示框**（ShowStatus = ShowMessageAsync），
             弹窗抢走输入 → 双击进不了编辑态（老师"想改课名却双击不起来"）。
             改为右侧**行内提示**回话；并让双击进编辑时回滚"第 1 下必然造成的选源/选目标"，
@@ -60,7 +75,7 @@
          3.0.1：修「AOT 被误判成框架依赖」（下次更新会下错包）+ 装错包保险。
          3.0.0：分发形态改为 NativeAOT（判据②：分发形态/运行环境变）→ X 位。
          AssemblyVersion 由 <Version> 派生；InformationalVersion 形如 3.0.3+{hash}（更新检查按 '+' 截断解析） -->
-    <Version>3.2.3</Version>
+    <Version>3.3.0</Version>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 

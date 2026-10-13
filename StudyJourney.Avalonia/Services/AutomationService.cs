@@ -550,7 +550,10 @@ public class AutomationService : IDisposable
             foreach (var rule in _data.Rules)
             {
                 if (!rule.Enabled) continue;
-                if (!IsSequenceCoursewareRule(rule)) continue;
+                // ⚠ 2026-10-13 收敛：胶囊显示的是"**上一份 / 下一份**"，只有"按顺序打开"真正生效的规则才配显示。
+                //   原来用 IsSequenceCoursewareRule（含「打开文件 + 文档类」）—— 但那些规则现在**一律按拼图里
+                //   填的路径打开**（SequenceMemoryApplies 不再介入），再显示"下一份"就是在骗老师。
+                if (!SequenceMemoryApplies(rule)) continue;
 
                 // 今天这条规则会触发吗（按星期几；调休已由 GetEffectiveDayOfWeek 处理）
                 if (!DayMatches(rule, now)) continue;
@@ -606,11 +609,28 @@ public class AutomationService : IDisposable
     }
 
     /// <summary>
+    /// 这条规则是否走"顺序记忆 / 自动顺次"（2026-10-13 功能收敛）。
+    ///
+    /// ⚠ **只有「打开科目课件」**：它给的是**目录**，本来就不存在"具体哪一份"，才有"续用上次那份 /
+    /// 自动开下一份"可言。
+    /// 「打开文件」「播放音频」在拼图里**明确填了路径** → 必须按路径打开
+    /// （用户 2026-10-13 要求："自动化打开文件时就必须遵守拼图那里指定打开的文件"）——
+    /// 否则老师写着"第一节.pptx"、实际却被上次记下的另一份顶掉，完全不可预期。
+    ///
+    /// internal 供自检断言（纯函数、无副作用）。
+    /// </summary>
+    internal static bool SequenceMemoryApplies(AutomationRule rule)
+        => rule.RememberLast && rule.ActionKind == AutomationActionKind.OpenCourseware;
+
+    /// <summary>
     /// 解析并打开目标文件。返回是否"确实执行了"（没目标 / 打开失败 = false，供临时任务判定）：
-    ///   目标优先级 = 教师端指定（一次性） &gt; 顺序记忆指针（AutoAdvance 时取序列下一份） &gt; 初始候选
-    ///   初始候选   = 科目课件 → 目录内编号第一份；文件/音频 → 老师填的路径（不存在再退编号第一份）
+    ///   目标优先级 = 教师端指定（一次性） &gt; **规则里明确填的文件/音频路径** &gt;
+    ///                顺序记忆指针（仅「打开科目课件」，见 <see cref="SequenceMemoryApplies"/>） &gt; 目录内编号第一份
     ///   连堂幂等   = 目标已开着 → 跳过（或激活到前台，看规则开关 ActivateIfOpen）
     /// 打开成功后记入跟踪表（进程 Id，供幂等判断）并更新记忆指针。
+    ///
+    /// ⚠ 2026-10-13（用户要求"必须遵守拼图里指定的文件"）：明确填了路径的动作
+    ///   （打开文件 / 播放音频）**一律按路径打开**，绝不被"上次那份"顶掉。
     /// </summary>
     private bool OpenResolved(AutomationRule rule, string? subject)
     {
@@ -625,20 +645,22 @@ public class AutomationService : IDisposable
             Helpers.AppLogger.Info($"自动化「{rule.Name}」：采用教师端指定文件 {target}");
         }
 
+        // 规则里明确填的路径（「打开文件」「播放音频」用；「打开科目课件」不填路径、只给目录）
+        var configured = rule.ActionPath?.Trim() ?? "";
         var candidates = Helpers.FileSequence.ListCandidates(ResolveDirectory(rule, subject));
 
         // ② 顺序记忆指针（默认续用"上次那份"；开了自动顺次则推下一份）
-        if (target == null && rule.RememberLast)
+        //    ⚠ 只对「打开科目课件」生效 —— 填了路径的动作必须按路径打开（2026-10-13 收敛）
+        if (target == null && SequenceMemoryApplies(rule))
         {
             var ptr = OpenStateStore.GetPointer(rule.Id);
             if (!string.IsNullOrWhiteSpace(ptr) && File.Exists(ptr))
                 target = rule.AutoAdvance ? (Helpers.FileSequence.Next(ptr, candidates) ?? ptr) : ptr;
         }
 
-        // ③ 初始候选
+        // ③ 规则里明确填的路径优先于"目录内编号第一份"；路径不在（被删/被移走）才退回目录第一份
         if (target == null)
         {
-            var configured = rule.ActionPath?.Trim() ?? "";
             target = rule.ActionKind == AutomationActionKind.OpenCourseware
                 ? Helpers.FileSequence.First(candidates)
                 : (File.Exists(configured) ? configured : Helpers.FileSequence.First(candidates));
@@ -764,14 +786,15 @@ public class AutomationService : IDisposable
     /// 性能：窗口枚举只做一次，全部标题拼成一个串（BuildTitleBlob），
     /// 之后每条规则/每个候选文件都只是一次 string.Contains —— 原实现是"候选文件 × 窗口"双层循环。
     /// 目录列表按"最后写入时间"做 10 秒缓存，避免每 5 秒对每个目录做一次文件系统遍历。
+    ///
+    /// ⚠ 2026-10-13 收敛：只对 <see cref="SequenceMemoryApplies"/> 为真的规则采指针
+    /// （= 「打开科目课件」且开了顺序记忆）。填了具体路径的动作按路径打开，指针采了也没人用，
+    /// 白费窗口枚举 + 目录遍历。
     /// </summary>
     private void CaptureManualOpens()
     {
         var rules = _data.Rules
-            .Where(r => r.Enabled && r.RememberLast &&
-                        r.ActionKind is AutomationActionKind.OpenFile
-                                     or AutomationActionKind.OpenCourseware
-                                     or AutomationActionKind.PlayAudio)
+            .Where(r => r.Enabled && SequenceMemoryApplies(r))
             .ToList();
         if (rules.Count == 0) return;
 

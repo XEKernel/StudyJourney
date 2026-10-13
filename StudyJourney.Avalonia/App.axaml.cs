@@ -2283,6 +2283,68 @@ public partial class App : Application
                     $"自动化页「动作」下拉 {lap.ActionTypeCombo.ItemCount} 项 = 枚举 10 个（新增动作必须同步加项）");
                 Check(lap.PlayListeningPanel != null && lap.ListeningPeriodPanel != null,
                     "自动化页「播放听力」动作面板与「课表听力节次」触发面板在位");
+
+                // ⑦-1 ⚗ 实验性收敛（2026-10-13）：下拉**逐项**比对 —— 索引即枚举值，
+                //      文案改动时若顺手挪位/增删项，老师已有规则的动作会**静默变成另一个动作**。
+                //      （只断言项数抓不到错位，所以这里把每一项都钉住。）
+                string[] expTrig =
+                {
+                    "固定时间", "上课前", "下课时", "放学时", "闲置一段时间", "软件启动后", "上午放学",
+                    "⚗【实验性】课表听力节次"
+                };
+                string[] expAct =
+                {
+                    "打开文件", "打开科目课件", "播放音频", "关闭屏幕", "关机", "重启", "弹出提醒", "关闭软件", "打开白板",
+                    "⚗【实验性】播放听力（内置播放器）"
+                };
+                var trigItems = (string[]?)lap.TriggerTypeCombo.ItemsSource ?? Array.Empty<string>();
+                var actItems = (string[]?)lap.ActionTypeCombo.ItemsSource ?? Array.Empty<string>();
+                Check(trigItems.SequenceEqual(expTrig),
+                    "触发下拉每一项与枚举 AutomationTriggerKind 一一对应（顺序与文案）");
+                Check(actItems.SequenceEqual(expAct),
+                    "动作下拉每一项与枚举 AutomationActionKind 一一对应（顺序与文案）");
+                Check(expTrig[(int)Models.AutomationTriggerKind.AtListeningPeriod].StartsWith("⚗", StringComparison.Ordinal) &&
+                      expAct[(int)Models.AutomationActionKind.PlayListening].StartsWith("⚗", StringComparison.Ordinal),
+                    "实验性项（课表听力节次 / 播放听力）带 ⚗【实验性】前缀，基本项不带");
+
+                // ⑦-2 警示条显隐（只标前缀不够 —— 选中后老师在参数面板里也要看到）
+                lap.TriggerTypeCombo.SelectedIndex = (int)Models.AutomationTriggerKind.AtListeningPeriod;
+                lap.ActionTypeCombo.SelectedIndex = (int)Models.AutomationActionKind.PlayListening;
+                Check(lap.TriggerWarnBox.IsVisible && lap.ActionWarnBox.IsVisible,
+                    "选中实验性触发/动作 → 两侧警示条出现");
+                Check(lap.TriggerWarnTb.Text!.Contains("实验性") && lap.ActionWarnTb.Text!.Contains("实验性"),
+                    "警示条文案写明「实验性」");
+                lap.TriggerTypeCombo.SelectedIndex = 0;
+                lap.ActionTypeCombo.SelectedIndex = 0;
+                Check(!lap.TriggerWarnBox.IsVisible && !lap.ActionWarnBox.IsVisible,
+                    "切回基本触发/动作 → 警示条消失");
+
+                // ⑦-3 ★ 核心契约：「打开文件必须按拼图里指定的路径打开」（用户 2026-10-13 要求）
+                Check(!Services.AutomationService.SequenceMemoryApplies(new Models.AutomationRule
+                {
+                    ActionKind = Models.AutomationActionKind.OpenFile,
+                    ActionPath = @"D:\课件\第一节.pptx",
+                }), "★ 打开文件 + 记住上次那份 → 顺序记忆**不介入**（指定哪份就打开哪份）");
+                Check(!Services.AutomationService.SequenceMemoryApplies(new Models.AutomationRule
+                {
+                    ActionKind = Models.AutomationActionKind.PlayAudio,
+                    ActionPath = @"D:\听力\Unit1.mp3",
+                }), "★ 播放音频同理：不介入");
+                Check(Services.AutomationService.SequenceMemoryApplies(new Models.AutomationRule
+                {
+                    ActionKind = Models.AutomationActionKind.OpenCourseware,
+                }), "打开科目课件（给的是文件夹、没有具体哪一份）→ 顺序记忆生效");
+                Check(!Services.AutomationService.SequenceMemoryApplies(new Models.AutomationRule
+                {
+                    ActionKind = Models.AutomationActionKind.OpenCourseware,
+                    RememberLast = false,
+                }), "关掉「记住上次那份」→ 顺序记忆不生效");
+                Check(!new Models.AutomationRule
+                {
+                    ActionKind = Models.AutomationActionKind.OpenFile,
+                    ActionPath = @"D:\课件\第一节.pptx",
+                    RememberLast = true,
+                }.ActionText.Contains("续用"), "打开文件的摘要不再显示「续用上次那份」（否则界面在骗人）");
             }
 
             // ── M. 安全加固（v2.29.0）：终止"内置账号删不掉"的兜底 ──────────────

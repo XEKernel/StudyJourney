@@ -36,6 +36,27 @@
                 </StackPanel>
             </Border>
 
+            <!-- ⚗ 实验性功能说明（2026-10-13 功能收敛）—— 默认折叠，需要时才展开 -->
+            <Expander Header="⚗ 实验性功能（已知有 BUG、正在重新设计 —— 用之前先看一眼）" FontSize="13" IsExpanded="False">
+                <StackPanel Spacing="6">
+                    <TextBlock Text="下面这些能力我们知道还不稳，暂时收在这里标注出来 —— 不是删掉：已经在用的规则照常执行。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                               TextWrapping="Wrap"/>
+                    <TextBlock Text="① 「播放听力（内置播放器）」动作 / 「课表听力节次」触发"
+                               FontSize="11" TextWrapping="Wrap"/>
+                    <TextBlock Text="　播放器目前还是单独的窗口。以后它会直接做进主窗口顶部的胶囊（点一下就能播/暂停/换下一份），不再单开窗口 —— 那时这块的配置方式也会跟着改。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap" Margin="12,0,0,0"/>
+                    <TextBlock Text="② 「智能打开」里的「记住上次那份」「每次自动开下一份」"
+                               FontSize="11" TextWrapping="Wrap"/>
+                    <TextBlock Text="　只对「打开科目课件」生效（它给的是文件夹，本来就没有「具体哪一份」），偶尔会续到不该续的那份。"
+                               FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                               TextWrapping="Wrap" Margin="12,0,0,0"/>
+                    <TextBlock Text="⚠ 填了具体文件路径的动作（打开文件 / 播放音频）不受「智能打开」影响：拼图里指定哪份，就打开哪份。"
+                               FontSize="11" Foreground="#FFD0A0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Expander>
+
             <!-- 规则列表 -->
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="8">
@@ -108,6 +129,14 @@
                                 <TextBlock Text="① 当……" FontSize="13" FontWeight="SemiBold" Foreground="#8FC1E8"/>
                                 <ComboBox x:Name="TriggerTypeCombo" FontSize="13"
                                           SelectionChanged="TriggerTypeCombo_SelectionChanged"/>
+
+                                <!-- ⚗ 实验性提示（选中实验性触发时由 RefreshPanels 显示）-->
+                                <Border x:Name="TriggerWarnBox" IsVisible="False"
+                                        Background="#33FF8844" BorderBrush="#66FF8844" BorderThickness="1"
+                                        CornerRadius="4" Padding="8,5">
+                                    <TextBlock x:Name="TriggerWarnTb" FontSize="11" Foreground="#FFD0A0"
+                                               TextWrapping="Wrap"/>
+                                </Border>
 
                                 <!-- 固定时间参数（2026-09-25：手打 18:00 → 时间选择器） -->
                                 <StackPanel x:Name="FixedPanel" Spacing="8">
@@ -236,6 +265,14 @@
                                 <ComboBox x:Name="ActionTypeCombo" FontSize="13"
                                           SelectionChanged="ActionTypeCombo_SelectionChanged"/>
 
+                                <!-- ⚗ 实验性提示（选中实验性动作时由 RefreshPanels 显示）-->
+                                <Border x:Name="ActionWarnBox" IsVisible="False"
+                                        Background="#33FF8844" BorderBrush="#66FF8844" BorderThickness="1"
+                                        CornerRadius="4" Padding="8,5">
+                                    <TextBlock x:Name="ActionWarnTb" FontSize="11" Foreground="#FFD0A0"
+                                               TextWrapping="Wrap"/>
+                                </Border>
+
                                 <!-- 打开文件 -->
                                 <StackPanel x:Name="OpenFilePanel" Spacing="4">
                                     <TextBlock Text="文件路径（点「浏览…」选择）" FontSize="12"
@@ -301,20 +338,33 @@
                                              TextChanged="MsgBox_TextChanged"/>
                                 </StackPanel>
 
-                                <!-- 顺序记忆（打开文件/科目课件/播放音频 共用，2.5.8/2.5.9）-->
-                                <StackPanel x:Name="SequencePanel" Spacing="4">
-                                    <TextBlock Text="智能打开" FontSize="12"
+                                <!-- 连堂幂等（基本功能，三类"打开"动作共用）-->
+                                <StackPanel x:Name="ActivatePanel" Spacing="4">
+                                    <TextBlock Text="重复打开" FontSize="12"
                                                Foreground="{DynamicResource TextFillColorSecondaryBrush}"/>
-                                    <CheckBox x:Name="RememberLastCheck" Content="记住上次那份（自动续用，默认开）"
-                                              IsCheckedChanged="SequenceOption_Toggled"/>
-                                    <CheckBox x:Name="AutoAdvanceCheck" Content="每次自动开下一份（听力连播）"
-                                              Margin="24,0,0,0" IsCheckedChanged="SequenceOption_Toggled"/>
                                     <CheckBox x:Name="ActivateIfOpenCheck" Content="已打开时切到前台（不勾＝跳过不重复打开）"
                                               IsCheckedChanged="SequenceOption_Toggled"/>
-                                    <TextBlock Text="老师手动打开目录里哪份，下次就续用哪份；临时换另一套，原序列不丢。"
+                                    <TextBlock Text="连着两节用同一份课件时，不会重复开一个新窗口。"
                                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                                TextWrapping="Wrap"/>
                                 </StackPanel>
+
+                                <!-- ⚗ 实验性：智能打开（顺序记忆 / 自动顺次，2.5.8/2.5.9；2026-10-13 收敛进来）
+                                     ⚠ 只对「打开科目课件」生效 —— 填了具体路径的动作按路径打开，故本块只在该动作时出现 -->
+                                <Expander x:Name="SequenceExpander" IsExpanded="False" FontSize="12" Margin="0,4,0,0"
+                                          Header="⚗ 实验性：智能打开（记住上次那份 / 每次开下一份）">
+                                    <StackPanel Spacing="4">
+                                        <CheckBox x:Name="RememberLastCheck" Content="记住上次那份（自动续用，默认开）"
+                                                  IsCheckedChanged="SequenceOption_Toggled"/>
+                                        <CheckBox x:Name="AutoAdvanceCheck" Content="每次自动开下一份（连播）"
+                                                  Margin="24,0,0,0" IsCheckedChanged="SequenceOption_Toggled"/>
+                                        <TextBlock Text="只对「打开科目课件」生效：老师手动打开文件夹里哪份，下次就续用哪份；临时换另一套，原序列不丢。"
+                                                   FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
+                                                   TextWrapping="Wrap"/>
+                                        <TextBlock Text="⚠ 已知有 BUG，偶尔会续到不该续的那一份 —— 暂时不建议依赖。"
+                                                   FontSize="11" Foreground="#FFD0A0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Expander>
 
                                 <!-- 关闭软件（2.5.7）-->
                                 <StackPanel x:Name="CloseAppPanel" Spacing="6">

@@ -30,6 +30,16 @@ public partial class AutomationPage : UserControl, ISettingsPage
     private bool _dirty;
     private AutomationRule? _current;
 
+    // ── ⚗ 实验性标注文案（2026-10-13 功能收敛）──────────────
+    // 只靠下拉里的「⚗【实验性】」前缀不够 —— 老师选中后未必回头看列表，所以在参数面板里再明确说一次。
+    private const string ExpTriggerWarn =
+        "⚗ 实验性：这个触发条件与内置听力播放器绑在一起，已知有 BUG。\n" +
+        "播放器以后会直接做进主窗口的胶囊（不再单开窗口），那时这套配置也会跟着变 —— 暂时不推荐新依赖它。";
+
+    private const string ExpActionWarn =
+        "⚗ 实验性：内置听力播放器目前是独立的播放器窗口，已知有 BUG。\n" +
+        "播放器以后会直接做进主窗口的胶囊（不再单开窗口），这项动作的配置方式也会跟着变 —— 暂时不推荐新依赖它。";
+
     public bool IsDirty => _dirty;
 
     public AutomationPage()
@@ -37,15 +47,17 @@ public partial class AutomationPage : UserControl, ISettingsPage
         InitializeComponent();
 
         // 顺序必须与枚举 AutomationTriggerKind / AutomationActionKind 一致（索引即枚举值）
+        // ⚠ 2026-10-13 功能收敛：**实验性**的项只在文字前加「⚗【实验性】」前缀 ——
+        //   只能改字符串内容，**绝不能增删项或改顺序**（索引直接强转枚举，错位 = 老师已有规则的动作静默变样）。
         TriggerTypeCombo.ItemsSource = new[]
         {
             "固定时间", "上课前", "下课时", "放学时", "闲置一段时间", "软件启动后", "上午放学",
-            "课表听力节次"          // v2.27.0（规划 2.9）——顺序必须与枚举 AutomationTriggerKind 一致
+            "⚗【实验性】课表听力节次"          // v2.27.0（规划 2.9）——顺序必须与枚举 AutomationTriggerKind 一致
         };
         ActionTypeCombo.ItemsSource = new[]
         {
             "打开文件", "打开科目课件", "播放音频", "关闭屏幕", "关机", "重启", "弹出提醒", "关闭软件", "打开白板",
-            "播放听力（内置播放器）"   // v2.27.0（规划 2.9）——顺序必须与枚举 AutomationActionKind 一致
+            "⚗【实验性】播放听力（内置播放器）"   // v2.27.0（规划 2.9）——顺序必须与枚举 AutomationActionKind 一致
         };
 
         // 默认选中必须在 _ready 置位前（事件处理期间判空直接 return，再由下面手动刷新面板）
@@ -460,10 +472,24 @@ public partial class AutomationPage : UserControl, ISettingsPage
         CloseAppPanel.IsVisible = ak == AutomationActionKind.CloseApp;
         WhiteboardPanel.IsVisible = ak == AutomationActionKind.OpenWhiteboard;
         PlayListeningPanel.IsVisible = ak == AutomationActionKind.PlayListening;
-        // 顺序记忆/连堂幂等只对三类"打开"动作有意义
-        SequencePanel.IsVisible = ak is AutomationActionKind.OpenFile
+
+        // ── ⚗ 实验性标注（2026-10-13 功能收敛）────────────────────────
+        bool expTrigger = tk == AutomationTriggerKind.AtListeningPeriod;
+        TriggerWarnBox.IsVisible = expTrigger;
+        if (expTrigger) TriggerWarnTb.Text = ExpTriggerWarn;
+
+        bool expAction = ak == AutomationActionKind.PlayListening;
+        ActionWarnBox.IsVisible = expAction;
+        if (expAction) ActionWarnTb.Text = ExpActionWarn;
+
+        // 连堂幂等（已打开时切前台）是**基本功能**，三类"打开"动作共用；
+        // 「智能打开」（顺序记忆 / 自动顺次）**只对「打开科目课件」生效** ——
+        // 填了具体路径的动作（打开文件 / 播放音频）一律按路径打开，所以那两项只在科目课件时出现，
+        // 并收进「⚗ 实验性」折叠里（2026-10-13 收敛）。
+        ActivatePanel.IsVisible = ak is AutomationActionKind.OpenFile
                                      or AutomationActionKind.OpenCourseware
                                      or AutomationActionKind.PlayAudio;
+        SequenceExpander.IsVisible = ak == AutomationActionKind.OpenCourseware;
     }
 
     /// <summary>文本类控件改动：仅刷新预览（不重建列表 —— 打字每帧重建会让 ListBox 滚动条跳回顶部）。

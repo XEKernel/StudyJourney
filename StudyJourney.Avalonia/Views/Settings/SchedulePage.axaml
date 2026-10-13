@@ -70,7 +70,12 @@
             <!-- 听力播放器（v2.27.0，规划 2.9）——本卡片的改动**即时生效**（存 listening.json，与上面的设置无关） -->
             <Border CornerRadius="8" Background="#14FFFFFF" BorderBrush="#1FFFFFFF" BorderThickness="1" Padding="20,16">
                 <StackPanel Spacing="8">
-                    <TextBlock Text="🎧  听力播放器" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock Text="🎧  ⚗【实验性】听力播放器" FontSize="16" FontWeight="SemiBold"/>
+                    <Border Background="#33FF8844" BorderBrush="#66FF8844" BorderThickness="1"
+                            CornerRadius="4" Padding="8,5">
+                        <TextBlock TextWrapping="Wrap" FontSize="11" Foreground="#FFD0A0"
+                                   Text="⚗ 实验性：已知有 BUG。播放器以后会直接做进主窗口顶部的胶囊（点一下就能播/暂停/换下一份），不再单开窗口 —— 那时这块的配置方式也会跟着改，暂时不推荐新依赖它。"/>
+                    </Border>
                     <TextBlock Text="听力录音用内置播放器播：整份播完自动关窗，并记下听到哪一份（听一半关掉不会算「听过」，下次续播同一份）。本卡片的改动即时生效，不用点「保存设置」。"
                                FontSize="11" Foreground="{DynamicResource TextFillColorTertiaryBrush}"
                                TextWrapping="Wrap"/>

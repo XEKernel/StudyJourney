@@ -70,8 +70,13 @@ namespace StudyJourney.Avalonia.Models
         /// <summary>CloseApp 要关闭的进程名（如 POWERPNT.exe / wps.exe）。不带 .exe 也可，执行时自动补</summary>
         public string CloseTarget { get; set; } = "";
 
-        // ── 打开类动作的智能行为（2.5.8 / 2.5.9）──────────────
-        /// <summary>顺序记忆：自动打开"上次用到的文件"，老师手动打开别的文件即跟随推进（默认开）</summary>
+        // ── 打开类动作的智能行为（2.5.8 / 2.5.9；2026-10-13 收敛）──
+        /// <summary>
+        /// 顺序记忆：自动续用"上次用到的那份课件"（默认开）。
+        /// ⚠ **只对「打开科目课件」生效** —— 它给的是目录，本来就没有"具体哪一份"。
+        /// 「打开文件」「播放音频」在拼图里明确填了路径，**一律按路径打开**，不受这里影响
+        /// （见 <c>AutomationService.SequenceMemoryApplies</c>；用户 2026-10-13 要求）。
+        /// </summary>
         public bool RememberLast { get; set; } = true;
         /// <summary>纯自动顺次：每次触发自动指向序列下一份（听力场景；默认关 = 由老师手动推进）</summary>
         public bool AutoAdvance { get; set; } = false;
@@ -142,12 +147,14 @@ namespace StudyJourney.Avalonia.Models
             {
                 case AutomationActionKind.OpenFile:
                     if (string.IsNullOrWhiteSpace(ActionPath)) return "打开文件（未选文件）";
-                    return $"打开文件 {Path.GetFileName(ActionPath)}{MemoryHint()}";
+                    // ⚠ 不再带"续用上次那份"提示：打开文件**就是按这个路径**打开（2026-10-13 收敛），
+                    //   摘要里还写顺序记忆的话，界面就在骗人。
+                    return $"打开文件 {Path.GetFileName(ActionPath)}";
                 case AutomationActionKind.OpenCourseware:
                     return "打开当堂科目课件" + (AutoAdvance ? "（自动顺次下一份）" : RememberLast ? "（续用上次那份）" : "（编号第一份）");
                 case AutomationActionKind.PlayAudio:
                     if (string.IsNullOrWhiteSpace(ActionPath)) return "播放音频（未选文件）";
-                    return $"播放音频 {Path.GetFileName(ActionPath)}{MemoryHint()}";
+                    return $"播放音频 {Path.GetFileName(ActionPath)}";
                 case AutomationActionKind.ScreenOff:
                     return "关闭屏幕（熄屏）";
                 case AutomationActionKind.Shutdown:
@@ -166,10 +173,6 @@ namespace StudyJourney.Avalonia.Models
                     return "";
             }
         }
-
-        /// <summary>打开类动作的统一记忆提示（顺序记忆开着时的轻标记）</summary>
-        private string MemoryHint()
-            => !RememberLast ? "" : AutoAdvance ? "（自动顺次下一份）" : "（续用上次那份）";
     }
 
     /// <summary>自动化任务容器：全局总开关 + 规则列表，独立存 automations.json（不混入 settings.json，
