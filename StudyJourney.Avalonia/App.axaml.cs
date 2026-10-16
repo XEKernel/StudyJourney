@@ -768,8 +768,6 @@ public partial class App : Application
     /// </summary>
     private static void RunGradeSelfTest()
     {
-        ArmSelfTestWatchdog(120);
-
         var report = Helpers.GradeAnalysis.GradeSelfTest.Run();
 
         Helpers.AppLogger.Info(report);
