@@ -263,6 +263,11 @@ public partial class App : Application
                 // 波动阈值 / 真造 xlsx 走导入链 / 主窗口实例化
                 Dispatcher.UIThread.Post(RunGradeSelfTest, DispatcherPriority.Background);
                 break;
+            case "http":
+                // 2026-10-17（P0-B）：真实起 Kestrel + 真实 HTTP 请求 —— 17 个端点的行为护栏。
+                // 真异步（内部有 HTTP 往返），不能用 Post(sync) 包一层。
+                Dispatcher.UIThread.Post(() => { _ = RunHttpSelfTestAsync(); }, DispatcherPriority.Background);
+                break;
             default:
                 Helpers.AppLogger.Warn($"未知自检模式：{mode}");
                 Environment.Exit(2);
@@ -823,6 +828,21 @@ public partial class App : Application
     private static void RunGradeSelfTest()
     {
         var report = Helpers.GradeAnalysis.GradeSelfTest.Run();
+
+        Helpers.AppLogger.Info(report);
+        System.IO.File.WriteAllText(
+            System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
+            report);
+        Environment.Exit(0);
+    }
+
+    /// <summary>
+    /// HTTP 远程控制台自检（SJ_SELFTEST=http）。逻辑本体在
+    /// <see cref="Helpers.HttpSelfTest.RunAsync"/> 里，这里只负责落盘与退出。
+    /// </summary>
+    private static async System.Threading.Tasks.Task RunHttpSelfTestAsync()
+    {
+        var report = await Helpers.HttpSelfTest.RunAsync();
 
         Helpers.AppLogger.Info(report);
         System.IO.File.WriteAllText(
