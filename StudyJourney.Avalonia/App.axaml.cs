@@ -283,10 +283,27 @@ public partial class App : Application
             System.Threading.Thread.Sleep(seconds * 1000);
             try
             {
+                // 把进度文件最后几行一并写进结果 —— 挂死时直接看得出停在哪一段
+                // （result.txt 只在自检末尾写，且会被这段覆盖）。
+                string tailText = "";
+                try
+                {
+                    string pp = System.IO.Path.Combine(
+                        AppDomain.CurrentDomain.BaseDirectory, "sj-selftest-progress.log");
+                    if (System.IO.File.Exists(pp))
+                    {
+                        var pl = System.IO.File.ReadAllLines(pp);
+                        int from = Math.Max(0, pl.Length - 6);
+                        tailText = "\n最后进度：\n" + string.Join("\n", pl.Skip(from)) + "\n";
+                    }
+                }
+                catch { }
+
                 System.IO.File.WriteAllText(
                     System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
                     $"[WATCHDOG] 自检超过 {seconds} 秒仍未结束，已强制退出。\n" +
-                    "多半是在 UI 线程上同步等待 async（死锁），或网络请求卡住。\n");
+                    "多半是在 UI 线程上同步等待 async（死锁），或网络请求卡住。\n" +
+                    tailText);
             }
             catch { }
             // P0-A2 S1 诊断：确认 Exit(3) 真的被调用过。
@@ -317,6 +334,14 @@ public partial class App : Application
         var t = new System.Threading.Thread(() =>
         {
             System.Threading.Thread.Sleep(3000);
+            // 留下"兜底被触发"的痕迹：正常退出时进程早已结束，这行不会写。
+            try
+            {
+                System.IO.File.AppendAllText(
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sj-selftest-progress.log"),
+                    $"[{DateTime.Now:HH:mm:ss.fff}] exit-fallback(kill)\n");
+            }
+            catch { }
             try { System.Diagnostics.Process.GetCurrentProcess().Kill(); } catch { }
         })
         { IsBackground = true };
