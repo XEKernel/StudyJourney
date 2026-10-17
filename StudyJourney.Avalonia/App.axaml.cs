@@ -289,6 +289,11 @@ public partial class App : Application
                     "多半是在 UI 线程上同步等待 async（死锁），或网络请求卡住。\n");
             }
             catch { }
+            // P0-A2 S1 诊断：确认 Exit(3) 真的被调用过。
+            // 挂死时脚本能捕获到这行 → 说明"看门狗线程跑起来了、Exit 被调了但没走完"；
+            // 看不到 → 说明看门狗线程本身没被调度（另一类问题）。仅自检模式输出，生产路径不写。
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SJ_SELFTEST")))
+                Console.Error.WriteLine("[WATCHDOG] firing exit 3");
             Environment.Exit(3);
         })
         { IsBackground = true };
@@ -1494,10 +1499,22 @@ public partial class App : Application
     private static void RunSettingsSelfTest()
     {
         var sb = new System.Text.StringBuilder();
+
+        // ── 分段进度追踪（P0-A2 S1/S6，永久保留）────────────────────────────
+        // 为什么需要：result.txt 只在方法末尾写，而看门狗用 File.WriteAllText **覆盖**它
+        // → "中途挂死" 与 "跑完但 Exit(0) 挂住" 在结果文件上完全无法区分。
+        // 本文件逐段追加，挂死后仍能看出最后到达的段。
+        string progressPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "sj-selftest-progress.log");
+        try { System.IO.File.WriteAllText(progressPath, $"[{DateTime.Now:HH:mm:ss.fff}] start\n"); } catch { }
+        void Seg(string name)
+        {
+            try { System.IO.File.AppendAllText(progressPath, $"[{DateTime.Now:HH:mm:ss.fff}] seg {name}\n"); } catch { }
+        }
         try
         {
             sb.AppendLine("[SJTEST] 设置页语义自检开始");
 
+            Seg("A");
             // ── A. 恢复默认：影响范围清单 ──────────────────────
             var rich = new Models.AppSettings
             {
@@ -1576,6 +1593,7 @@ public partial class App : Application
                 "「会恢复成出厂默认」段写明账号重置为内置账号");
             Check(descReset.Contains("⚠ 重置不可撤销"), "未传备份路径时提示不可撤销");
 
+            Seg("B");
             // ── B. 重置前备份（全程临时目录，不碰真实 settings.json）──
             string tempRoot = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
                 "sj-reset-selftest-" + Guid.NewGuid().ToString("N")[..8]);
@@ -1616,6 +1634,7 @@ public partial class App : Application
                 try { System.IO.Directory.Delete(tempRoot, true); } catch { }
             }
 
+            Seg("C");
             // ── C. 日期 / 时间串往返（控件值 ⇄ 落盘串）────────
             var dt = Helpers.DateTimeStr.ParseDateTime("2027-06-07 09:00:00");
             Check(dt == new DateTime(2027, 6, 7, 9, 0, 0), "ParseDateTime 还原日期时间");
@@ -1671,6 +1690,7 @@ public partial class App : Application
             };
             Check(eeExam.Date == new DateTime(2026, 11, 5), "ExamEntry.Date 能解析 DatePicker 写回的日期串");
 
+            Seg("D");
             // ── D. 颜色 hex（色板 → 设置值）──────────────────
             Check(Views.ColorSwatch.TryParse("#FF2B6CB0", out var c1) && c1.R == 0x2B && c1.B == 0xB0,
                 "8 位 hex 解析（#FF2B6CB0 = 校园蓝）");
@@ -1679,6 +1699,7 @@ public partial class App : Application
             Check(!Views.ColorSwatch.TryParse("红色", out _), "非 hex 文本 → 非法");
             Check(!Views.ColorSwatch.TryParse("#GGGGGG", out _), "非法字符 → 非法");
 
+            Seg("E");
             // ── E. 魔法值 0 → 显式开关（v2.21.0 规划 2.7 P1）────────────
             // 错在这里不会报错：开了开关却存 0 → 老师以为开了、其实永远不刷新（或反之，静默跑起来）。
             var off = Helpers.IntervalSwitch.ToUi(0, fallback: 30, min: 5, max: 120);
@@ -1702,6 +1723,7 @@ public partial class App : Application
                     Helpers.IntervalSwitch.ToUi(60, 30, 5, 120).Slider, 5, 120) == 60,
                 "60 秒往返闭合（不会因开关往返被改小）");
 
+            Seg("F");
             // ── F. 设置页实例化 + 控件往返（v2.21.0）────────────────────
             // ⚠ 这两页的 XAML 改动**没有任何其它测试会碰到** —— 自检不实例化它们，
             //    写错（处理器名拼错 / 控件名写错 / 属性不支持）只会在老师打开设置页时炸。
@@ -1749,6 +1771,7 @@ public partial class App : Application
                 Check(apiDst.WeatherRefreshInterval == 0, "API 页：开关关 → 落盘 0（不是滑条上的 30）");
             }
 
+            Seg("G");
             // ── G. 一键方案（v2.22.0 规划 2.7 P2：考试页 23 控件 / 提醒页 8 开关）────
             // 错在这里不会报错：色值写错 → 老师点了"套用"却看不出变化；字号越界 → 被 Slider 静默夹取，
             // 套用结果与方案描述不符；开关顺序写岔 → 勾"预备铃"结果开了"特殊时段"。
@@ -1835,6 +1858,7 @@ public partial class App : Application
                     "「标准」档位顺序映射正确（前 7 项开、特殊时段关）");
             }
 
+            Seg("H");
             // ── H. 服务器页未保存检测（v2.22.0）────────────────────
             // ⚠ 本页账号/科目改的是**内存副本**、只在 Apply 时写回，而设置窗口的兜底快照
             //   比的是 App.Settings —— 看不出这些改动 → 不加 IsDirty 就会切页静默丢账号。
@@ -1854,6 +1878,7 @@ public partial class App : Application
                 Check(!svPage.IsDirty, "服务器页重新 Load 后复位为「未保存 = 否」");
             }
 
+            Seg("J");
             // ── J. 自动化：软件去重判据 + 临时任务（v2.25.0）────────────────
             // 这两条都属"错了不会报错"：分类判错 → 该打开的没打开 / 该跳过的又开一遍；
             // DeleteAfterRun 漏进 JSON 源生成器 → 老师设了临时任务，重启后变常驻、天天再跑一次。
@@ -1916,6 +1941,7 @@ public partial class App : Application
                 Check(apn.OneShotCheck != null, "自动化页「临时任务」开关在位（XAML 绑定正确）");
             }
 
+            Seg("K");
             // ── K. 按科目设置：提示音 / 上课显示（v2.26.0）────────────────────
             // 三条都属"错了不会报错"：档位映射错 → 老师选的档和实际执行的不一致；
             // 科目匹配太松 → 没配的课也被静音；JSON 没跟上 → 配了、重启后全没了。
@@ -1999,6 +2025,7 @@ public partial class App : Application
                     "课表页 Apply 把按科目设置原样写回（档位不丢、不串）");
             }
 
+            Seg("L");
             // ── L. 听力播放器（v2.27.0，规划 2.9）────────────────────────────
             // 四条最容易"错了不报错"的：①指针推进语义（听一半 vs 听完）②到末尾不循环
             // ③枚举末尾追加的落盘契约 ④例外日（周考广播）判定过松/过紧
@@ -2206,6 +2233,7 @@ public partial class App : Application
                     Check(!aboutPage.IsDirty, "关于页 Apply 写回后应回到「干净」");
                 }
 
+            Seg("L-chrome");
                 // ⑥-1c｜窗口暗色标题栏（2026-10-12 补）
                 // Win10 下子窗口顶部是一条**亮色白条** —— 根因是 Avalonia 只在 Win11 才设
                 // DWMWA_USE_IMMERSIVE_DARK_MODE（源码 WindowImpl.SetFrameThemeVariant 里
@@ -2345,6 +2373,7 @@ public partial class App : Application
                 }.ActionText.Contains("续用"), "打开文件的摘要不再显示「续用上次那份」（否则界面在骗人）");
             }
 
+            Seg("M");
             // ── M. 安全加固（v2.29.0）：终止"内置账号删不掉"的兜底 ──────────────
             // 背景：内置默认账号（teacher01/123456 等）**写死在源码里**，而本仓库开源 → 密码等于公开；
             //       旧实现还在账号表查不到时**无条件**兜底 → 老师在设置页删光账号也删不掉它们，
@@ -2427,6 +2456,7 @@ public partial class App : Application
                     "账号列表为空时不显示风险提示（不误报）");
             }
 
+            Seg("I");
             // ── I. 课表编辑器冒烟（2026-09-27 AOT：XAML 反射绑定 → 编译绑定）────
             // 该文件的 DataGrid 列原来用 `{Binding Xxx}`（反射绑定，IL2026/IL3050）→ 改成编译绑定 + x:DataType。
             // 编译绑定写错通常是**编译错误**（能拦住），但"行渲染成空白"这类只在运行时暴露 → 这里实例化一次兜底。
@@ -2543,6 +2573,7 @@ public partial class App : Application
                 schWin.Close();
             }
 
+            Seg("tail");
             sb.AppendLine("[SJTEST] 结论：PASS");
         }
         catch (Exception ex)
