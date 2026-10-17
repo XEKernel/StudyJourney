@@ -386,6 +386,156 @@ public static class HttpSelfTest
                 try { App.ReloadScheduleFromDisk(); } catch { }
             }
 
+            // ── 17. 上传合法课件 → 落盘 + 回读 ──
+            {
+                using var form = new MultipartFormDataContent();
+                var payload = new ByteArrayContent(Encoding.UTF8.GetBytes("pptx-selftest-payload"));
+                payload.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+                form.Add(payload, "file", "http-selftest.pptx");
+                var (st, body) = await SendAsync(http, HttpMethod.Post, "/api/upload", token2, form);
+                CheckA(sb, st == HttpStatusCode.OK && body.Contains("\"success\":true", StringComparison.Ordinal),
+                    $"POST /api/upload 合法 .pptx → {(int)st} {body}");
+
+                int n = 0;
+                if (Directory.Exists(tempUpload))
+                    n = Directory.GetFiles(tempUpload, "*.pptx", SearchOption.AllDirectories).Length;
+                CheckA(sb, n == 1, $"上传文件已落盘到临时上传目录（找到 {n} 个 .pptx）");
+            }
+
+            // ── 18. 上传非法扩展名 → 400 ──
+            {
+                using var form = new MultipartFormDataContent();
+                form.Add(new ByteArrayContent(new byte[] { 1, 2, 3 }), "file", "evil.exe");
+                var (st, body) = await SendAsync(http, HttpMethod.Post, "/api/upload", token2, form);
+                CheckA(sb, st == HttpStatusCode.BadRequest,
+                    $"POST /api/upload 非法扩展名 .exe → {(int)st}（期望 400）{body}");
+            }
+
+            // ── 19. 上传缺文件字段 → 400 ──
+            {
+                using var form = new MultipartFormDataContent();
+                form.Add(new StringContent("x"), "notfile");
+                var (st, body) = await SendAsync(http, HttpMethod.Post, "/api/upload", token2, form);
+                CheckA(sb, st == HttpStatusCode.BadRequest,
+                    $"POST /api/upload 缺 file 字段 → {(int)st}（期望 400）{body}");
+            }
+
+            // ── 20. GET /api/open-targets 结构 ──
+            {
+                var (st, body) = await SendAsync(http, HttpMethod.Get, "/api/open-targets", token2);
+                CheckA(sb, st == HttpStatusCode.OK && body.Contains("\"ok\":true", StringComparison.Ordinal),
+                    $"GET /api/open-targets → {(int)st}");
+                CheckA(sb, body.Contains("\"coursewareRoot\"", StringComparison.Ordinal) &&
+                           body.Contains("\"subjects\"", StringComparison.Ordinal) &&
+                           body.Contains("\"apps\"", StringComparison.Ordinal) &&
+                           body.Contains("\"pending\"", StringComparison.Ordinal),
+                    "GET /api/open-targets 含 coursewareRoot/subjects/apps/pending");
+            }
+
+            // ── 21. POST / DELETE /api/pending-open ──
+            {
+                // 先真的造一份文件：服务端会校验路径存在（400「文件不存在」是正确行为，不是缺陷）
+                string realFile = Path.Combine(tempUpload, "a.pptx");
+                Directory.CreateDirectory(tempUpload);
+                File.WriteAllText(realFile, "x");
+
+                string target = realFile.Replace("\\", "\\\\");
+                var (st, body) = await SendAsync(http, HttpMethod.Post, "/api/pending-open", token2,
+                    Json("{\"kind\":\"file\",\"path\":\"" + target + "\",\"subject\":\"test\",\"note\":\"\"}"));
+                CheckA(sb, st == HttpStatusCode.OK, $"POST /api/pending-open → {(int)st} {body}");
+
+                var (st2, body2) = await SendAsync(http, HttpMethod.Get, "/api/open-targets", token2);
+                CheckA(sb, st2 == HttpStatusCode.OK && !body2.Contains("\"pending\":null", StringComparison.Ordinal),
+                    "指定后 open-targets 的 pending 非 null");
+
+                var (st3, body3) = await SendAsync(http, HttpMethod.Delete, "/api/pending-open", token2);
+                CheckA(sb, st3 == HttpStatusCode.OK, $"DELETE /api/pending-open → {(int)st3} {body3}");
+
+                var (st4, body4) = await SendAsync(http, HttpMethod.Get, "/api/open-targets", token2);
+                CheckA(sb, st4 == HttpStatusCode.OK && body4.Contains("\"pending\":null", StringComparison.Ordinal),
+                    "清除后 open-targets 的 pending 为 null");
+            }
+
+            // ── 22. [B] 静态文件无 token → 期望 401 ──
+            {
+                var (st, _) = await SendAsync(http, HttpMethod.Get, "/");
+                CheckB(sb, st == HttpStatusCode.Unauthorized,
+                    $"静态首页（/）无 token → 实际 {(int)st}（期望 401）");
+            }
+
+            // ── 23. [B] 白名单外 IP → 期望 403 ──
+            {
+                // 不可构造的原因（不是"跳过"）：
+                //  · IsAllowedIp 对 IPAddress.IsLoopback **永远放行**，而测试只能从 127.0.0.1 发起；
+                //  · whitelist.txt 路径硬编码在 %Documents%\StudyJourney（改它=改实现，本阶段禁止）。
+                // 按要求登记为 B 类 expected-fail，P0-C 需先补可测性（注入 RemoteIpAddress 或可配置白名单路径）。
+                CheckB(sb, false,
+                    "白名单外 IP → 403 —— 单机不可构造（回环恒放行 + whitelist 路径硬编码），P0-C 需补可测性");
+            }
+
+            // ── 24. StartAutoAsync 正常路径（A）＋ 跳端口逻辑（B）──
+            {
+                // ⚠ 必须先停掉正在运行的服务：StartAsync 对"已在运行"是幂等的（BeginStart 返回 null）。
+                Services.HttpServerService.Stop();
+                int start = GetFreePort();
+                int actual = await Services.HttpServerService.StartAutoAsync(start, 5);
+                CheckA(sb, Services.HttpServerService.IsRunning && actual >= start,
+                    $"StartAutoAsync 启动成功，实际端口 {actual}（起始 {start}）");
+
+                using (var probe = new HttpClient
+                {
+                    BaseAddress = new Uri($"http://127.0.0.1:{actual}"),
+                    Timeout = TimeSpan.FromSeconds(10),
+                })
+                {
+                    var (st, _) = await SendAsync(probe, HttpMethod.Get, "/api/health");
+                    CheckA(sb, st == HttpStatusCode.OK, $"StartAutoAsync 的端口可服务（/api/health {(int)st}）");
+                }
+                Services.HttpServerService.Stop();
+
+                // [B] "端口被占用 → 跳到下一个端口"：本机无法稳定构造。
+                // 实测三种占位（TcpListener / 独占 IPv4 / 独占 IPv4+IPv6 双栈）都挡不住
+                // Kestrel 的 "http://*:port" 绑定（Windows 双栈允许共存）。
+                // → 登记为 B 类 expected-fail；P0-C 建议把"选端口"抽成纯函数后单独断言。
+                CheckB(sb, false,
+                    "端口被占用 → 自动跳到下一个端口 —— 本机无法构造（3 种占位均挡不住 Kestrel 的 * 绑定），P0-C 需抽纯函数");
+            }
+
+            // ── 25. Stop 后端口释放，可再次 Start；过期 token 被过滤 ──
+            {
+                int p2 = GetFreePort();
+                await Services.HttpServerService.StartAsync($"http://127.0.0.1:{p2}");
+                CheckA(sb, Services.HttpServerService.IsRunning, $"Stop 后可再次 Start（端口 {p2}）");
+                Services.HttpServerService.Stop();
+                CheckA(sb, !Services.HttpServerService.IsRunning, "Stop 后 IsRunning=false");
+                try
+                {
+                    var probe = new TcpListener(IPAddress.Loopback, p2);
+                    probe.Start();
+                    probe.Stop();
+                }
+                catch (Exception ex)
+                {
+                    throw new Exception($"Stop 后端口 {p2} 未释放：{ex.Message}");
+                }
+                CheckA(sb, true, $"Stop 后端口 {p2} 已释放（可被重新绑定）");
+
+                // 过期 token：启动前写入 tokens.json，LoadTokens 应跳过它
+                string tokensPath = Path.Combine(exeDir, "tokens.json");
+                File.WriteAllText(tokensPath,
+                    "{\"expired-token-abc\":{\"Username\":\"x\",\"DisplayName\":\"x\",\"ExpireAt\":\"2000-01-01T00:00:00Z\"}}");
+                int p3 = GetFreePort();
+                await Services.HttpServerService.StartAsync($"http://127.0.0.1:{p3}");
+                try
+                {
+                    using var h3 = new HttpClient { BaseAddress = new Uri($"http://127.0.0.1:{p3}"), Timeout = TimeSpan.FromSeconds(15) };
+                    var (st, body) = await SendAsync(h3, HttpMethod.Get, "/api/schedule", "expired-token-abc");
+                    CheckA(sb, st == HttpStatusCode.Unauthorized,
+                        $"过期 token（启动时被过滤）→ {(int)st}（期望 401）{body}");
+                }
+                finally { Services.HttpServerService.Stop(); }
+            }
+
             sb.AppendLine($"{P} 分类统计：A 类 {_aPass} 条通过；B 类 expected-fail {_bExpectedFail} 条、已符合 {_bAlreadyOk} 条");
             sb.AppendLine($"{P} 结论：PASS");
         }
