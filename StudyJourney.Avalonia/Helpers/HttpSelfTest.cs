@@ -263,6 +263,129 @@ public static class HttpSelfTest
                     $"登出后再用该 token → {(int)st2}（期望 401）");
             }
 
+            // ── 9. 重新登录（后续用例要 token）──
+            string token2;
+            {
+                var (st, _, tok) = await LoginAsync(http, "httptest", "HttpTest@123", false);
+                CheckA(sb, st == HttpStatusCode.OK && !string.IsNullOrEmpty(tok), "重新登录（非 rememberMe）→ 200");
+                token2 = tok!;
+            }
+
+            // ── 10. GET /api/schedule 结构 ──
+            {
+                var (st, body) = await SendAsync(http, HttpMethod.Get, "/api/schedule", token2);
+                CheckA(sb, st == HttpStatusCode.OK, $"GET /api/schedule 有效 token → {(int)st}");
+                CheckA(sb, body.Contains("\"ok\":true", StringComparison.Ordinal) &&
+                           body.Contains("\"date\"", StringComparison.Ordinal) &&
+                           body.Contains("\"weekday\"", StringComparison.Ordinal) &&
+                           body.Contains("\"schedule\"", StringComparison.Ordinal),
+                    "GET /api/schedule 含 ok/date/weekday/schedule");
+            }
+
+            // ── 11. PUT /api/schedule 合法体（PascalCase，与 AppJsonContext 一致）→ 落盘 + Reload ──
+            {
+                const string payload =
+                    "{\"Entries\":[{\"DayOfWeek\":1,\"Period\":1,\"Subject\":\"HTTPTEST\"," +
+                    "\"StartTimeStr\":\"08:00\",\"EndTimeStr\":\"08:45\",\"Type\":0}]," +
+                    "\"Exams\":[],\"TimeTemplates\":[],\"DayTimeTemplates\":{},\"MakeupDays\":[]}";
+                var (st, resp) = await SendAsync(http, HttpMethod.Put, "/api/schedule", token2, Json(payload));
+                CheckA(sb, st == HttpStatusCode.OK && resp.Contains("\"success\":true", StringComparison.Ordinal),
+                    $"PUT /api/schedule 合法体 → {(int)st} {resp}");
+
+                string disk = File.ReadAllText(Path.Combine(exeDir, "schedule.json"));
+                CheckA(sb, disk.Contains("HTTPTEST", StringComparison.Ordinal),
+                    "PUT 后 schedule.json 落盘（含 HTTPTEST）");
+
+                var (st2, body2) = await SendAsync(http, HttpMethod.Get, "/api/schedule", token2);
+                CheckA(sb, st2 == HttpStatusCode.OK && body2.Contains("HTTPTEST", StringComparison.Ordinal),
+                    "PUT 后 GET 能读到新课表（Reload 生效）");
+            }
+
+            // ── 12. PUT /api/schedule 非法体 → 4xx 且原文件不被破坏 ──
+            {
+                string schedPath = Path.Combine(exeDir, "schedule.json");
+                string before = Convert.ToBase64String(File.ReadAllBytes(schedPath));
+                var (st, resp) = await SendAsync(http, HttpMethod.Put, "/api/schedule", token2, Json("this is not json"));
+                CheckA(sb, st == HttpStatusCode.BadRequest,
+                    $"PUT /api/schedule 非法 JSON → {(int)st}（期望 400）{resp}");
+                string after = Convert.ToBase64String(File.ReadAllBytes(schedPath));
+                CheckA(sb, before == after, "非法体被拒后 schedule.json 字节未变");
+            }
+
+            // ── 13. GET /api/status ──
+            {
+                var (st, body) = await SendAsync(http, HttpMethod.Get, "/api/status", token2);
+                CheckA(sb, st == HttpStatusCode.OK && body.Contains("\"ok\":true", StringComparison.Ordinal),
+                    $"GET /api/status → {(int)st}");
+                CheckA(sb, body.Contains("\"uptimeMinutes\"", StringComparison.Ordinal) &&
+                           body.Contains("\"disk\"", StringComparison.Ordinal) &&
+                           body.Contains("\"recentUploads\"", StringComparison.Ordinal),
+                    "GET /api/status 含 uptimeMinutes/disk/recentUploads");
+            }
+
+            // ── 14. GET / PUT /api/upload-dir ──
+            {
+                var (st, body) = await SendAsync(http, HttpMethod.Get, "/api/upload-dir", token2);
+                CheckA(sb, st == HttpStatusCode.OK && body.Contains("\"ok\":true", StringComparison.Ordinal),
+                    $"GET /api/upload-dir → {(int)st}");
+                CheckA(sb, body.Contains("\"current\"", StringComparison.Ordinal) &&
+                           body.Contains("\"presets\"", StringComparison.Ordinal),
+                    "GET /api/upload-dir 含 current/presets");
+
+                string alt = Path.Combine(tempUpload, "alt");
+                Directory.CreateDirectory(alt);
+                var (st2, body2) = await SendAsync(http, HttpMethod.Put, "/api/upload-dir", token2,
+                    Json("{\"path\":\"" + alt.Replace("\\", "\\\\") + "\"}"));
+                CheckA(sb, st2 == HttpStatusCode.OK && body2.Contains("\"success\":true", StringComparison.Ordinal),
+                    $"PUT /api/upload-dir → {(int)st2} {body2}");
+
+                var (st3, body3) = await SendAsync(http, HttpMethod.Get, "/api/upload-dir", token2);
+                CheckA(sb, st3 == HttpStatusCode.OK && body3.Contains("alt", StringComparison.Ordinal),
+                    "PUT /api/upload-dir 立即生效（GET 已反映新目录）");
+
+                // 还原到临时上传根，避免影响后续上传用例
+                App.Settings.CustomUploadDirectory = tempUpload;
+            }
+
+            // ── 15. GET / PUT /api/config ──
+            {
+                var (st, body) = await SendAsync(http, HttpMethod.Get, "/api/config", token2);
+                CheckA(sb, st == HttpStatusCode.OK && body.Contains("\"className\"", StringComparison.Ordinal),
+                    $"GET /api/config → {(int)st}");
+
+                var (st2, body2) = await SendAsync(http, HttpMethod.Put, "/api/config", token2,
+                    Json("{\"className\":\"HTTPTEST-CLASS\"}"));
+                CheckA(sb, st2 == HttpStatusCode.OK && body2.Contains("HTTPTEST-CLASS", StringComparison.Ordinal),
+                    $"PUT /api/config 改班级名 → {(int)st2}");
+
+                var (st3, body3) = await SendAsync(http, HttpMethod.Get, "/api/config", token2);
+                CheckA(sb, st3 == HttpStatusCode.OK && body3.Contains("HTTPTEST-CLASS", StringComparison.Ordinal),
+                    "PUT /api/config 立即生效（GET 已反映）");
+            }
+
+            // ── 16. [B] 控制台回写路径：把 GET 返回的 schedule 原样 PUT 回去 ──
+            //     期望：磁盘课表**不变**（网页端"保存课表"不该清空课表）。
+            //     风险点：GET 用 ApiJsonContext（camelCase），PUT 读 AppJsonContext（PascalCase），
+            //             若大小写不敏感未开启 → 字段全绑不上 → 存成空课表。
+            {
+                string schedPath = Path.Combine(exeDir, "schedule.json");
+                var (getSt, getBody) = await SendAsync(http, HttpMethod.Get, "/api/schedule", token2);
+                string camel = "";
+                using (var doc = JsonDocument.Parse(getBody))
+                    camel = doc.RootElement.GetProperty("schedule").GetRawText();
+
+                string before = Convert.ToBase64String(File.ReadAllBytes(schedPath));
+                var (st, _) = await SendAsync(http, HttpMethod.Put, "/api/schedule", token2, Json(camel));
+                string after = Convert.ToBase64String(File.ReadAllBytes(schedPath));
+
+                CheckB(sb, getSt == HttpStatusCode.OK && st == HttpStatusCode.OK && before == after,
+                    $"控制台回写（camelCase 原样 PUT）不改动课表 —— GET {(int)getSt} / PUT {(int)st} / 磁盘{(before == after ? "未变" : "已变")}");
+
+                // 不论结果如何都还原课表，避免污染后续断言
+                schedSnap.Restore();
+                try { App.ReloadScheduleFromDisk(); } catch { }
+            }
+
             sb.AppendLine($"{P} 分类统计：A 类 {_aPass} 条通过；B 类 expected-fail {_bExpectedFail} 条、已符合 {_bAlreadyOk} 条");
             sb.AppendLine($"{P} 结论：PASS");
         }
