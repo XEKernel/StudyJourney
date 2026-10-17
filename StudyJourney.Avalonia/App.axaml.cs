@@ -300,6 +300,30 @@ public partial class App : Application
         t.Start();
     }
 
+    /// <summary>
+    /// 自检专用退出：正常仍走 <see cref="Environment.Exit(int)"/>（保持退出码语义），
+    /// 但**备一个 3 秒兜底硬终止**。
+    ///
+    /// <para>为什么需要（P0-A2 实测，2026-10-17）：settings 自检偶发挂死，
+    /// 进度文件证明**自检本身 4.6s 就跑完了**，`seg pre-exit` 与 `process-exit` 都出现
+    /// → 卡在 <c>Environment.Exit</c> 的 CLR 关闭握手（ProcessExit 处理器已跑完、之后挂住）。
+    /// 进程于是活到脚本的 120s 超时，被误判成"自检失败"。</para>
+    ///
+    /// <para>自检结果早已用 <c>File.WriteAllText</c> 落盘（句柄已关闭、内容已刷），
+    /// 所以这里硬终止不会丢结果；正常情况 Exit 先结束进程，兜底线程根本不会执行到 Kill。</para>
+    /// </summary>
+    private static void ExitSelfTest(int code)
+    {
+        var t = new System.Threading.Thread(() =>
+        {
+            System.Threading.Thread.Sleep(3000);
+            try { System.Diagnostics.Process.GetCurrentProcess().Kill(); } catch { }
+        })
+        { IsBackground = true };
+        t.Start();
+        Environment.Exit(code);
+    }
+
     /// <summary>延迟启动远程 HTTP 服务（供老师局域网访问；#10：走 StartAsync 不阻塞任何线程）</summary>
     private static async System.Threading.Tasks.Task StartHttpServerDelayedAsync()
     {
@@ -1510,6 +1534,13 @@ public partial class App : Application
         {
             try { System.IO.File.AppendAllText(progressPath, $"[{DateTime.Now:HH:mm:ss.fff}] seg {name}\n"); } catch { }
         }
+        // 退出阶段诊断：Environment.Exit 会先跑 ProcessExit 处理器。
+        // 挂死后看到 process-exit → Exit 已进入收尾（卡在 finalizer/线程收尾）；
+        // 只看到 pre-exit、没有 process-exit → Exit 在跑处理器之前就卡住了。
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            try { System.IO.File.AppendAllText(progressPath, $"[{DateTime.Now:HH:mm:ss.fff}] process-exit\n"); } catch { }
+        };
         try
         {
             sb.AppendLine("[SJTEST] 设置页语义自检开始");
@@ -2586,7 +2617,8 @@ public partial class App : Application
         System.IO.File.WriteAllText(
             System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "selftest-result.txt"),
             sb.ToString());
-        Environment.Exit(0);
+        Seg("pre-exit");
+        ExitSelfTest(0);
     }
 
     /// <summary>
