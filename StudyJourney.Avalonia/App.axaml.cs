@@ -1541,6 +1541,25 @@ public partial class App : Application
         {
             try { System.IO.File.AppendAllText(progressPath, $"[{DateTime.Now:HH:mm:ss.fff}] process-exit\n"); } catch { }
         };
+
+        // ── 落盘副作用保护（P0-A2 S5）────────────────────────────────────────
+        // 段 I 点「设为调休」会经 ScheduleEditorWindow 的 handler 触发 App.Schedule.Save()
+        // → 真的写盘 schedule.json。自检不该留下任何落盘副作用：否则 exe 目录的课表会在
+        // 多次运行间漂移，连带改变下次运行的数据基线（这也是抖动的一个来源）。
+        // 这里备份「字节 + 原始写入时间」，finally 里原样还原（mtime 也还原）。
+        string schedPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "schedule.json");
+        byte[]? schedBackup = null;
+        DateTime schedMtimeUtc = default;
+        try
+        {
+            if (System.IO.File.Exists(schedPath))
+            {
+                schedBackup = System.IO.File.ReadAllBytes(schedPath);
+                schedMtimeUtc = System.IO.File.GetLastWriteTimeUtc(schedPath);
+            }
+        }
+        catch { }
+
         try
         {
             sb.AppendLine("[SJTEST] 设置页语义自检开始");
@@ -2611,6 +2630,24 @@ public partial class App : Application
         {
             sb.AppendLine($"[SJTEST] 结论：FAIL — {ex.GetType().Name}: {ex.Message}");
             sb.AppendLine(ex.StackTrace);
+        }
+        finally
+        {
+            // P0-A2 S5：把自检期间被 App.Schedule.Save() 写脏的 schedule.json 原样还原
+            // （含原始 mtime）。原本不存在就删掉自检生成的那份。
+            try
+            {
+                if (schedBackup != null)
+                {
+                    System.IO.File.WriteAllBytes(schedPath, schedBackup);
+                    System.IO.File.SetLastWriteTimeUtc(schedPath, schedMtimeUtc);
+                }
+                else if (System.IO.File.Exists(schedPath))
+                {
+                    System.IO.File.Delete(schedPath);
+                }
+            }
+            catch { }
         }
 
         Helpers.AppLogger.Info(sb.ToString());
