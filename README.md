@@ -6,6 +6,13 @@
 > 📦 框架迁移已完成（WPF → Avalonia）；**旧 WPF 版已确认淘汰（2026-09-05），不再维护**，源码归档于 `LegacyWPF/`（本地保留、不入库）
 > 🔐 老师账号密码采用 **PBKDF2 哈希存储**（v2.7.0 起），settings.json 不再保存明文密码
 
+
+> [!IMPORTANT]
+> **本项目已列入重构计划（进行中）** —— 早期代码由 AI 快速堆叠而成，缺少模块边界与约束，维护成本较高。
+> 当前按模块逐个清理，主干分支可能处于半改状态。
+> **请优先使用 [Releases](https://github.com/XEKernel/StudyJourney/releases) 中的构建**，而不是直接编译 main。
+
+
 <p align="center">
   <img src="icon.ico" width="96" alt="图标"/>
 </p>
@@ -302,8 +309,17 @@ StudyJourney.Avalonia/
 
 ---
 
+## 开发方式
+
+本项目**主要由 AI 辅助完成**：作者负责需求定义、架构取舍与验收测试，具体代码实现大量由 AI 生成。
+
+早期开发阶段提示词工程欠缺 —— 上下文给得随意、约束条件没写清、模块边界也没提前划定，
+导致部分实现耦合偏高，改动容易牵一发动全身。后续开发已改为**先定接口与模块边界，再让 AI 产出实现**。
+
+二次开发建议：先读目录结构与核心类，确认数据流向，再动代码。
+
 ## 📄 许可证
 
 MIT License
 
-Copyright (c) 2025 XEKernel
+Copyright (c) 2025-2026 Xu Erkang (XEKernel)
