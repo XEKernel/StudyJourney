@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ── StudyJourney.App：宿主层 ────────────────────────────────────────────
+       组合根 + 主窗壳 + 自检宿主 + 更新编排（C4 宿主层）。
+       预算 ≤ 1,500 行。
+
+       ⚠ M0-S1 阶段刻意保持 OutputType=Library：
+          WinExe 必须有入口点，而 Program.cs 属 S10（组合根）的内容。
+          S10 会把这里改成 <OutputType>WinExe</OutputType> 并加 Program.cs。 -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+    <RootNamespace>StudyJourney.App</RootNamespace>
+    <!-- ⚠ 刻意沿用 v3.3.0 的程序集名（CORE_ARCHITECTURE §1.4.1 的唯一例外）。
+         App 的**目录名**是 StudyJourney.App，但**产物名**保持 StudyJourneyAvalonia：
+         改名会同时牵动 4 处（更新器的 AOT 判定硬编码了 StudyJourneyAvalonia.dll /
+         .runtimeconfig.json、注册表启动项、桌面快捷方式、CI 资产名），
+         而 M0–M3 阶段完全不需要付这个成本。
+         改名的唯一合适时机 = v4.0.0 发版（X 位，判据③"必须人工操作才能升级"），届时单独立项。 -->
+    <AssemblyName>StudyJourneyAvalonia</AssemblyName>
+    <PublishTrimmed>false</PublishTrimmed>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.0.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StudyJourney.Core\StudyJourney.Core.csproj" />
+  </ItemGroup>
+
+</Project>

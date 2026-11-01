@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ── Test：M0 的最小可加载插件（plugin id = "test"）────────────────────
+       唯一用途：证明加载链路 + ALC 类型身份（A0-15）能跑通。
+
+       命名约定（CORE_ARCHITECTURE §1.4.1）：
+         · 源码目录 = plugin id 的 PascalCase  →  id "test" ⇒ plugins/Test
+         · AssemblyName = StudyJourney.Plugin.<Name>  ⇒  StudyJourney.Plugin.Test.dll
+         · plugin.json 的 entry = AssemblyName + ".dll"
+
+       ⚠ **只引用 Sdk**——不引用 Core、不引用 App、不引用其它插件（F1 编译器约束）。
+          若这里出现 <ProjectReference ... StudyJourney.Core ...>，插件化当场失效。
+          S2 起由 plugins/Directory.Build.targets 在构建期强制断言。 -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>StudyJourney.Plugin.Test</RootNamespace>
+    <AssemblyName>StudyJourney.Plugin.Test</AssemblyName>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\StudyJourney.Sdk\StudyJourney.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>

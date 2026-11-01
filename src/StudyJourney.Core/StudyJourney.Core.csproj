@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ── StudyJourney.Core：微内核 ──────────────────────────────────────────
+       C1：加载器 / 注册表 / 事件总线 / 配置 / 日志 / 原子写 / 单例 / 壳 /
+           热键 / 主题 + 通知 / 对话框 / 窗口外框 / 控件 / 契约 / 自检宿主 /
+           纯函数工具 / ResetPlanBuilder。
+       预算 ≤ 3,000 行（预估 2,737，M0 结束时预期 ≤ 1,500）。
+
+       ⚠ 本工程**不得**引用 App，也**不得**引用任何 plugins/*。
+       ⚠ 不得 `using StudyJourney.Avalonia.Models`（v3.3.0 的数据模型，属各插件）。 -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>StudyJourney.Core</RootNamespace>
+    <AssemblyName>StudyJourney.Core</AssemblyName>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\StudyJourney.Sdk\StudyJourney.Sdk.csproj" />
+  </ItemGroup>
+
+</Project>

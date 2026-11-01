@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ── StudyJourney.Sdk：契约层 ────────────────────────────────────────────
+       F1：8 接口 + 接口签名所需全部 DTO + PluginManifest + Result + ISettingsPage。
+       只允许引用 Avalonia（因为 IShellService 要暴露 Control）。
+       禁止出现 Microsoft.Data.Sqlite / NAudio / Docnet（见 CORE_ARCHITECTURE §1.3）。
+       ⚠ 本工程**不得**引用 Core / App，任何插件只引用本工程。 -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>StudyJourney.Sdk</RootNamespace>
+    <AssemblyName>StudyJourney.Sdk</AssemblyName>
+    <!-- B1：自包含 JIT 发布，不做裁剪；不要求 IL2026/IL3050 = 0 -->
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.0.0" />
+  </ItemGroup>
+
+</Project>
