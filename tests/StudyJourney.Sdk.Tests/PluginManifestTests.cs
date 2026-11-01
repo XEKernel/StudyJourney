@@ -33,7 +33,6 @@ public sealed class PluginManifestTests
         Description = "高考倒计时与每日一言",
         Author = "XEKernel",
         MinHostVersion = "4.0.0",
-        HasSettingsPage = true,
     };
 
     [Fact(DisplayName = "测试5-a-1：PluginManifest 序列化 → 反序列化，字段全部一致")]
@@ -53,7 +52,6 @@ public sealed class PluginManifestTests
         Assert.Equal(original.Description, back.Description);
         Assert.Equal(original.Author, back.Author);
         Assert.Equal(original.MinHostVersion, back.MinHostVersion);
-        Assert.Equal(original.HasSettingsPage, back.HasSettingsPage);
         Assert.Null(back.ConfigSection);
         Assert.Null(back.ConfigFieldsShared);
 
@@ -98,7 +96,34 @@ public sealed class PluginManifestTests
         Assert.Single(m.ConfigFields);
         Assert.Empty(m.Dependencies);
         Assert.Null(m.ConfigSection);
-        Assert.True(m.HasSettingsPage);   // 默认 true，纯后台插件才显式写 false
+    }
+
+    [Fact(DisplayName = "测试5-a-5：老清单残留已废弃的 hasSettingsPage 键，必须被安静忽略")]
+    public void Deprecated_HasSettingsPage_Key_Is_Ignored()
+    {
+        // 该字段已从 manifest 删除（设置页有无改由 ISettingsContributor.GetPages() 决定）。
+        // 但老师/旧版本手写的 plugin.json 里可能还留着它 —— 手写文件不该因为
+        // 一个废弃键就整份读不了（"插件被拒载"而原因看不出来，是最难查的一类）。
+        const string withDeprecated = """
+        {
+          "id": "test",
+          "name": "测试",
+          "version": "0.0.1",
+          "entry": "StudyJourney.Plugin.Test.dll",
+          "coreApi": "1.x",
+          "configFields": ["TestField"],
+          "hasSettingsPage": false
+        }
+        """;
+
+        var m = JsonSerializer.Deserialize<PluginManifest>(withDeprecated, Options);
+
+        Assert.NotNull(m);
+        Assert.Equal("test", m!.Id);
+        Assert.Single(m.ConfigFields);
+
+        // 且我们自己写出去的 JSON 里不该再有这个键
+        Assert.DoesNotContain("hasSettingsPage", JsonSerializer.Serialize(m, Options), StringComparison.Ordinal);
     }
 
     [Theory(DisplayName = "测试5-a-4：coreApi 只比对主版本")]

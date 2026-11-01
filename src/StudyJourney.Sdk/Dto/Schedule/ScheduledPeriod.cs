@@ -24,15 +24,23 @@ public sealed record ScheduledPeriod
     /// </remarks>
     public required string Subject { get; init; }
 
-    /// <summary>上课时间，格式 <c>"HH:mm"</c>。</summary>
+    /// <summary>上课时间。</summary>
     /// <remarks>
-    /// 消费者：远程（**原样回传网页**，由网页自己格式化） / 主窗（显示"08:00-08:45"） /
+    /// **格式固定为 <c>HH:mm</c>（24 小时制，零填充）** —— 如 <c>"08:05"</c>；
+    /// 不接受 <c>"8:5"</c> / <c>"08:05:00"</c> / <c>"8:05 AM"</c>（产生方负责归一化）。
+    /// <para>
+    /// 消费者：远程（**原样回传网页**，由网页自己格式化，所以格式必须稳定） / 主窗（显示"08:00-08:45"） /
     /// 提醒（解析成 TimeSpan 后与 now 比较） / 自动化（eventKey 含时间去冒号）
+    /// </para>
     /// </remarks>
     public required string StartTimeStr { get; init; }
 
-    /// <summary>下课时间，格式 <c>"HH:mm"</c>。</summary>
-    /// <remarks>消费者：与 <see cref="StartTimeStr"/> 完全相同的四处</remarks>
+    /// <summary>下课时间。</summary>
+    /// <remarks>
+    /// **格式固定为 <c>HH:mm</c>（24 小时制，零填充）** —— 与 <see cref="StartTimeStr"/> 同一约定，
+    /// 两者必须可比较（<c>"08:00" &lt; "08:45"</c> 字典序即时间序，这是排序代码依赖的性质）。
+    /// <para>消费者：与 <see cref="StartTimeStr"/> 完全相同的四处</para>
+    /// </remarks>
     public required string EndTimeStr { get; init; }
 
     /// <summary>节次类型（普通/早自习/晚自习/晚读/午休）。</summary>

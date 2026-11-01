@@ -9,6 +9,10 @@ namespace StudyJourney.Sdk;
 /// 能在"读一个 JSON"时发现的问题，绝不留到"加载程序集"之后（§2.11）。
 ///
 /// 命名约定见 §1.4.1：<c>id</c> 的 PascalCase 即源码目录名。
+///
+/// **没有 <c>hasSettingsPage</c>**：是否出现设置页由 <c>ISettingsContributor.GetPages()</c>
+/// 是否为空决定（空列表 = 纯后台插件，侧栏不出现空页）。同一事实只能有一处表达 ——
+/// 清单里再写一个布尔，两者迟早不一致（清单说 false、代码却返回了页）。
 /// </summary>
 public sealed record PluginManifest
 {
@@ -64,7 +68,7 @@ public sealed record PluginManifest
 
     /// <summary>
     /// 预留的**只读共享字段**清单。v1 **不实现**：不参与冲突检测，只记录一条 Warn。
-    /// 将来真要"两个插件共读一个字段"时才启用（届时 manifest 从 12 个字段变 13 个）。
+    /// 将来真要"两个插件共读一个字段"时才启用（届时 manifest 从 11 个字段变 12 个）。
     /// </summary>
     /// <remarks>消费者：PluginLoader（仅记录 Warn；当前无实际行为）</remarks>
     [JsonPropertyName("configFieldsShared")]
@@ -84,9 +88,4 @@ public sealed record PluginManifest
     /// <remarks>消费者：PluginLoader（宿主版本过低时的友好提示）</remarks>
     [JsonPropertyName("minHostVersion")]
     public string? MinHostVersion { get; init; }
-
-    /// <summary>是否提供设置页。纯后台插件（诊断）设 false，侧栏不出现空页。</summary>
-    /// <remarks>消费者：设置窗（决定是否向侧栏请求该插件的页面）</remarks>
-    [JsonPropertyName("hasSettingsPage")]
-    public bool HasSettingsPage { get; init; } = true;
 }
