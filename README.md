@@ -9,13 +9,63 @@
 
 > [!IMPORTANT]
 > **本项目已列入重构计划（进行中）** —— 早期代码由 AI 快速堆叠而成，缺少模块边界与约束，维护成本较高。
-> 当前按模块逐个清理，主干分支可能处于半改状态。
+> 重构**在 `rewrite/v1` 分支上进行**（微内核 + 插件化，不破坏现有数据格式），`main` 保持 v3.3.0 的可发布状态，详见下一节。
 > **请优先使用 [Releases](https://github.com/XEKernel/StudyJourney/releases) 中的构建**，而不是直接编译 main。
 
 
 <p align="center">
   <img src="icon.ico" width="96" alt="图标"/>
 </p>
+
+---
+
+## 🚧 正在重构：v4.0.0（微内核 + 插件化）
+
+> **`main` 上的 v3.3.0 仍是可用版本，会继续修 bug；重写在 `rewrite/v1` 分支上进行，两条线互不干扰。**
+> 重写不发版、不合并进 `main`，直到 M0–M3 跑通并全部验收通过。
+
+**为什么重写。** v3.3.0 有 96 个源文件 / 33,448 行，其中 `App.axaml.cs` 一个文件 **3,489 行**、被 **227 处** `App.Xxx` 静态引用 —— 它同时是全局状态、全部窗口入口、更新编排、托盘热键、考试模式与自检调度。改一处要读整座山。所以目标不是"把同样的代码再写一遍"，而是**把这个中枢拆掉**：验收标准是 `grep -c "App\."` 从 227 降到 **< 20**。
+
+**目标架构**
+
+| 层 | 内容 | 约束 |
+|---|---|---|
+| `StudyJourney.Sdk` | 8 个接口 + 跨边界 DTO + `PluginManifest` + `Result`。插件**只许**引用它 | 契约面：8 接口 / manifest 11 字段 |
+| `StudyJourney.Core` | 微内核：插件加载器（ALC）/ 服务注册表 / 事件总线 / 配置分发 / 日志 / 原子写 / 空壳主窗 | **≤ 3,000 行**（预估 2,737） |
+| `StudyJourney.App` | 组合根 + 宿主（引用 Core） | 不计入核心预算 |
+| `plugins/<Name>` | 每个业务能力一个插件：课表 / 倒计时 / 提醒 / 自动化 / 远程 / 考试 / 白板 / 成绩… | 不计入核心预算 |
+
+**六条硬约束**
+
+1. **数据零迁移** —— `settings.json` / `schedule.json` / `automations.json` / `grades.db` / `listening.json` / `pdf-state.json` 全部原样复用，**结构一个字节不改**（枚举仍以整数落盘、字段名不改、键顺序不变）。
+2. **插件不引用核心** —— `plugins/*` 只许引用 `Sdk`，由 `plugins/Directory.Build.targets` 在**编译前**断言拦截（产物都不落盘）。
+3. **核心不认业务** —— 配置按 `plugin.json` 的 `configFields` 分发扁平字段；未认领字段一个都不动，孤儿字段永不自动清理。
+4. **槽位固定 4 个** —— `main.primary` / `main.secondary` / `main.corner` / `main.footer`，**一槽一内容**；插件不许自造槽位（否则壳会为兼容它们长成"超级壳"）。
+5. **禁止新旧版本共存** —— 两个版本并发写 `open-state.json` / `schedule.json` 会产生不可恢复的覆盖，"课表自己变了"这类故障几乎无法诊断。
+6. **13 个自检模式即验收规格** —— 重写不重写自检，直接拿现有 13 个模式（含远程 48 条真实 HTTP 断言）当判卷机。
+
+**里程碑**（每个里程碑都对应现成的自检模式，不靠人眼看）
+
+| 里程碑 | 内容 | 验收判卷 |
+|---|---|---|
+| **M0** | 组合根 + 数据契约层 + 空主窗 + 插件加载器 | `json` / `settings` |
+| M1 | 课表 + 倒计时 + 提醒 + 托盘热键 | `makeup` / `reminder` |
+| M2 | 自动化引擎 + 顺序记忆 | `courseware` |
+| M3 | 远程 17 个端点 | P0-B 的 48 条 HTTP 断言 |
+| M4 | 考试 / 白板 / 批注 / PDF / 听力 | `whiteboard` / `pdf` / `mem` |
+| M5 | 成绩分析 + 更新器 + AOT + 签名 | `grade` / `update` + 真包逐文件核对 |
+
+**当前进度**：**M0 进行中**。已完成 S1 骨架（4 个 csproj + 引用边界）、S2 构建期边界断言（含反向验证）、S3 契约层（8 接口 + DTO + 49 个单测）、S4 `IPluginContext` 六类别收口 + DTO 序列化往返。下一步：ALC 加载器（含三个重写）→ **类型身份验收 A0-15** → 配置分发 → **字节级往返 A0-3**。
+
+**新代码怎么构建**
+
+```bash
+git switch rewrite/v1
+dotnet build StudyJourney.sln -c Release   # 0 错 0 警
+dotnet test  StudyJourney.sln -c Release   # Sdk 36 + Core 13
+```
+
+> 旧工程 `StudyJourney.Avalonia/` 与 `Updater/` 仍在 `main` 上原样保留、**不受重写影响**；它们不进新的 `StudyJourney.sln`。
 
 ---
 
