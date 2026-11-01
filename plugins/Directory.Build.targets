@@ -1,0 +1,40 @@
+<Project>
+
+  <!-- ══════════════════════════════════════════════════════════════════════
+       插件引用边界断言 —— 只作用于 plugins/ 子树下的项目。
+
+       为什么放在 plugins/ 而不是仓库根：
+         仓库根会把这条 target 继承给 v3.3.0 的两个旧工程
+         （StudyJourney.Avalonia / Updater），那是绝不能碰的。
+         MSBuild 的 Directory.Build.targets 采用"就近优先"：plugins/ 下的项目
+         向上找时命中的是这一个，src/ 与 tests/ 下的项目一个都找不到 → 不受影响。
+
+       为什么用 targets 而不是 props：
+         props 在**评估阶段**求值，此时 ProjectReference 还没全部就绪；
+         targets 在**执行阶段**跑（BeforeTargets="Build"），能可靠看到完整清单。
+
+       规则来源：CORE_ARCHITECTURE §1.4（依赖分层）、F1（项目结构）、D6（插件依赖）
+       ══════════════════════════════════════════════════════════════════════ -->
+
+  <Target Name="SJ_CheckPluginReferences" BeforeTargets="Build">
+
+    <!-- ① 白名单：唯一允许的项目引用是 StudyJourney.Sdk。
+         用"Identity 不含 StudyJourney.Sdk"来判，能一次覆盖 Core / App / 其它插件
+         / 未来任何新增工程——不用每加一个核心工程就来这里补一条。 -->
+    <Error Condition="'%(ProjectReference.Filename)' != '' And $([System.String]::Copy('%(ProjectReference.Identity)').Contains('StudyJourney.Sdk')) == false"
+           Text="[插件边界] 项目 $(MSBuildProjectName) 违规引用了 %(ProjectReference.Identity)。插件只允许引用 StudyJourney.Sdk（见 CORE_ARCHITECTURE §1.4 / F1）。" />
+
+    <!-- ② 逐项点名：① 已经能拦住，但报错只说"违规引用了 xxx"，
+         对 StudyJourney.Core 这种最容易被顺手加进来的情况，单独给一句更具体的说明。 -->
+    <Error Condition="$([System.String]::Copy('%(ProjectReference.Filename)').Equals('StudyJourney.Core'))"
+           Text="[插件边界] 项目 $(MSBuildProjectName) 引用了 StudyJourney.Core。核心实现不属于插件可见面——请改为引用 StudyJourney.Sdk。" />
+
+    <Error Condition="$([System.String]::Copy('%(ProjectReference.Filename)').Equals('StudyJourney.App'))"
+           Text="[插件边界] 项目 $(MSBuildProjectName) 引用了 StudyJourney.App。宿主层不属于插件可见面——请改为引用 StudyJourney.Sdk。" />
+
+    <Error Condition="$([System.String]::Copy('%(ProjectReference.Filename)').StartsWith('StudyJourney.Plugin.'))"
+           Text="[插件边界] 项目 $(MSBuildProjectName) 引用了另一个插件 %(ProjectReference.Filename)。插件之间只能通过服务注册表通信，不得直接引用（D6）。" />
+
+  </Target>
+
+</Project>
