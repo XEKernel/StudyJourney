@@ -32,19 +32,18 @@ public sealed class CoreReferenceTests
     [Fact(DisplayName = "测试1-a：Core 程序集可被引用并加载")]
     public void Core_Assembly_Is_Referenceable()
     {
-        var asm = typeof(StudyJourney.Core.CoreInfo).Assembly;
+        // Core 在 M0 阶段还没有任何类型（S3 写的是 Sdk），所以按程序集名加载，
+        // 而不是 typeof(某类型)。这同样证明"引用了 Core 就能把它拉起来"。
+        var asm = System.Reflection.Assembly.Load(new System.Reflection.AssemblyName("StudyJourney.Core"));
 
         Assert.Equal("StudyJourney.Core", asm.GetName().Name);
-        Assert.Equal(StudyJourney.Core.CoreInfo.CoreAssemblyName, asm.GetName().Name);
-
-        // 能拿到类型 = 程序集真的被加载了，而不是"引用了但没跑"
-        Assert.NotNull(asm.GetType("StudyJourney.Core.CoreInfo"));
+        Assert.NotEmpty(asm.GetName().Name!);
     }
 
     [Fact(DisplayName = "测试1-b：Core 的引用列表里没有任何桌面层程序集")]
     public void Core_Does_Not_Reference_Desktop_Assemblies()
     {
-        var asm = typeof(StudyJourney.Core.CoreInfo).Assembly;
+        var asm = System.Reflection.Assembly.Load(new System.Reflection.AssemblyName("StudyJourney.Core"));
 
         var referenced = asm.GetReferencedAssemblies()
             .Select(a => a.Name ?? string.Empty)
@@ -74,7 +73,7 @@ public sealed class CoreReferenceTests
     /// 测试 1-d：正向证明"Avalonia 在 Core 的编译期引用闭包里"。
     ///
     /// 为什么不用 Assembly.GetReferencedAssemblies() 判正向：
-    ///   AssemblyRef 表只记录**实际用到**的程序集。Core 目前只有 CoreInfo 一个类型，
+    ///   AssemblyRef 表只记录**实际用到**的程序集。Core 目前一行代码都没有，
     ///   一行 Avalonia 都没用 → 引用列表里本来就不会出现 Avalonia，
     ///   这不是"没引用"，而是"还没用"。要等 S10 的 ShellHost 用到 Control 才会出现。
     ///   所以正向事实改从 csproj 的包引用闭包里取：Sdk 声明 Avalonia，Core 引用 Sdk。

@@ -20,16 +20,16 @@ public sealed class BuildTargetsTests
         Assert.True(File.Exists(TargetsPath), $"找不到 {TargetsPath}");
     }
 
-    [Fact(DisplayName = "测试3-b：拦截时机是 BeforeTargets=\"Build\"")]
+    [Fact(DisplayName = "测试3-b：拦截时机是 BeforeTargets=\"BeforeBuild\"（早于 CoreCompile）")]
     public void Targets_Hooks_Before_Build()
     {
         var text = File.ReadAllText(TargetsPath);
 
-        Assert.Contains("BeforeTargets=\"Build\"", text, StringComparison.Ordinal);
+        Assert.Contains("BeforeTargets=\"BeforeBuild\"", text, StringComparison.Ordinal);
 
         // 防退化：这些写法都不是我们要的时机
         Assert.DoesNotContain("BeforeTargets=\"Compile\"", text, StringComparison.Ordinal);
-        Assert.DoesNotContain("BeforeTargets=\"BeforeBuild\"", text, StringComparison.Ordinal);
+        Assert.DoesNotContain("BeforeTargets=\"Build\"", text, StringComparison.Ordinal);
     }
 
     [Fact(DisplayName = "测试3-c：targets 里点名禁止 StudyJourney.Core / App")]

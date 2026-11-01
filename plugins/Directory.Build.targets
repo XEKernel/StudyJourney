@@ -11,12 +11,13 @@
 
        为什么用 targets 而不是 props：
          props 在**评估阶段**求值，此时 ProjectReference 还没全部就绪；
-         targets 在**执行阶段**跑（BeforeTargets="Build"），能可靠看到完整清单。
+         targets 在**执行阶段**跑，且挂在 BeforeBuild 上（早于 CoreCompile），
+         能可靠看到完整清单，并在任何产物落盘**之前**失败。
 
        规则来源：CORE_ARCHITECTURE §1.4（依赖分层）、F1（项目结构）、D6（插件依赖）
        ══════════════════════════════════════════════════════════════════════ -->
 
-  <Target Name="SJ_CheckPluginReferences" BeforeTargets="Build">
+  <Target Name="SJ_CheckPluginReferences" BeforeTargets="BeforeBuild">
 
     <!-- ① 白名单：唯一允许的项目引用是 StudyJourney.Sdk。
          用"Identity 不含 StudyJourney.Sdk"来判，能一次覆盖 Core / App / 其它插件
