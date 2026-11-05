@@ -31,6 +31,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\StudyJourney.Core\StudyJourney.Core.csproj" />
+    <!-- A0-15 探针夹具：为了"先构建、再加载"，这里加引用；代码里不使用它的任何类型，
+         所以它不会被默认 ALC 提前加载（否则类型身份测试就没有意义了）。 -->
+    <ProjectReference Include="..\fixtures\A0_15_Probe\A0_15_Probe.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ── A0-15 探针插件（测试夹具，不是可分发的插件）──────────────────────
+       唯一用途：验证 ALC 的"类型身份一致性"（CORE_ARCHITECTURE §0.8 / A0-15）。
+
+       两条刻意设计：
+       1. **只引 StudyJourney.Sdk** —— 不引 Core / App，也不直引 Avalonia。
+          Avalonia 必须由 Sdk 的 PackageReference **传递**得到，这才符合真实插件的形态。
+       2. **代码里用一次 typeof(Avalonia.Controls.TextBlock)** —— 只取类型不实例化，
+          强制运行时去解析 Avalonia.Controls。白名单若漏了 Avalonia，
+          插件就会拿到插件目录里的第二份，A0-15-b 当场失败。
+
+       ⚠ 命名偏离 §1.4.1（这里是 A0_15_Probe 而不是 StudyJourney.Plugin.A015Probe）：
+          它不是插件，是测试夹具；按 `A0-15` 这个验收编号命名便于在测试输出里对号入座。 -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>StudyJourney.Plugin.A015Probe</RootNamespace>
+    <AssemblyName>A0_15_Probe</AssemblyName>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- 唯一引用：契约层。Avalonia 由它传递（不直引）。 -->
+    <ProjectReference Include="..\..\..\src\StudyJourney.Sdk\StudyJourney.Sdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 清单跟着产物走，测试与将来的加载器都能就近读到 -->
+    <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
