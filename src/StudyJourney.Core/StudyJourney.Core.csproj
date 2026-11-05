@@ -22,4 +22,10 @@
     <ProjectReference Include="..\StudyJourney.Sdk\StudyJourney.Sdk.csproj" />
   </ItemGroup>
 
+  <!-- 让测试能直接断言 internal 的白名单判定与 Load()（protected override 无法从外部调用）。
+       只开放给 Core 的测试工程，正式程序集不受影响。 -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="StudyJourney.Core.Tests" />
+  </ItemGroup>
+
 </Project>
