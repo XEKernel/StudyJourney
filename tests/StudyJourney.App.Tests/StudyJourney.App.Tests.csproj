@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ── StudyJourney.App.Tests ─────────────────────────────────────────────
+       被测对象：StudyJourney.App（宿主层：组合根 + 空白壳 + smoke）。
+       命名与 TFM 约定见 CORE_ARCHITECTURE §1.4.2：tests/<被测对象>.Tests、net10.0。
+
+       ⚠ 本工程**间接**得到 Avalonia.Desktop（App 的 PackageReference），但测试从不
+         调用 AppBuilder.UsePlatformDetect() —— smoke 路径不初始化任何 UI 平台。 -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <RootNamespace>StudyJourney.App.Tests</RootNamespace>
+    <AssemblyName>StudyJourney.App.Tests</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\StudyJourney.App\StudyJourney.App.csproj" />
+    <!-- A0-15 探针夹具当"最小可加载插件"用：证明组合根 → 加载器 → 插件 → 服务注册整条链。
+         代码里不使用它的类型，所以不会被默认 ALC 提前加载。 -->
+    <ProjectReference Include="..\fixtures\A0_15_Probe\A0_15_Probe.csproj" />
+  </ItemGroup>
+
+</Project>

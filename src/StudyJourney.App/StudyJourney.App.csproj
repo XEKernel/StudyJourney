@@ -4,15 +4,14 @@
        组合根 + 主窗壳 + 自检宿主 + 更新编排（C4 宿主层）。
        预算 ≤ 1,500 行。
 
-       ⚠ M0-S1 阶段刻意保持 OutputType=Library：
-          WinExe 必须有入口点，而 Program.cs 属 S10（组合根）的内容。
-          S10 会把这里改成 <OutputType>WinExe</OutputType> 并加 Program.cs。 -->
+       S10 起是 WinExe（入口 Program.cs：单实例 Mutex + 空主窗 + smoke 无窗模式）。
+       M0 的组合根只装配 M0 需要的 5 件东西：日志 / 配置 / 注册表 / 事件总线 / 加载器。 -->
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <OutputType>Library</OutputType>
+    <OutputType>WinExe</OutputType>
     <RootNamespace>StudyJourney.App</RootNamespace>
     <!-- ⚠ 刻意沿用 v3.3.0 的程序集名（CORE_ARCHITECTURE §1.4.1 的唯一例外）。
          App 的**目录名**是 StudyJourney.App，但**产物名**保持 StudyJourneyAvalonia：
@@ -32,7 +31,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- 桌面目标只允许出现在 App 层：Core / Sdk 都不引 Avalonia.Desktop（§1.4）。 -->
     <ProjectReference Include="..\StudyJourney.Core\StudyJourney.Core.csproj" />
+  </ItemGroup>
+
+  <!-- 只给 App 的测试工程看 internal（smoke 入口与组合根要能被直接调用断言，不必起 GUI）。 -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="StudyJourney.App.Tests" />
   </ItemGroup>
 
 </Project>

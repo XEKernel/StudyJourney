@@ -34,6 +34,8 @@
     <!-- A0-15 探针夹具：为了"先构建、再加载"，这里加引用；代码里不使用它的任何类型，
          所以它不会被默认 ALC 提前加载（否则类型身份测试就没有意义了）。 -->
     <ProjectReference Include="..\fixtures\A0_15_Probe\A0_15_Probe.csproj" />
+    <!-- S10 加载器失败分支夹具（InitFailed/StartFailed/回滚）。同样只为构建顺序与 dll 落盘。 -->
+    <ProjectReference Include="..\fixtures\FailingPlugin\FailingPlugin.csproj" />
   </ItemGroup>
 
 </Project>

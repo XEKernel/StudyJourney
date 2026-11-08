@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ── FailingPlugin（测试夹具，不是可分发的插件）──────────────────────────
+       唯一用途：验证加载器的失败分支与回滚（CORE_ARCHITECTURE §3.2 E14/E15/E16）：
+         · fail-mode.txt 以 init 开头  → InitializeAsync 先注册服务再返回 Fail（验证回滚）
+         · fail-mode.txt 以 throw 开头 → InitializeAsync 抛异常（验证 plugin-threw）
+         · fail-mode.txt 以 start 开头 → StartAsync 返回 Fail（验证启动失败回滚）
+         · 无文件 / 其它内容           → 正常启动（对照组）
+
+       ⚠ 只引用 Sdk，与真实插件同构。 -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>StudyJourney.Plugin.Failing</RootNamespace>
+    <AssemblyName>FailingPlugin</AssemblyName>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\StudyJourney.Sdk\StudyJourney.Sdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

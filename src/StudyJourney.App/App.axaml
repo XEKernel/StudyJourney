@@ -1,0 +1,11 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="StudyJourney.App.App"
+             RequestedThemeVariant="Dark">
+
+  <!-- M0：只装主题，不装任何页面/样式资源。图标、字体、调色板等属 M1 的壳。 -->
+  <Application.Styles>
+    <FluentTheme />
+  </Application.Styles>
+
+</Application>

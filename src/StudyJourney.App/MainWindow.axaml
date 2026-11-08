@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="StudyJourney.App.MainWindow"
+        Title="学程 StudyJourney"
+        Width="960" Height="640">
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       M0 主窗：**只有一个空 Grid**（CORE_ARCHITECTURE §6 硬约束 3）。
+
+       这里写任何一条都等于 M0 失去验收价值：
+         ✗ 菜单（Menu / MenuItem）        → M1 的壳（IShellService.RegisterMenuItem）
+         ✗ 托盘（TrayIcon）              → M1
+         ✗ 热键                          → M1
+         ✗ 槽位内容（倒计时/课表/胶囊）   → M1（D-5：4 个固定槽位）
+         ✗ 标题栏文字以外的任何业务控件
+
+       验收方式：tests/StudyJourney.App.Tests 直接解析本文件，断言根下恰好一个
+       Grid 且它没有子元素。改动这里前先读那条测试。
+       ══════════════════════════════════════════════════════════════════ -->
+  <Grid />
+
+</Window>
