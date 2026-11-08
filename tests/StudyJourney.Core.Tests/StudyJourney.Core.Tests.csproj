@@ -36,6 +36,9 @@
     <ProjectReference Include="..\fixtures\A0_15_Probe\A0_15_Probe.csproj" />
     <!-- S10 加载器失败分支夹具（InitFailed/StartFailed/回滚）。同样只为构建顺序与 dll 落盘。 -->
     <ProjectReference Include="..\fixtures\FailingPlugin\FailingPlugin.csproj" />
+    <!-- S11：M0 的最小真插件。测试把它复制成临时 plugins/test/ 再走完整加载链路，
+         代码里不使用它的类型（保持"默认 ALC 不提前加载"这个前提）。 -->
+    <ProjectReference Include="..\..\plugins\Test\Test.csproj" />
   </ItemGroup>
 
 </Project>

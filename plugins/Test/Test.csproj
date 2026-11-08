@@ -25,4 +25,9 @@
     <ProjectReference Include="..\..\src\StudyJourney.Sdk\StudyJourney.Sdk.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 清单跟产物走：加载器按 plugins/<id>/plugin.json 发现插件，构建输出里必须有一份。 -->
+    <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

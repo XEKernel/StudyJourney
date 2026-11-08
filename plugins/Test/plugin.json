@@ -1,0 +1,11 @@
+{
+  "id": "test",
+  "name": "测试插件",
+  "version": "0.0.1",
+  "entry": "StudyJourney.Plugin.Test.dll",
+  "coreApi": "1.x",
+  "dependencies": [],
+  "configFields": ["TestField"],
+  "description": "M0 的最小插件：只注册一个假的 IScheduleProvider，用于验证加载链路与 ALC 类型身份",
+  "author": "XEKernel"
+}
