@@ -69,4 +69,7 @@ public static class ErrorCodes
 
     /// <summary>热键编号超出上限。</summary>
     public const string HotKeyLimit = "hotkey-limit";
+
+    /// <summary>热键主键不在支持清单里（只有字母/数字/F1–F12/方向键/常用控制键）。</summary>
+    public const string HotKeyUnsupported = "hotkey-unsupported";
 }
