@@ -62,7 +62,15 @@ public static class Program
 
         try
         {
-            var host = HostComposition.Build(options.PluginsDirectory, options.DataDirectory, options.ConfigFile);
+            // M1 起日志落文件（WinExe 没有控制台，Console.WriteLine 等于丢弃）。
+            var logPath = Path.Combine(AppContext.BaseDirectory, "logs", "core.log");
+            Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
+
+            var host = HostComposition.Build(
+                options.PluginsDirectory,
+                options.DataDirectory,
+                options.ConfigFile,
+                logSink: line => File.AppendAllText(logPath, line + Environment.NewLine));
             try
             {
                 // 阻塞等待加载完成：Avalonia 尚未启动，没有同步上下文，不会死锁。
@@ -72,7 +80,7 @@ public static class Program
                 foreach (var registration in host.Registry.Registrations)
                     Console.WriteLine($"  - {registration.ServiceType.Name}  owner: {registration.Owner}");
 
-                BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+                BuildAvaloniaApp(host).StartWithClassicDesktopLifetime(args);
                 return 0;
             }
             finally
@@ -89,11 +97,18 @@ public static class Program
         }
     }
 
-    /// <summary>Avalonia 引导（与 v3.3.0 相同的 UsePlatformDetect，仅 Windows 目标）。</summary>
-    public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+    /// <summary>
+    /// Avalonia 引导（与 v3.3.0 相同的 UsePlatformDetect，仅 Windows 目标）。
+    /// 传入组合根：<see cref="App"/> 在 <c>OnFrameworkInitializationCompleted</c> 里把壳挂上并重放插件登记。
+    /// </summary>
+    public static AppBuilder BuildAvaloniaApp(HostServices host)
+    {
+        ArgumentNullException.ThrowIfNull(host);
+
+        return AppBuilder.Configure(() => new App(host))
             .UsePlatformDetect()
             .LogToTrace();
+    }
 
     private static int RunSmoke(CommandLineOptions options)
     {

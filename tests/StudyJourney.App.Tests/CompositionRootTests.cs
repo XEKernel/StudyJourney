@@ -1,3 +1,4 @@
+using Avalonia.Controls;
 using StudyJourney.App;
 using StudyJourney.Core.Plugins;
 using StudyJourney.Core.Services;
@@ -52,8 +53,8 @@ public sealed class CompositionRootTests : IDisposable
         }
     }
 
-    [Fact(DisplayName = "S10-05 M0 刻意不装配壳与通知：IShellService / INotificationService 均未注册")]
-    public async Task Build_DoesNotRegisterShellInM0()
+    [Fact(DisplayName = "M1-06 M1 装配了壳与通知：IShellService（owner=core）与 INotificationService 均已注册")]
+    public async Task Build_RegistersShellAndNotifications()
     {
         var host = HostComposition.Build(
             Path.Combine(_root, "plugins"),
@@ -61,8 +62,42 @@ public sealed class CompositionRootTests : IDisposable
 
         try
         {
-            Assert.False(host.Registry.IsRegistered<IShellService>());
-            Assert.False(host.Registry.IsRegistered<INotificationService>());
+            Assert.True(host.Registry.IsRegistered<IShellService>());
+            Assert.True(host.Registry.IsRegistered<INotificationService>());
+
+            // 壳登记在核心名下（插件不能事后顶掉它：reserved-service）
+            Assert.Equal(
+                Core.Services.ServiceRegistry.CoreOwner,
+                host.Registry.Registrations.Single(r => r.ServiceType == typeof(IShellService)).Owner);
+
+            // 取出来的壳可用：未知槽位报 slot-unknown，而不是抛
+            var shell = host.Registry.GetRequired<IShellService>();
+            Assert.True(shell.IsOk);
+
+            var unknown = shell.Value!.RegisterSlotContent("main.nope", new Border());
+            Assert.True(unknown.IsFailure);
+            Assert.Equal("slot-unknown", unknown.Code);
+        }
+        finally
+        {
+            await host.DisposeAsync();
+        }
+    }
+
+    [Fact(DisplayName = "M1-07 插件抢先注册核心保留的 IShellService → reserved-service（不覆盖核心的）")]
+    public async Task Plugin_CannotReplaceShell()
+    {
+        var host = HostComposition.Build(
+            Path.Combine(_root, "plugins"),
+            Path.Combine(_root, "data"));
+
+        try
+        {
+            // 模拟插件用带 owner 的注册入口去抢保留服务
+            var attempt = host.Registry.RegisterOwned<IShellService>("rogue", host.Shell.ForPlugin("rogue"));
+
+            Assert.True(attempt.IsFailure);
+            Assert.Equal("reserved-service", attempt.Code);
         }
         finally
         {

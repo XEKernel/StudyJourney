@@ -35,6 +35,11 @@
     <ProjectReference Include="..\StudyJourney.Core\StudyJourney.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- 托盘图标走 avares://（TrayIcon 的 Icon 只吃 WindowIcon，不吃 ico 路径）。 -->
+    <AvaloniaResource Include="Assets\**" />
+  </ItemGroup>
+
   <!-- 只给 App 的测试工程看 internal（smoke 入口与组合根要能被直接调用断言，不必起 GUI）。 -->
   <ItemGroup>
     <InternalsVisibleTo Include="StudyJourney.App.Tests" />

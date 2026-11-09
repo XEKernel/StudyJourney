@@ -2,21 +2,36 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="StudyJourney.App.MainWindow"
         Title="学程 StudyJourney"
-        Width="960" Height="640">
+        Width="960" Height="640"
+        MinWidth="480" MinHeight="320">
 
   <!-- ══════════════════════════════════════════════════════════════════
-       M0 主窗：**只有一个空 Grid**（CORE_ARCHITECTURE §6 硬约束 3）。
+       M1-A 主窗：**四个固定槽位，没有别的东西**（CORE_ARCHITECTURE §1.2.9 / D-5）。
 
-       这里写任何一条都等于 M0 失去验收价值：
-         ✗ 菜单（Menu / MenuItem）        → M1 的壳（IShellService.RegisterMenuItem）
-         ✗ 托盘（TrayIcon）              → M1
-         ✗ 热键                          → M1
-         ✗ 槽位内容（倒计时/课表/胶囊）   → M1（D-5：4 个固定槽位）
-         ✗ 标题栏文字以外的任何业务控件
+       一槽一内容，由 ShellHost 按插件注册结果填：
+         main.primary    视觉主体（倒计时插件）      —— 空置时显示占位文字
+         main.secondary  次区，窄（课表摘要）        —— 空置时整块隐藏
+         main.corner     角标，固定高（课件胶囊）    —— 空置时整块隐藏
+         main.footer     底栏一行，**核心自用**      —— 常驻，显示版本与状态
 
-       验收方式：tests/StudyJourney.App.Tests 直接解析本文件，断言根下恰好一个
-       Grid 且它没有子元素。改动这里前先读那条测试。
+       仍然不许出现：菜单栏、托盘（在代码里建，不在 axaml）、按钮、业务文本。
+       tests/StudyJourney.App.Tests/MainWindowStructureTests 解析本文件守着这条。
        ══════════════════════════════════════════════════════════════════ -->
-  <Grid />
+
+  <Grid RowDefinitions="*,Auto,Auto" Margin="14,12,14,10" RowSpacing="8">
+
+    <!-- 主区 | 次区（次区最大 40% 宽，D-5 已拍板） -->
+    <Grid Grid.Row="0" ColumnDefinitions="3*,2*" ColumnSpacing="14">
+      <ContentControl x:Name="PrimarySlotHost" Grid.Column="0" />
+      <ContentControl x:Name="SecondarySlotHost" Grid.Column="1" IsVisible="False" />
+    </Grid>
+
+    <!-- 角标 -->
+    <ContentControl x:Name="CornerSlotHost" Grid.Row="1" IsVisible="False" />
+
+    <!-- 底栏（核心自用，常驻） -->
+    <ContentControl x:Name="FooterSlotHost" Grid.Row="2" Height="20" />
+
+  </Grid>
 
 </Window>

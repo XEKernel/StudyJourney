@@ -2,6 +2,7 @@ using StudyJourney.Core.Config;
 using StudyJourney.Core.Logging;
 using StudyJourney.Core.Plugins;
 using StudyJourney.Core.Services;
+using StudyJourney.Core.Shell;
 using StudyJourney.Sdk;
 using Xunit;
 
@@ -66,7 +67,7 @@ public sealed class PluginLoaderTests : IDisposable
         var bus = new EventBus(_logger);
         registry.Register<IEventBus>(bus);
         var config = ConfigStore.CreateInMemory(logger: _logger);
-        var loader = new PluginLoader(registry, bus, config, _logger);
+        var loader = new PluginLoader(registry, bus, config, new ShellService(), _logger);
         var report = await loader.DiscoverAndLoadAsync(_pluginsDirectory, _dataDirectory);
         return (report, loader, registry);
     }

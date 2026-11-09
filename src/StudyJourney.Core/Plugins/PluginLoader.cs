@@ -1,6 +1,7 @@
 using StudyJourney.Core.Config;
 using StudyJourney.Core.Logging;
 using StudyJourney.Core.Services;
+using StudyJourney.Core.Shell;
 using StudyJourney.Sdk;
 using StudyJourney.Sdk.Context;
 
@@ -24,15 +25,17 @@ public sealed class PluginLoader : IAsyncDisposable
     private readonly ServiceRegistry _registry;
     private readonly IEventBus _bus;
     private readonly ConfigStore _config;
+    private readonly ShellService _shell;
     private readonly AppLogger _logger;
     private readonly List<DiscoveredPlugin> _plugins = [];
     private readonly List<(string Id, WeakReference Weak)> _pendingUnloadChecks = [];
 
-    public PluginLoader(ServiceRegistry registry, IEventBus bus, ConfigStore config, AppLogger logger)
+    public PluginLoader(ServiceRegistry registry, IEventBus bus, ConfigStore config, ShellService shell, AppLogger logger)
     {
         _registry = registry;
         _bus = bus;
         _config = config;
+        _shell = shell;
         _logger = logger;
     }
 
@@ -110,6 +113,7 @@ public sealed class PluginLoader : IAsyncDisposable
             {
                 _bus.DisposeOwner(slot.Context.EventOwner);   // 保险：插件没释放订阅也不会回调进已卸载 ALC
                 _registry.RemoveAllOf(slot.RuntimeId);
+                _shell.RemoveAllOf(slot.RuntimeId);            // 菜单/托盘/槽位/热键：不清会留下"点了就空引用"
             }
 
             var weak = PluginAssemblyHost.Unload(slot);
@@ -152,7 +156,8 @@ public sealed class PluginLoader : IAsyncDisposable
                 _bus,
                 _config.CreateHandle(manifest.Id, manifest.ConfigFields),
                 new PluginStorage(manifest.Id, pluginsDirectory, dataDirectory),
-                _logger.ForPlugin(manifest.Id));
+                _logger.ForPlugin(manifest.Id),
+                _shell.ForPlugin(manifest.Id));
             slot.Context = context;
 
             try

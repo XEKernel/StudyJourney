@@ -12,7 +12,7 @@ namespace StudyJourney.Core.Shell;
 ///
 /// ⚠ 真值以宿主的 <see cref="IUiHost.CurrentTheme"/> 为准；这里是"能看"不是"好看"。
 /// </summary>
-internal static class ShellDefaults
+public static class ShellDefaults
 {
     /// <summary>与 v3.3.0 暗色主题同源的默认色板（校园蓝 #2B6CB0 体系）。</summary>
     public static ThemeTokens DefaultDark { get; } = new()
