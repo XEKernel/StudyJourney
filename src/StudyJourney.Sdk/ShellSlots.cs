@@ -22,4 +22,24 @@ public static class ShellSlots
     /// <summary>底栏（固定 1 行，常驻）。**核心自己用**，插件不应注册。</summary>
     /// <remarks>消费者：核心（版本/更新提示/状态）</remarks>
     public const string Footer = "main.footer";
+
+    /// <summary>四个槽位的固定顺序（主区 → 次区 → 角标 → 底栏）。壳按此顺序布局。</summary>
+    /// <remarks>消费者：ShellService（合法性校验）、ShellHost（布局顺序）</remarks>
+    public static IReadOnlyList<string> AllSlots { get; } = [Primary, Secondary, Corner, Footer];
+
+    /// <summary>槽位 ID 是否是四个固定值之一（区分大小写）。</summary>
+    /// <remarks>消费者：ShellService（<c>slot-unknown</c> 的判定）</remarks>
+    public static bool IsValid(string? slotId)
+    {
+        if (slotId is null)
+            return false;
+
+        foreach (var known in AllSlots)
+        {
+            if (string.Equals(known, slotId, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
 }
