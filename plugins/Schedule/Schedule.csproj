@@ -32,4 +32,11 @@
     <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- 内部类型对测试工程可见：ScheduleResolver / ScheduleStore / ScheduleProvider
+       刻意做成 internal（插件边界内不该外泄实现），但它们是纯逻辑，必须在
+       StudyJourney.Plugins.Tests 里直接断言（调休映射与 JSON 往返是最容易静默出错的两处）。 -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="StudyJourney.Plugins.Tests" />
+  </ItemGroup>
+
 </Project>
