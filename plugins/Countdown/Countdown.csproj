@@ -34,4 +34,10 @@
     <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
+  <!-- 纯逻辑（CountdownMath / CountdownSettings）是 internal：插件对外只暴露 IPlugin，
+       但测试要逐条钉日期换算与配置容错，所以只对它开一个口子（与 App/Core 的做法一致）。 -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="StudyJourney.Plugins.Tests" />
+  </ItemGroup>
+
 </Project>
