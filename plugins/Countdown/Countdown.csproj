@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ── Countdown：倒计时插件（plugin id = "countdown"，M1-B）──────────────────
+       主窗 `main.primary` 槽位挂倒计时卡片 + 菜单/托盘入口 + Ctrl+Shift+H。
+
+       命名约定（CORE_ARCHITECTURE §1.4.1）：
+         · 源码目录 = plugin id 的 PascalCase  →  id "countdown" ⇒ plugins/Countdown
+         · AssemblyName = StudyJourney.Plugin.<Name>  ⇒  StudyJourney.Plugin.Countdown.dll
+         · plugin.json 的 entry = AssemblyName + ".dll"
+
+       ⚠ **只引用 Sdk**——不引用 Core、不引用 App、不引用其它插件（F1）。
+         由 plugins/Directory.Build.targets 在构建期强制断言。
+
+       ⚠ **不用 axaml**：插件 UI 一律纯 C# 构建。
+         理由：axaml 的 `x:Name` 不生成字段（需 Avalonia.NameGenerator），
+         M1-A 在 App 层踩过一次——0 错 0 警、运行期恒 null、症状是"槽位永远挂不上"。
+         插件数量会增长，不能让每个插件作者各踩一遍。 -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>StudyJourney.Plugin.Countdown</RootNamespace>
+    <AssemblyName>StudyJourney.Plugin.Countdown</AssemblyName>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\StudyJourney.Sdk\StudyJourney.Sdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 清单跟产物走：加载器按 plugins/<id>/plugin.json 发现插件。 -->
+    <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

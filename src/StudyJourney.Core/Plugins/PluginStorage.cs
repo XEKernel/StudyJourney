@@ -21,6 +21,11 @@ public sealed class PluginStorage : IPluginStorage
 
         PluginDirectory = Path.GetFullPath(Path.Combine(pluginsRoot, pluginId));
         DataDirectory = Path.GetFullPath(Path.Combine(dataRoot, pluginId));
+
+        // 程序根 = data/ 的上一级。测试里 dataRoot 可能是临时目录，同样成立。
+        HostDirectory = Path.GetDirectoryName(Path.GetFullPath(dataRoot))
+                        ?? Path.GetFullPath(dataRoot);
+
         Directory.CreateDirectory(DataDirectory);
     }
 
@@ -29,6 +34,9 @@ public sealed class PluginStorage : IPluginStorage
 
     /// <inheritdoc />
     public string PluginDirectory { get; }
+
+    /// <inheritdoc />
+    public string HostDirectory { get; }
 
     /// <inheritdoc />
     public string ResolvePath(string relativePath)

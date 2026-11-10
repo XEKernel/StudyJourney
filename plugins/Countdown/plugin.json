@@ -1,0 +1,20 @@
+{
+  "id": "countdown",
+  "name": "倒计时",
+  "version": "0.1.0",
+  "entry": "StudyJourney.Plugin.Countdown.dll",
+  "coreApi": "1.x",
+  "dependencies": [],
+  "configFields": [
+    "GaokaoDateStr",
+    "StartDateStr",
+    "ShowDays",
+    "ShowHours",
+    "ShowMinutes",
+    "ShowSeconds",
+    "ShowProgressBar",
+    "CountdownProgressBarStyle"
+  ],
+  "description": "主窗高考倒计时：剩余天数 / 备考进度 / 可选时分秒。数据沿用 v3.3.0 的 settings.json 字段，无需迁移",
+  "author": "XEKernel"
+}

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- ── Schedule：课表插件（plugin id = "schedule"，M1-C）─────────────────────
+       实现 `IScheduleProvider`（别的插件靠它拿"今天第几节 / 现在上什么课"）
+       + 主窗 `main.secondary` 槽位挂课表栏。
+
+       数据：**直接读写程序目录的 `schedule.json`**（v3.3.0 遗留位置，零迁移）。
+       路径来自 `IPluginStorage.HostDirectory`，不要自己拼 exe 路径。
+
+       命名约定（CORE_ARCHITECTURE §1.4.1）：
+         · 源码目录 = plugin id 的 PascalCase  →  id "schedule" ⇒ plugins/Schedule
+         · AssemblyName = StudyJourney.Plugin.<Name>  ⇒  StudyJourney.Plugin.Schedule.dll
+         · plugin.json 的 entry = AssemblyName + ".dll"
+
+       ⚠ **只引用 Sdk**（plugins/Directory.Build.targets 构建期断言）。
+       ⚠ **不用 axaml**（理由见 plugins/Countdown/Countdown.csproj 的注释）。 -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>StudyJourney.Plugin.Schedule</RootNamespace>
+    <AssemblyName>StudyJourney.Plugin.Schedule</AssemblyName>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\StudyJourney.Sdk\StudyJourney.Sdk.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="plugin.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

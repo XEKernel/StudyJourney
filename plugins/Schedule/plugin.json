@@ -1,0 +1,11 @@
+{
+  "id": "schedule",
+  "name": "课表",
+  "version": "0.1.0",
+  "entry": "StudyJourney.Plugin.Schedule.dll",
+  "coreApi": "1.x",
+  "dependencies": [],
+  "configFields": [],
+  "description": "课表数据与主窗课表栏。直接读写程序目录的 schedule.json（含调休），为提醒/自动化插件提供 IScheduleProvider",
+  "author": "XEKernel"
+}
