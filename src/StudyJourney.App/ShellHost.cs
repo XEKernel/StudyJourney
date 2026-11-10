@@ -1,5 +1,4 @@
 using Avalonia.Controls;
-using Avalonia.Platform;
 using Avalonia.Threading;
 using StudyJourney.Core.Notifications;
 using StudyJourney.Core.Shell;
@@ -20,8 +19,7 @@ public sealed class ShellHost : IUiHost, INotificationRenderer, IDisposable
 {
     private readonly MainWindow _window;
     private readonly IPluginLogger _logger;
-    private readonly TrayIcon? _tray;
-    private IReadOnlyList<TrayItemDescriptor> _trayItems = [];
+    private readonly ShellTray _tray;
 
     public ShellHost(MainWindow window, IPluginLogger logger)
     {
@@ -30,8 +28,7 @@ public sealed class ShellHost : IUiHost, INotificationRenderer, IDisposable
 
         _window = window;
         _logger = logger;
-        _tray = CreateTray();
-        RebuildTrayMenu();
+        _tray = new ShellTray(ToggleMainWindow, ExitApplication, logger);
         OnSlotContentChanged(ShellSlots.Primary, null);   // 主区占位（没有插件挂内容时也不空白）
         FillFooter();
     }
@@ -70,8 +67,7 @@ public sealed class ShellHost : IUiHost, INotificationRenderer, IDisposable
     {
         ArgumentNullException.ThrowIfNull(items);
 
-        _trayItems = items;
-        RebuildTrayMenu();
+        _tray.Update(items);
     }
 
     /// <inheritdoc />
@@ -147,71 +143,17 @@ public sealed class ShellHost : IUiHost, INotificationRenderer, IDisposable
     public Task WithdrawAsync(NotificationHandle handle, CancellationToken cancellationToken) => Task.CompletedTask;
 
     /// <summary>退出：销毁托盘图标（不销毁会让系统托盘留一个幽灵图标直到鼠标划过）。</summary>
-    public void Dispose()
-    {
-        if (_tray is null)
-            return;
-
-        try { _tray.IsVisible = false; }
-        catch (Exception ex) { _logger.Warn($"[Shell] 隐藏托盘图标失败：{ex.Message}"); }
-    }
+    public void Dispose() => _tray.Dispose();
 
     // ── 内部 ───────────────────────────────────────────────────────────
 
-    private TrayIcon? CreateTray()
-    {
-        try
-        {
-            using var stream = AssetLoader.Open(new Uri("avares://StudyJourneyAvalonia/Assets/icon.ico"));
-            return new TrayIcon
-            {
-                Icon = new WindowIcon(stream),
-                ToolTipText = "学程",
-                IsVisible = true,
-            };
-        }
-        catch (Exception ex)
-        {
-            // 托盘建不起来不能让主窗起不来：降级为"只有主窗"。
-            _logger.Error("[Shell] 托盘图标初始化失败（主窗仍可用）", ex);
-            return null;
-        }
-    }
-
-    private void RebuildTrayMenu()
-    {
-        if (_tray is null)
-            return;
-
-        var menu = new NativeMenu();
-
-        var toggle = new NativeMenuItem("显示 / 隐藏窗口");
-        toggle.Click += (_, _) => ToggleWindow();
-        menu.Add(toggle);
-
-        if (_trayItems.Count > 0)
-        {
-            menu.Add(new NativeMenuItemSeparator());
-
-            foreach (var item in _trayItems)
-            {
-                var menuItem = new NativeMenuItem(item.Header);
-                var captured = item;
-                menuItem.Click += (_, _) => InvokeSafely(captured.Id, captured.Invoke);
-                menu.Add(menuItem);
-            }
-        }
-
-        menu.Add(new NativeMenuItemSeparator());
-
-        var exit = new NativeMenuItem("退出");
-        exit.Click += (_, _) => ExitApplication();
-        menu.Add(exit);
-
-        _tray.Menu = menu;
-    }
-
-    private void ToggleWindow()
+    /// <summary>
+    /// 显示 / 隐藏主窗。**主窗显隐是壳自己的职责，不是插件能力**——
+    /// 所以它不挂到 <c>IShellService</c> 上：插件不该有"把整个应用藏起来"的权力。
+    /// 托盘菜单与 <c>Ctrl+Shift+H</c> 都调这一个方法，保证两条路径行为一致
+    /// （v3.3.0 里它们是两份各自实现的代码，改一处忘另一处会出现"托盘能开、热键打不开"）。
+    /// </summary>
+    public void ToggleMainWindow()
     {
         if (_window.IsVisible)
         {
